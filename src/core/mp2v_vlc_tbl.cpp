@@ -37,7 +37,7 @@ vlc_t macroblock_address_increment_to_vlc[35] = {
     { 0b00000011010, 9 }, // 31, val: 25
     { 0b00000011001, 9 }, // 32, val: 24
     { 0b00000011000, 9 }, // 33, val: 23
-    { 0b00000001000, 9 }  // macroblock_escape
+    vlc_macroblock_escape_code
 };
 
 constexpr uint64_t vlclen_1_to_macroblock_address_increment_tbl_offset = 0x864626160E0A0602;
@@ -58,12 +58,12 @@ int32_t vlc_to_macroblock_address_increment[] = {
 
 int32_t get_macroblock_address_increment(vlc_t vlc) {
     uint64_t mask = 0xff;
-    mask <<= (vlc.len - 1);
+    mask <<= (vlc.len - 1) * 8;
     uint32_t idx = static_cast<uint32_t>(mask & vlclen_1_to_macroblock_address_increment_tbl_offset) + vlc.value;
     return vlc_to_macroblock_address_increment[idx];
 }
 
-//ISO/IEC 13818-2 : 2000 (E) Annex B - Variable length code tables. B.3 Macroblock pattern
+//ISO/IEC 13818-2 : 2000 (E) Annex B - Variable length code tables. B.9 Macroblock pattern
 vlc_t coded_block_pattern_to_vlc[64] = {
     {0b000000001, 9 },    {0b01011,     5 },    {0b01001,     5 },    {0b001101,    6 },
     {0b1101,      4 },    {0b0010111,   7 },    {0b0010011,   7 },    {0b00011111,  8 },
@@ -82,70 +82,107 @@ vlc_t coded_block_pattern_to_vlc[64] = {
     {0b01100,     5 },    {0b00001000,  8 },    {0b00000100,  8 },    {0b000000100, 9 },
     {0b111,       3 },    {0b01010,     5 },    {0b01000,     5 },    {0b001100,    6 },
 };
+                                                               // 9 8 7 6 5 4 3 2
+constexpr uint64_t vlclen_2_to_coded_block_pattern_to_offset = 0x391D151105010000;
 
-/*
-0b111	    3	60
-0b1101	    4	4
-0b1100	    4	8
-0b1011	    4	16
-0b1010	    4	32
-0b10011	    5	12
-0b10010	    5	48
-0b10001	    5	20
-0b10000	    5	40
-0b01111	    5	28
-0b01110	    5	44
-0b01101	    5	52
-0b01100	    5	56
-0b01011	    5	1
-0b01010	    5	61
-0b01001	    5	2
-0b01000	    5	62
-0b001111	6	24
-0b001110	6	36
-0b001101	6	3
-0b001100	6	63
-0b0010111	7	5
-0b0010110	7	9
-0b0010101	7	17
-0b0010100	7	33
-0b0010011	7	6
-0b0010010	7	10
-0b0010001	7	18
-0b0010000	7	34
-0b00011111	8	7
-0b00011110	8	11
-0b00011101	8	19
-0b00011100	8	35
-0b00011011	8	13
-0b00011010	8	49
-0b00011001	8	21
-0b00011000	8	41
-0b00010111	8	14
-0b00010110	8	50
-0b00010101	8	22
-0b00010100	8	42
-0b00010011	8	15
-0b00010010	8	51
-0b00010001	8	23
-0b00010000	8	43
-0b00001111	8	25
-0b00001110	8	37
-0b00001101	8	26
-0b00001100	8	38
-0b00001011	8	29
-0b00001010	8	45
-0b00001001	8	53
-0b00001000	8	57
-0b00000111	8	30
-0b00000110	8	46
-0b00000101	8	54
-0b00000100	8	58
-0b000000111	9	31
-0b000000110	9	47
-0b000000101	9	55
-0b000000100	9	59
-0b000000011	9	27
-0b000000010	9	39
-0b000000001	9	0
-*/
+int32_t vlc_to_coded_block_pattern[64] = {
+    60, 4, 8,16,32,12,48,20,40,28,44,52,56, 1,61, 2,62,24,36, 3,63, 5, 9,17,33, 6,10,18,34, 7,11,19,
+    35,13,49,21,41,14,50,22,42,15,51,23,43,25,37,26,38,29,45,53,57,30,46,54,58,31,47,55,59,27,39, 0,
+};
+
+int32_t get_coded_block_pattern(vlc_t vlc) {
+    uint64_t mask = 0xff;
+    mask <<= (vlc.len - 2) * 8;
+    uint32_t idx = static_cast<uint32_t>(mask & vlclen_2_to_coded_block_pattern_to_offset) + vlc.value;
+    return vlc_to_coded_block_pattern[idx];
+}
+
+//ISO/IEC 13818-2 : 2000 (E) Annex B - B.4 Motion vectors. B.10 Table
+vlc_t motion_code_to_vlc[] = {
+    { 0b00000011001, 11 }, // -16
+    { 0b00000011011, 11 }, // -15
+    { 0b00000011101, 11 }, // -14
+    { 0b00000011111, 11 }, // -13
+    { 0b00000100001, 11 }, // -12
+    { 0b00000100011, 11 }, // -11
+    { 0b0000010011 , 10 }, // -10
+    { 0b0000010101 , 10 }, //  -9
+    { 0b0000010111 , 10 }, //  -8
+    { 0b00000111   ,  8 }, //  -7
+    { 0b00001001   ,  8 }, //  -6
+    { 0b00001011   ,  8 }, //  -5
+    { 0b0000111    ,  7 }, //  -4
+    { 0b00011      ,  5 }, //  -3
+    { 0b0011       ,  4 }, //  -2
+    { 0b011        ,  3 }, //  -1
+    { 0b1          ,  1 }, //   0
+    { 0b010        ,  3 }, //   1
+    { 0b0010       ,  4 }, //   2
+    { 0b00010      ,  5 }, //   3
+    { 0b0000110    ,  7 }, //   4
+    { 0b00001010   ,  8 }, //   5
+    { 0b00001000   ,  8 }, //   6
+    { 0b00000110   ,  8 }, //   7
+    { 0b0000010110 , 10 }, //   8
+    { 0b0000010100 , 10 }, //   9
+    { 0b0000010010 , 10 }, //  10
+    { 0b00000100010, 11 }, //  11
+    { 0b00000100000, 11 }, //  12
+    { 0b00000011110, 11 }, //  13
+    { 0b00000011100, 11 }, //  14
+    { 0b00000011010, 11 }, //  15
+    { 0b00000011000, 11 }  //  16
+};
+
+constexpr uint32_t vlclen_motion_code_to_offset = 0x157A4E1;
+int32_t vlc_to_motion_code[33] = { 0,1,-1,2,-2,3,-3,4,-4,7,-7,6,-6,5,-5,10,-10,9,-9,8,-8,16,-16,15,-15,14,-14,13,-13,12,-12,11,-11 };
+
+int32_t get_motion_code(vlc_t vlc) {
+    uint64_t mask = 0x1f;
+    mask <<= vlc.len * 5;
+    uint32_t idx = static_cast<uint32_t>(mask & vlclen_motion_code_to_offset) + vlc.value;
+    return vlc_to_coded_block_pattern[idx];
+}
+
+//ISO/IEC 13818-2 : 2000 (E) Annex B - B.4 Motion vectors. B.11 Table.
+vlc_t dmvector_to_vlc[3] = {
+    { 0b11, 2}, // -1
+    { 0b0,  1}, //  0
+    { 0b10, 2}, //  1
+};
+
+int32_t get_dmvector(vlc_t vlc) {
+    return vlc.len == 1 ? 0 : (vlc.value == 2 ? 1 : -1);
+}
+
+//ISO/IEC 13818-2 : 2000 (E) Annex B - B.5 DCT coefficients. B.12 Table.
+vlc_t dct_size_luminance_to_vlc[12] = {
+    { 0b100, 0 },
+    { 0b00, 1 },
+    { 0b01, 2 },
+    { 0b101, 3 },
+    { 0b110, 4 },
+    { 0b1110, 5 },
+    { 0b11110, 6 },
+    { 0b111110, 7 },
+    { 0b1111110, 8 },
+    { 0b11111110, 9 },
+    { 0b111111110, 10 },
+    { 0b111111111, 11 }
+};
+
+//ISO/IEC 13818-2 : 2000 (E) Annex B - B.5 DCT coefficients. B.13 Table.
+vlc_t dct_size_chrominance_to_vlc[12] = {
+    { 0b00, 0 },
+    { 0b01, 1 },
+    { 0b10, 2 },
+    { 0b110, 3 },
+    { 0b1110, 4 },
+    { 0b11110, 5 },
+    { 0b111110, 6 },
+    { 0b1111110, 7 },
+    { 0b11111110, 8 },
+    { 0b111111110, 9 },
+    { 0b1111111110, 10 },
+    { 0b1111111111, 11 }
+};
