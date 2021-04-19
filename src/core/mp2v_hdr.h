@@ -3,6 +3,16 @@
 #pragma once
 #include <stdint.h>
 
+constexpr uint8_t picture_start_code   = 0x00;
+constexpr uint8_t slice_start_code_min = 0x01;
+constexpr uint8_t slice_start_code_max = 0xaf;
+constexpr uint8_t user_data_start_code = 0xb2;
+constexpr uint8_t sequence_header_code = 0xb3;
+constexpr uint8_t sequence_error_code  = 0xb4;
+constexpr uint8_t extension_start_code = 0xb5;
+constexpr uint8_t sequence_end_code    = 0xb7;
+constexpr uint8_t group_start_code     = 0xb8;
+
 // ISO/IEC 13818-2 : 2000 (E) 6.2.2.1
 struct sequence_header_t {
     //     | Syntax element                               | No. of bits | Mnemonic
