@@ -3,6 +3,7 @@
 #pragma once
 #include <stdint.h>
 
+/* start codes */
 constexpr uint8_t picture_start_code   = 0x00;
 constexpr uint8_t slice_start_code_min = 0x01;
 constexpr uint8_t slice_start_code_max = 0xaf;
@@ -12,6 +13,17 @@ constexpr uint8_t sequence_error_code  = 0xb4;
 constexpr uint8_t extension_start_code = 0xb5;
 constexpr uint8_t sequence_end_code    = 0xb7;
 constexpr uint8_t group_start_code     = 0xb8;
+
+/* extension ids */
+constexpr uint8_t sequence_extension_id                  = 1;
+constexpr uint8_t sequence_display_extension_id          = 2;
+constexpr uint8_t quant_matrix_extension_id              = 3;
+constexpr uint8_t copiright_extension_id                 = 4;
+constexpr uint8_t sequence_scalable_extension_id         = 5;
+constexpr uint8_t picture_display_extension_id           = 7;
+constexpr uint8_t picture_coding_extension_id            = 8; //?
+constexpr uint8_t picture_spatial_scalable_extension_id  = 9;
+constexpr uint8_t picture_temporal_scalable_extension_id = 10;
 
 // ISO/IEC 13818-2 : 2000 (E) 6.2.2.1
 struct sequence_header_t {
@@ -279,6 +291,6 @@ struct macroblock_t {
 
 // ISO/IEC 13818-2 : 2000 (E) 6.2.2
 struct video_sequence_t {
-    sequence_header_t     sequence_header;
-    sequence_extension_t* sequence_extension;
+    sequence_header_t    sequence_header;
+    sequence_extension_t sequence_extension;
 };

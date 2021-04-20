@@ -7,6 +7,7 @@ struct vlc_t {
     uint16_t len;
 };
 
+constexpr vlc_t    vlc_start_code = { 0x000001, 24 };
 constexpr uint32_t macroblock_escape_code = 34;
 constexpr vlc_t    vlc_macroblock_escape_code = { 0b00000001000, 9 };
 
