@@ -60,7 +60,7 @@ public:
             int offset = 64 - len;
             for (int pos = 0; pos < range; pos++) {
                 if ((uint32_t)((tmp >> offset) & mask) == pattern) {
-                    buffer_idx += (pos + len);
+                    buffer_idx += pos;
                     return true;
                 }
                 tmp <<= 1;
@@ -71,7 +71,7 @@ public:
     }
 
     void skip_bits(int len) {
-        buffer_idx++;
+        buffer_idx += len;
     }
 
 private:

@@ -21,9 +21,21 @@ constexpr uint8_t quant_matrix_extension_id              = 3;
 constexpr uint8_t copiright_extension_id                 = 4;
 constexpr uint8_t sequence_scalable_extension_id         = 5;
 constexpr uint8_t picture_display_extension_id           = 7;
-constexpr uint8_t picture_coding_extension_id            = 8; //?
+constexpr uint8_t picture_coding_extension_id            = 8;
 constexpr uint8_t picture_spatial_scalable_extension_id  = 9;
 constexpr uint8_t picture_temporal_scalable_extension_id = 10;
+
+/* scalable mode */
+constexpr uint8_t scalable_mode_data_partitioning    = 0;
+constexpr uint8_t scalable_mode_spatial_scalability  = 1;
+constexpr uint8_t scalable_mode_snr_scalability      = 2;
+constexpr uint8_t scalable_mode_temporal_scalability = 3;
+
+/* picture structure */
+constexpr uint8_t picture_structure_reserved = 0;
+constexpr uint8_t picture_structure_topfield = 1;
+constexpr uint8_t picture_structure_botfield = 2;
+constexpr uint8_t picture_structure_framepic = 3;
 
 // ISO/IEC 13818-2 : 2000 (E) 6.2.2.1
 struct sequence_header_t {
@@ -290,7 +302,4 @@ struct macroblock_t {
 };
 
 // ISO/IEC 13818-2 : 2000 (E) 6.2.2
-struct video_sequence_t {
-    sequence_header_t    sequence_header;
-    sequence_extension_t sequence_extension;
-};
+// video_sequence()
