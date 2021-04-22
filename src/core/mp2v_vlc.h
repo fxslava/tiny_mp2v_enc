@@ -17,9 +17,30 @@ constexpr vlc_t    vlc_start_code = { 0x000001, 24 };
 constexpr uint32_t macroblock_escape_code = 34;
 constexpr vlc_t    vlc_macroblock_escape_code = { 0b00000001000, 11 };
 
+constexpr uint32_t macroblock_quant_bit = 0b100000;
+constexpr uint32_t macroblock_motion_forward_bit = 0b10000;
+constexpr uint32_t macroblock_motion_backward_bit = 0b1000;
+constexpr uint32_t macroblock_pattern_bit = 0b100;
+constexpr uint32_t macroblock_intra_bit = 0b10;
+constexpr uint32_t spatial_temporal_weight_code_flag_bit = 0b1;
+
 //ISO/IEC 13818-2 : 2000 (E) Annex B - Variable length code tables. B.1 Macroblock addressing
 extern vlc_t macroblock_address_increment_to_vlc[35];
 int32_t get_macroblock_address_increment(bitstream_reader_i* bs);
+
+//ISO/IEC 13818-2 : 2000 (E) Annex B - Variable length code tables. B.1 Macroblock type (Tables B.2 to B.8.)
+extern macroblock_type_vlc_t i_macroblock_type[2];
+extern macroblock_type_vlc_t p_macroblock_type[7];
+extern macroblock_type_vlc_t b_macroblock_type[11];
+uint8_t get_macroblock_type(bitstream_reader_i* bs, int picture_coding_type);
+
+extern macroblock_type_vlc_t ss_i_macroblock_type[5];
+extern macroblock_type_vlc_t ss_p_macroblock_type[16];
+extern macroblock_type_vlc_t ss_b_macroblock_type[20];
+uint8_t get_spatial_scalability_macroblock_type(bitstream_reader_i* bs, int picture_coding_type);
+
+extern macroblock_type_vlc_t get_snr_macroblock_type[3];
+uint8_t get_snr_scalability_macroblock_type(bitstream_reader_i* bs, int picture_coding_type);
 
 //ISO/IEC 13818-2 : 2000 (E) Annex B - Variable length code tables. B.9 Macroblock pattern
 extern int32_t vlc_to_coded_block_pattern[64];

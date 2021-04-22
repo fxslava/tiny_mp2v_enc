@@ -28,49 +28,66 @@ static void local_copy_array(bitstream_reader_i* bs, T* dst) {
     }
 }
 
-bool slice_c::parse_modes() {
-    macroblock_modes_t modes;
-    auto& ctx = m_pic->m_ctx;
-    auto& pcext = ctx.picture_coding_extension;
+bool slice_c::parse_modes(macroblock_t &mb) {
+    auto& modes  = mb.macroblock_modes;
+    auto& ctx    = m_pic->m_ctx;
+    auto& pcext  = ctx.picture_coding_extension;
+    auto& pssext = ctx.picture_spatial_scalable_extension;
+    auto& ph     = ctx.picture_header;
 
-    // macroblock_type 1 - 9 vlclbf
-    if (/*(spatial_temporal_weight_code_flag = = 1) && (spatial_temporal_weight_code_table_index != '00')*/1) {
+    modes.macroblock_type = get_macroblock_type(m_bs, ph->picture_coding_type);
+    if ((modes.macroblock_type & spatial_temporal_weight_code_flag_bit) && (pssext->spatial_temporal_weight_code_table_index != 0)) {
         modes.spatial_temporal_weight_code = m_bs->read_next_bits(2);
     }
-    if (/*macroblock_motion_forward || macroblock_motion_backward*/1) {
+    if ((modes.macroblock_type & macroblock_motion_forward_bit) || (modes.macroblock_type & macroblock_motion_backward_bit)) {
         if (pcext->picture_structure == picture_structure_framepic) {
-            if (/*frame_pred_frame_dct == 0*/1)
+            if (pcext->frame_pred_frame_dct == 0)
                 modes.frame_motion_type = m_bs->read_next_bits(2);
         }
         else {
             modes.field_motion_type = m_bs->read_next_bits(2);
         }
     }
-    if ((pcext->picture_structure == picture_structure_framepic) /*&& (frame_pred_frame_dct == 0) && (macroblock_intra || macoblock_pattern)*/) {
+    if ((pcext->picture_structure == picture_structure_framepic) && (pcext->frame_pred_frame_dct == 0) && 
+        ((modes.macroblock_type & macroblock_intra_bit) || (modes.macroblock_type & macroblock_pattern_bit))) {
         modes.dct_type = m_bs->read_next_bits(1);
     }
     return true;
 }
 
+bool slice_c::parse_coded_block_pattern(macroblock_t& mb) {
+    auto& se = m_pic->m_ctx.sequence_extension;
+    //coded_block_pattern_420 3-9 vlclbf
+    if (se->chroma_format == chroma_format_422)
+        mb.coded_block_pattern.coded_block_pattern_1 = m_bs->read_next_bits(2);
+    if (se->chroma_format == chroma_format_444)
+        mb.coded_block_pattern.coded_block_pattern_2 = m_bs->read_next_bits(6);
+    return false;
+}
+
 bool slice_c::parse_macroblock() {
     macroblock_t mb;
+    auto& ctx = m_pic->m_ctx;
+    auto& pcext = ctx.picture_coding_extension;
+    auto& modes = mb.macroblock_modes;
+
     mb.macroblock_address_increment = 0;
     while (m_bs->get_next_bits(vlc_macroblock_escape_code.len) == vlc_macroblock_escape_code.value) {
         m_bs->skip_bits(vlc_macroblock_escape_code.len);
         mb.macroblock_address_increment += 33;
     }
     mb.macroblock_address_increment += get_macroblock_address_increment(m_bs);
-    parse_modes();
-    if (/*macroblock_quant*/1)
+    parse_modes(mb);
+    if (modes.macroblock_type & macroblock_quant_bit)
         mb.quantiser_scale_code = m_bs->read_next_bits(5);
-    if (/*macroblock_motion_forward || (macroblock_intra && concealment_motion_vectors)*/1);
+    if (modes.macroblock_type & macroblock_motion_forward_bit || ((modes.macroblock_type & macroblock_intra_bit) && pcext->concealment_motion_vectors));
         //motion_vectors(0);
-    if (/*macroblock_motion_backward*/1);
+    if (modes.macroblock_type & macroblock_motion_backward_bit);
         //motion_vectors(1);
-    if (/*macroblock_intra && concealment_motion_vectors*/1)
+    if ((modes.macroblock_type & macroblock_intra_bit) && pcext->concealment_motion_vectors)
         m_bs->skip_bits(1);
-    if (/*macroblock_pattern*/1);
-        //coded_block_pattern();
+    if (modes.macroblock_type & macroblock_pattern_bit)
+        parse_coded_block_pattern(mb);
     /*for (i = 0; i < block_count; i + +) {
         block(i)
     }*/

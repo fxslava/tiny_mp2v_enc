@@ -43,6 +43,11 @@ constexpr uint8_t picture_coding_type_pred  = 2;
 constexpr uint8_t picture_coding_type_bidir = 3;
 constexpr uint8_t picture_coding_type_dc    = 4; //Shall not be used
 
+/* chroma format */
+constexpr uint8_t chroma_format_420 = 1;
+constexpr uint8_t chroma_format_422 = 2;
+constexpr uint8_t chroma_format_444 = 3;
+
 // ISO/IEC 13818-2 : 2000 (E) 6.2.2.1
 struct sequence_header_t {
     //     | Syntax element                               | No. of bits | Mnemonic

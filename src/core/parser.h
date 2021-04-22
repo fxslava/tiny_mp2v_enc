@@ -27,18 +27,23 @@ struct parsed_context_t {
 
 class picture_c;
 
+struct mb_data_t {
+    macroblock_t mb;
+};
+
 class slice_c {
 public:
     slice_t slice;
 public:
     slice_c(bitstream_reader_i* bitstream, picture_c* pic) : m_bs(bitstream), m_pic(pic), slice{0} {};
     bool parse_slice();
-    bool parse_modes();
+    bool parse_modes(macroblock_t &mb);
+    bool parse_coded_block_pattern(macroblock_t& mb);
     bool parse_macroblock();
 private:
     bitstream_reader_i* m_bs;
     picture_c* m_pic;
-    std::vector<macroblock_t> mb_data;
+    std::vector<mb_data_t> mb_data;
 };
 
 class picture_c {
