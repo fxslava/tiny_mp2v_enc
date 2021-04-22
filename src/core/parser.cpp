@@ -2,7 +2,7 @@
 
 #include "parser.h"
 #include "mp2v_hdr.h"
-#include "mp2v_vlc_tbl.h"
+#include "mp2v_vlc.h"
 
 #define CHECK(p) { if (!(p)) return false; }
 
@@ -49,6 +49,7 @@ bool slice_c::parse_modes() {
     if ((pcext->picture_structure == picture_structure_framepic) /*&& (frame_pred_frame_dct == 0) && (macroblock_intra || macoblock_pattern)*/) {
         modes.dct_type = m_bs->read_next_bits(1);
     }
+    return true;
 }
 
 bool slice_c::parse_macroblock() {
@@ -58,7 +59,7 @@ bool slice_c::parse_macroblock() {
         m_bs->skip_bits(vlc_macroblock_escape_code.len);
         mb.macroblock_address_increment += 33;
     }
-    /* macroblock_address_increment 1 - 11 vlclbf */
+    mb.macroblock_address_increment += get_macroblock_address_increment(m_bs);
     parse_modes();
     if (/*macroblock_quant*/1)
         mb.quantiser_scale_code = m_bs->read_next_bits(5);
@@ -97,7 +98,7 @@ bool slice_c::parse_slice() {
     }
     m_bs->skip_bits(1); /* with the value '0' */
     do {
-        //parse_macroblock();
+        parse_macroblock();
     } while (m_bs->get_next_bits(23) != 0);
     local_find_start_code(m_bs);
     return true;

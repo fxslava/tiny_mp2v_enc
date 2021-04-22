@@ -9,7 +9,8 @@ file(
         *.cpp
         ../sample_common/sample_args.cpp
         ../../src/core/parser.cpp
-        ../../src/core/mp2v_vlc_tbl.cpp
+        ../../src/core/mp2v_vlc.cpp
+        ../../src/core/common/cpu.cpp
 )
 
 add_executable(
