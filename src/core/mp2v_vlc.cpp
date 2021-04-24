@@ -63,12 +63,14 @@ int32_t get_macroblock_address_increment(bitstream_reader_i* bs) {
         if (buffer > 0x0B000000)
             return 15 - bs->read_next_bits(7);
         else
-            return 22 - bs->read_next_bits(8);
+            return 21 - bs->read_next_bits(8);
     case 5:
         if (buffer > 0x05C00000)
-            return 21 - bs->read_next_bits(10);
+            return 21 - bs->read_next_bits(8);
         else if (buffer > 0x04600000)
-            return 39 - bs->read_next_bits(11);
+            return 39 - bs->read_next_bits(10);
+        else
+            return 57 - bs->read_next_bits(11);
     case 6: return 57 - bs->read_next_bits(11);
     }
     return 0; // invalid address increment

@@ -1,1 +1,2 @@
 add_subdirectory(parser_test)
+add_subdirectory(gtest)

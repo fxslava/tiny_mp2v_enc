@@ -2,7 +2,7 @@
 
 #include <iostream>
 #include "sample_args.h"
-#include "api/bitstream.h"
+#include "bitstream.h"
 #include "core/parser.h"
 
 class bitstream_file_reader: public bitstream_reader_i {
