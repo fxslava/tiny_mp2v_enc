@@ -8,8 +8,8 @@ class random_vlc_code_bitstream_generator_c : public bitstream_reader_i {
 private:
     void generate_vlc_code(uint32_t value, uint32_t len) {
         uint32_t offset = 32 - len;
-        uint32_t max_val = (1 << offset) - 1;
-        std::uniform_int_distribution<uint32_t> distr_low(0, max_val);
+        uint64_t max_val = (1ll << offset) - 1;
+        std::uniform_int_distribution<uint32_t> distr_low(0, (uint32_t)max_val);
         std::uniform_int_distribution<uint32_t> distr_high(0, 0xffffffff);
         buffer = ((uint64_t)(distr_low(gen) & max_val) << 32) | ((uint64_t)distr_high(gen) & 0xffffffff);
         buffer |= ((uint64_t)value << (offset + 32));

@@ -57,7 +57,7 @@ bool slice_c::parse_modes(macroblock_t &mb) {
 
 bool slice_c::parse_coded_block_pattern(macroblock_t& mb) {
     auto& se = m_pic->m_ctx.sequence_extension;
-    //coded_block_pattern_420 3-9 vlclbf
+    mb.coded_block_pattern.coded_block_pattern_420 = get_coded_block_pattern(m_bs);
     if (se->chroma_format == chroma_format_422)
         mb.coded_block_pattern.coded_block_pattern_1 = m_bs->read_next_bits(2);
     if (se->chroma_format == chroma_format_444)
