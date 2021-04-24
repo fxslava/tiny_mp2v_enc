@@ -19,23 +19,23 @@
 
 #define ARRAY_SIZE(p) (sizeof(p)/sizeof(*p))
 
-constexpr int TEST_NUM_ITERATIONS = 10;
+constexpr int TEST_NUM_ITERATIONS = 1000;
 
-typedef uint8_t(get_macroblock_type_func)(bitstream_reader_i*, int);
-
-static bool test_vlc(random_vlc_code_bitstream_generator_c &gen_vlc, vlc_t vlc, int MBA) {
+typedef int32_t(get_vlc_val_func)(bitstream_reader_i*);
+static bool test_vlc(random_vlc_code_bitstream_generator_c &gen_vlc, vlc_t vlc, int val, get_vlc_val_func func) {
     bool test = true;
     for (int i = 0; i < TEST_NUM_ITERATIONS; i++) {
         gen_vlc.generate_vlc_code(vlc);
-        int parsed_MBA = get_macroblock_address_increment(&gen_vlc);
-        if (parsed_MBA != MBA) {
-            ERROR_PRINTF("VLC parse failed: parsed MBA value =  %d, expected %d\n", parsed_MBA, MBA);
+        int parsed_vlc = func(&gen_vlc);
+        if (parsed_vlc != val) {
+            ERROR_PRINTF("VLC parse failed: parsed VLC value =  %d, expected %d\n", parsed_vlc, val);
             test = false;
         }
     }
     return test;
 }
 
+typedef uint8_t(get_macroblock_type_func)(bitstream_reader_i*, int);
 static bool test_macroblock_type_vlc(random_vlc_code_bitstream_generator_c& gen_vlc, macroblock_type_vlc_t vlc, get_macroblock_type_func func, int picture_coding_type) {
     bool test = true;
     for (int i = 0; i < TEST_NUM_ITERATIONS; i++) {
@@ -56,11 +56,19 @@ TEST(cavlc_test, fn##_##picture_coding_type) { \
         EXPECT_TRUE(test_macroblock_type_vlc(gen_vlc, vlc, fn, picture_coding_type)); \
 }
 
+#define TEST_GET_VLC_FUNC(arr, offset, fn) \
+TEST(cavlc_test, fn) { \
+    random_vlc_code_bitstream_generator_c gen_vlc; \
+    int macroblock_address_increment = 0; \
+    for (int val = 0; val < ARRAY_SIZE(arr); val++) { \
+        EXPECT_TRUE(test_vlc(gen_vlc, arr[val], val + offset, fn)); } \
+}
+
 TEST(cavlc_test, macroblock_address_increment) {
     random_vlc_code_bitstream_generator_c gen_vlc;
     int macroblock_address_increment = 0;
     for (int MBA = 1; MBA < ARRAY_SIZE(macroblock_address_increment_to_vlc) - 1; MBA++) {
-        EXPECT_TRUE(test_vlc(gen_vlc, macroblock_address_increment_to_vlc[MBA], MBA));
+        EXPECT_TRUE(test_vlc(gen_vlc, macroblock_address_increment_to_vlc[MBA], MBA, get_macroblock_address_increment));
     }
 }
 
@@ -71,3 +79,6 @@ TEST_MACROBLOCK_TYPE(ss_i_macroblock_type, get_spatial_scalability_macroblock_ty
 TEST_MACROBLOCK_TYPE(ss_p_macroblock_type, get_spatial_scalability_macroblock_type, picture_coding_type_pred);
 TEST_MACROBLOCK_TYPE(ss_b_macroblock_type, get_spatial_scalability_macroblock_type, picture_coding_type_bidir);
 TEST_MACROBLOCK_TYPE(snr_macroblock_type, get_snr_scalability_macroblock_type, picture_coding_type_intra);
+TEST_GET_VLC_FUNC(coded_block_pattern_to_vlc, 0, get_coded_block_pattern);
+TEST_GET_VLC_FUNC(motion_code_to_vlc, -16, get_motion_code);
+TEST_GET_VLC_FUNC(dmvector_to_vlc, -1, get_dmvector);
