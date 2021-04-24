@@ -39,7 +39,7 @@ extern macroblock_type_vlc_t ss_p_macroblock_type[16];
 extern macroblock_type_vlc_t ss_b_macroblock_type[20];
 uint8_t get_spatial_scalability_macroblock_type(bitstream_reader_i* bs, int picture_coding_type);
 
-extern macroblock_type_vlc_t get_snr_macroblock_type[3];
+extern macroblock_type_vlc_t snr_macroblock_type[3];
 uint8_t get_snr_scalability_macroblock_type(bitstream_reader_i* bs, int picture_coding_type);
 
 //ISO/IEC 13818-2 : 2000 (E) Annex B - Variable length code tables. B.9 Macroblock pattern

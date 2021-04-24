@@ -77,173 +77,174 @@ int32_t get_macroblock_address_increment(bitstream_reader_i* bs) {
 }
 
 macroblock_type_vlc_t i_macroblock_type[2] = {
-    { 0b1,      1, 0b000010},
+    { 0b1,      1, 0b000010},//0x80
     { 0b01,     2, 0b100010}
 };
 
 macroblock_type_vlc_t p_macroblock_type[7] = {
-    { 0b1,      1, 0b010100 },
+    { 0b1,      1, 0b010100 },//0x80
     { 0b01,     2, 0b000100 },//0x40
     { 0b001,    3, 0b010000 },//0x20
-    { 0b00011,  5, 0b000010 },//0x18
+    { 0b00011,  5, 0b000010 },
     { 0b00010,  5, 0b110100 },
-    { 0b00001,  5, 0b100100 },
-    { 0b000001, 6, 0b100010 } //0x04
+    { 0b00001,  5, 0b100100 },//0x08
+    { 0b000001, 6, 0b100010 }
 };
 
 macroblock_type_vlc_t b_macroblock_type[11] = {
-    { 0b10,     2, 0b011000 },
     { 0b11,     2, 0b011100 },
-    { 0b010,    3, 0b001000 }, //0x40
+    { 0b10,     2, 0b011000 }, //0x80
     { 0b011,    3, 0b001100 },
-    { 0b0010,   4, 0b010000 }, //0x20
+    { 0b010,    3, 0b001000 }, //0x40
     { 0b0011,   4, 0b010100 },
-    { 0b00011,  5, 0b000010 }, //0x18
-    { 0b00010,  5, 0b111100 },
-    { 0b000011, 6, 0b110100 }, //0x0C
+    { 0b0010,   4, 0b010000 }, //0x20
+    { 0b00011,  5, 0b000010 },
+    { 0b00010,  5, 0b111100 }, //0x10
+    { 0b000011, 6, 0b110100 },
     { 0b000010, 6, 0b101100 },
     { 0b000001, 6, 0b100010 }
 };
                                     //-,        1,        2,        3,
-uint8_t p_macroblock_type_0x04[5] = { 0,        0b100100, 0b110100, 0b000010 };
-uint8_t b_macroblock_type_0x40[4] = { 0,        0b011100, 0b011000 };
-uint8_t b_macroblock_type_0x20[4] = { 0,        0b001100, 0b001000 };
-uint8_t b_macroblock_type_0x18[4] = { 0,        0b010100, 0b010000 };
-uint8_t b_macroblock_type_0x0C[4] = { 0,        0b111100, 0b000010 };
+uint8_t p_macroblock_type_0x08[5] = { 0,        0b100100, 0b110100, 0b000010 };
+uint8_t b_macroblock_type_0x80[4] = { 0,        0,        0b011000, 0b011100 };
+uint8_t b_macroblock_type_0x40[4] = { 0,        0,        0b001000, 0b001100 };
+uint8_t b_macroblock_type_0x20[4] = { 0,        0,        0b010000, 0b010100 };
+uint8_t b_macroblock_type_0x10[4] = { 0,        0,        0b111100, 0b000010 };
 uint8_t b_macroblock_type_else[5] = { 0,        0b100010, 0b101100, 0b110100 };
 
 uint8_t get_macroblock_type(bitstream_reader_i* bs, int picture_coding_type) {
     uint8_t buffer = (uint8_t)bs->get_next_bits(8);
     if (picture_coding_type == 1) {// I
-        if (buffer > 0x04) return 0b000010;
-        else               return 0b100010;
+        if (buffer >= 0x80) return 0b000010;
+        else                return 0b100010;
     }
     if (picture_coding_type == 2) {// P
-        if (buffer > 0x40) { bs->skip_bits(1);  return 0b010100; } else
-        if (buffer > 0x20) { bs->skip_bits(2);  return 0b000100; } else
-        if (buffer > 0x18) { bs->skip_bits(3);  return 0b010000; } else
-        if (buffer > 0x04) return p_macroblock_type_0x04[bs->read_next_bits(5)]; else { 
-         bs->skip_bits(6); return 0b100010; }
+        if (buffer >= 0x80) { bs->skip_bits(1);  return 0b010100; } else
+        if (buffer >= 0x40) { bs->skip_bits(2);  return 0b000100; } else
+        if (buffer >= 0x20) { bs->skip_bits(3);  return 0b010000; } else
+        if (buffer >= 0x08) return p_macroblock_type_0x08[bs->read_next_bits(5)]; else { 
+         bs->skip_bits(6);  return 0b100010; }
     }
     if (picture_coding_type == 3) {// B
-        if (buffer > 0x40) return b_macroblock_type_0x40[bs->read_next_bits(2)]; else
-        if (buffer > 0x20) return b_macroblock_type_0x20[bs->read_next_bits(3)]; else
-        if (buffer > 0x18) return b_macroblock_type_0x18[bs->read_next_bits(4)]; else
-        if (buffer > 0x0C) return b_macroblock_type_0x0C[bs->read_next_bits(5)];
-        else               return b_macroblock_type_else[bs->read_next_bits(6)];
+        if (buffer >= 0x80) return b_macroblock_type_0x80[bs->read_next_bits(2)]; else
+        if (buffer >= 0x40) return b_macroblock_type_0x40[bs->read_next_bits(3)]; else
+        if (buffer >= 0x20) return b_macroblock_type_0x20[bs->read_next_bits(4)]; else
+        if (buffer >= 0x10) return b_macroblock_type_0x10[bs->read_next_bits(5)];
+        else                return b_macroblock_type_else[bs->read_next_bits(6)];
     }
     return true;
 }
 
 macroblock_type_vlc_t ss_i_macroblock_type[5] = {
-    { 0b1,         1, 0b000100 },
-    { 0b01,        2, 0b100100 }, //0x04
-    { 0b0011,      4, 0b000010 }, //0x03
+    { 0b1,         1, 0b000100 }, //0x80
+    { 0b01,        2, 0b100100 }, //0x40
+    { 0b0011,      4, 0b000010 },
     { 0b0010,      4, 0b100010 },
     { 0b0001,      4, 0b000000 }
 };
 
 macroblock_type_vlc_t ss_p_macroblock_type[16] = {
     { 0b11,        2, 0b110101 },
-    { 0b10,        2, 0b010100 },
-    { 0b011,       3, 0b010101 }, //0x06
-    { 0b010,       3, 0b110100 },
-    { 0b0011,      4, 0b010001 }, //0x03
-    { 0b0010,      4, 0b010000 },
-    { 0b000111,    6, 0b000101 }, //0x1C
+    { 0b10,        2, 0b010100 }, //0x80
+    { 0b011,       3, 0b010101 },
+    { 0b010,       3, 0b110100 }, //0x40
+    { 0b0011,      4, 0b010001 },
+    { 0b0010,      4, 0b010000 }, //0x20
+    { 0b000111,    6, 0b000101 },
     { 0b000110,    6, 0b000001 },
     { 0b000101,    6, 0b100101 },
-    { 0b000100,    6, 0b100100 },
-    { 0b0000111,   7, 0b000010 }, //0x0E
+    { 0b000100,    6, 0b100100 }, //0x10
+    { 0b0000111,   7, 0b000010 },
     { 0b0000110,   7, 0b100010 },
     { 0b0000101,   7, 0b000100 },
-    { 0b0000100,   7, 0b000100 },
+    { 0b0000100,   7, 0b000100 }, //0x08
     { 0b0000011,   7, 0b000000 },
     { 0b0000010,   7, 0b100100 }
 };
 
 macroblock_type_vlc_t ss_b_macroblock_type[20] = {
     { 0b11,        2, 0b011100 },
-    { 0b10,        2, 0b011000 },
-    { 0b011,       3, 0b001100 }, //0x060 2bit
-    { 0b010,       3, 0b001000 },
-    { 0b0011,      4, 0b010100 }, //0x030 3bit
-    { 0b0010,      4, 0b010000 },
-    { 0b000111,    6, 0b001101 }, //0x1C0 4bit
+    { 0b10,        2, 0b011000 }, //0x80
+    { 0b011,       3, 0b001100 },
+    { 0b010,       3, 0b001000 }, //0x40
+    { 0b0011,      4, 0b010100 },
+    { 0b0010,      4, 0b010000 }, //0x20
+    { 0b000111,    6, 0b001101 },
     { 0b000110,    6, 0b001001 },
     { 0b000101,    6, 0b010101 },
-    { 0b000100,    6, 0b010001 },
-    { 0b0000111,   7, 0b111100 }, //0x0E0 6bit
+    { 0b000100,    6, 0b010001 }, //0x10
+    { 0b0000111,   7, 0b111100 },
     { 0b0000110,   7, 0b000010 },
     { 0b0000101,   7, 0b101100 },
-    { 0b0000100,   7, 0b110100 },
-    { 0b00000101,  8, 0b110101 }, //0x050 7bit
-    { 0b00000100,  8, 0b100010 },
-    { 0b000001111, 9, 0b000100 }, //0x078 8bit
+    { 0b0000100,   7, 0b110100 }, //0x08
+    { 0b000001111, 9, 0b000100 },
     { 0b000001110, 9, 0b000000 },
     { 0b000001101, 9, 0b100100 },
-    { 0b000001100, 9, 0b101101 }
+    { 0b000001100, 9, 0b101101 }, //0x06
+    { 0b00000101,  8, 0b110101 },
+    { 0b00000100,  8, 0b100010 }
     //else 9bit
 };
 
-                                        //-,        1,        2,        3
-uint8_t ss_i_macroblock_type_else[4]  = { 0,        0b000000, 0b100010, 0b000010 };
-uint8_t ss_p_macroblock_type_0x06[4]  = { 0,        0,        0b010100, 0b110101 };
-uint8_t ss_p_macroblock_type_0x03[4]  = { 0,        0,        0b110100, 0b010101 };
-uint8_t ss_p_macroblock_type_0x1C[4]  = { 0,        0,        0b010000, 0b010001 };
-                                        //4,        5,        6,        7
-uint8_t ss_p_macroblock_type_0x0E[8]  = { 0b100100, 0b100101, 0b000001, 0b000101 };
-                                        //-,        1,        2,        3,        4,        5,        6,        7
-uint8_t ss_p_macroblock_type_else[8]  = { 0,        0,        0b100100, 0b000000, 0b000100, 0b000100, 0b100010, 0b000010 };
-                                        //-,        1,        2,        3
-uint8_t ss_b_macroblock_type_0x060[4] = { 0,        0,        0b011000, 0b011100 };
-uint8_t ss_b_macroblock_type_0x030[4] = { 0,        0,        0b001000, 0b001100 };
-uint8_t ss_b_macroblock_type_0x1C0[4] = { 0,        0,        0b010000, 0b010100 };
-                                        //4,        5,        6,        7
-uint8_t ss_b_macroblock_type_0x0E0[4] = { 0b010001, 0b010101, 0b001001, 0b001101 };
-uint8_t ss_b_macroblock_type_0x050[4] = { 0b110100, 0b101100, 0b000010, 0b111100 };
-uint8_t ss_b_macroblock_type_0x078[4] = { 0b100010, 0b110101, 0,        0 };
-                                        //12,       13,       14,       15
-uint8_t ss_b_macroblock_type_else[4] = { 0b101101, 0b100100, 0b000000, 0b000100 };
+                                       //-,        1,        2,        3
+uint8_t ss_i_macroblock_type_else[4] = { 0,        0b000000, 0b100010, 0b000010 };
+uint8_t ss_p_macroblock_type_0x80[4] = { 0,        0,        0b010100, 0b110101 };
+uint8_t ss_p_macroblock_type_0x40[4] = { 0,        0,        0b110100, 0b010101 };
+uint8_t ss_p_macroblock_type_0x20[4] = { 0,        0,        0b010000, 0b010001 };
+                                       //4,        5,        6,        7
+uint8_t ss_p_macroblock_type_0x10[8] = { 0b100100, 0b100101, 0b000001, 0b000101 };
+                                       //-,        1,        2,        3,        4,        5,        6,        7
+uint8_t ss_p_macroblock_type_else[8] = { 0,        0,        0b100100, 0b000000, 0b000100, 0b000100, 0b100010, 0b000010 };
+                                       //-,        1,        2,        3
+uint8_t ss_b_macroblock_type_0x80[4] = { 0,        0,        0b011000, 0b011100 };
+uint8_t ss_b_macroblock_type_0x40[4] = { 0,        0,        0b001000, 0b001100 };
+uint8_t ss_b_macroblock_type_0x20[4] = { 0,        0,        0b010000, 0b010100 };
+                                       //4,        5,        6,        7
+uint8_t ss_b_macroblock_type_0x10[4] = { 0b010001, 0b010101, 0b001001, 0b001101 };
+uint8_t ss_b_macroblock_type_0x08[4] = { 0b110100, 0b101100, 0b000010, 0b111100 };
+                                       //12,       13,       14,       15
+uint8_t ss_b_macroblock_type_0x06[4] = { 0b101101, 0b100100, 0b000000, 0b000100 };
+                                       //4,        5,        6,        7
+uint8_t ss_b_macroblock_type_else[4] = { 0b100010, 0b110101, 0,        0 };
 
 uint8_t get_spatial_scalability_macroblock_type(bitstream_reader_i* bs, int picture_coding_type) {
     if (picture_coding_type == 1) {// Intra
         uint8_t buffer = (uint8_t)bs->get_next_bits(8);
-        if (buffer > 0x04) { bs->skip_bits(1); return 0b000100; } else
-        if (buffer > 0x03) { bs->skip_bits(2); return 0b100100; } else
+        if (buffer >= 0x80) { bs->skip_bits(1); return 0b000100; } else
+        if (buffer >= 0x40) { bs->skip_bits(2); return 0b100100; } else
             return ss_i_macroblock_type_else[bs->read_next_bits(4)];
     }
     if (picture_coding_type == 2) {// Pred
         uint8_t buffer = (uint8_t)bs->get_next_bits(8);
-        if (buffer > 0x06) return ss_p_macroblock_type_0x06[bs->read_next_bits(2)]; else
-        if (buffer > 0x03) return ss_p_macroblock_type_0x03[bs->read_next_bits(3)]; else
-        if (buffer > 0x1C) return ss_p_macroblock_type_0x1C[bs->read_next_bits(4)]; else
-        if (buffer > 0x0E) return ss_p_macroblock_type_0x0E[bs->read_next_bits(6)]; else
+        if (buffer >= 0x80) return ss_p_macroblock_type_0x80[bs->read_next_bits(2)]; else
+        if (buffer >= 0x40) return ss_p_macroblock_type_0x40[bs->read_next_bits(3)]; else
+        if (buffer >= 0x20) return ss_p_macroblock_type_0x20[bs->read_next_bits(4)]; else
+        if (buffer >= 0x10) return ss_p_macroblock_type_0x10[bs->read_next_bits(6) - 4]; else
             return ss_p_macroblock_type_else[bs->read_next_bits(7)];
     }
     if (picture_coding_type == 3) {// Bidir
-        uint8_t buffer = (uint8_t)bs->get_next_bits(12);
-        if (buffer > 0x060) return ss_b_macroblock_type_0x060[bs->read_next_bits(2)]; else
-        if (buffer > 0x030) return ss_b_macroblock_type_0x030[bs->read_next_bits(3)]; else
-        if (buffer > 0x1C0) return ss_b_macroblock_type_0x1C0[bs->read_next_bits(4)]; else
-        if (buffer > 0x0E0) return ss_b_macroblock_type_0x0E0[bs->read_next_bits(6)]; else
-        if (buffer > 0x050) return ss_b_macroblock_type_0x050[bs->read_next_bits(7)]; else
-        if (buffer > 0x078) return ss_b_macroblock_type_0x078[bs->read_next_bits(8)]; else
-            return ss_p_macroblock_type_else[bs->read_next_bits(9)];
+        uint8_t buffer = (uint8_t)bs->get_next_bits(8);
+        if (buffer >= 0x80) return ss_b_macroblock_type_0x80[bs->read_next_bits(2)]; else
+        if (buffer >= 0x40) return ss_b_macroblock_type_0x40[bs->read_next_bits(3)]; else
+        if (buffer >= 0x20) return ss_b_macroblock_type_0x20[bs->read_next_bits(4)]; else
+        if (buffer >= 0x10) return ss_b_macroblock_type_0x10[bs->read_next_bits(6) - 4]; else
+        if (buffer >= 0x08) return ss_b_macroblock_type_0x08[bs->read_next_bits(7) - 4]; else
+        if (buffer >= 0x06) return ss_b_macroblock_type_0x06[bs->read_next_bits(9) -12]; else
+            return ss_b_macroblock_type_else[bs->read_next_bits(8) - 4];
     }
     return true;
 }
 
-macroblock_type_vlc_t get_snr_macroblock_type[3] = {
-    { 0b1,   1, 0b000100 },
+macroblock_type_vlc_t snr_macroblock_type[3] = {
+    { 0b1,   1, 0b000100 }, //0x80
     { 0b01,  2, 0b100100 },
     { 0b001, 3, 0b000000 }
 };
 
 uint8_t get_snr_scalability_macroblock_type(bitstream_reader_i* bs, int picture_coding_type) {
-    uint8_t buffer = (uint8_t)bs->get_next_bits(3);
-    if (buffer > 2) return 0b000100;
-    if (buffer > 1) return 0b100100;
+    uint8_t buffer = (uint8_t)bs->get_next_bits(2);
+    if (buffer >= 2) return 0b000100;
+    if (buffer >= 1) return 0b100100;
     return 0b000000;
 }
 
