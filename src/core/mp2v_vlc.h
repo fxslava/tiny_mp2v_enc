@@ -25,6 +25,7 @@ constexpr uint32_t spatial_temporal_weight_code_flag_bit = 0b1;
 
 //ISO/IEC 13818-2 : 2000 (E) Annex B - Variable length code tables. B.1 Macroblock addressing
 extern vlc_t macroblock_address_increment_to_vlc[35];
+int32_t get_macroblock_address_increment_lut(bitstream_reader_i* bs); // TODO: find best method
 int32_t get_macroblock_address_increment(bitstream_reader_i* bs);
 
 //ISO/IEC 13818-2 : 2000 (E) Annex B - Variable length code tables. B.1 Macroblock type (Tables B.2 to B.8.)
@@ -53,6 +54,8 @@ int32_t get_dmvector(bitstream_reader_i* bs);
 
 //ISO/IEC 13818-2 : 2000 (E) Annex B - B.5 DCT coefficients. B.12 Table.
 extern vlc_t dct_size_luminance_to_vlc[12];
+int32_t get_dct_size_luminance(bitstream_reader_i* bs);
 
 //ISO/IEC 13818-2 : 2000 (E) Annex B - B.5 DCT coefficients. B.13 Table.
 extern vlc_t dct_size_chrominance_to_vlc[12];
+int32_t get_dct_size_chrominance(bitstream_reader_i* bs);
