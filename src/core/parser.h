@@ -4,6 +4,18 @@
 #include "mp2v_hdr.h"
 #include "api/bitstream.h"
 
+enum mv_format_e {
+    Field = 0,
+    Frame
+};
+
+enum prediction_type_e {
+    Field_based,
+    Frame_based,
+    Dual_Prime,
+    MC16x8
+};
+
 enum extension_after_code_e {
     after_sequence_extension = 0,
     after_group_of_picture_header,
@@ -29,6 +41,13 @@ class picture_c;
 
 struct mb_data_t {
     macroblock_t mb;
+    uint8_t spatial_temporal_weight_class;
+    uint8_t spatial_temporal_integer_weight;
+    uint8_t spatial_temporal_weight_fract[2];
+    uint8_t motion_vector_count;
+    uint8_t dmv;
+    mv_format_e mv_format;
+    prediction_type_e prediction_type;
 };
 
 class slice_c {
@@ -40,6 +59,10 @@ public:
     bool parse_modes(macroblock_t &mb);
     bool parse_coded_block_pattern(macroblock_t& mb);
     bool parse_macroblock();
+    bool parse_motion_vectors(mb_data_t& mb, int s);
+    bool parse_motion_vector(mb_data_t& mb_data, int r, int s);
+
+    void decode_mb_modes(mb_data_t mb_data);
 private:
     bitstream_reader_i* m_bs;
     picture_c* m_pic;

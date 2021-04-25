@@ -6,6 +6,20 @@
 
 #define CHECK(p) { if (!(p)) return false; }
 
+struct spatial_temporal_weights_classes_t {
+    uint8_t spatial_temporal_weight_fract[2]; // 0 - 0.0, 1 - 0.5, 2 - 1.0
+    uint8_t spatial_temporal_weight_class;
+    uint8_t spatial_temporal_integer_weight;
+};
+
+//[spatial_temporal_weight_code_table_index][spatial_temporal_weight_code]
+spatial_temporal_weights_classes_t local_spatial_temporal_weights_classes_tbl[4][4] = {
+    {{{1, 1}, 1, 0}, {{1, 1}, 1, 0}, {{1, 1}, 1, 0}, {{1, 1}, 1, 0} },
+    {{{0, 2}, 3, 1}, {{0, 1}, 1, 0}, {{1, 2}, 3, 0}, {{1, 1}, 1, 0} },
+    {{{2, 0}, 2, 1}, {{1, 0}, 1, 0}, {{2, 1}, 2, 0}, {{1, 1}, 1, 0} },
+    {{{2, 0}, 2, 1}, {{2, 1}, 2, 0}, {{1, 2}, 3, 0}, {{1, 1}, 1, 0} }
+};
+
 static uint8_t local_find_start_code(bitstream_reader_i* bs) {
     bs->seek_pattern(vlc_start_code.value, vlc_start_code.len);
     return (uint8_t)(bs->get_next_bits(32) & 0xff);
@@ -25,6 +39,65 @@ template <typename T, int count>
 static void local_copy_array(bitstream_reader_i* bs, T* dst) {
     for (int i = 0; i < count; i++) {
         dst[i] = bs->read_next_bits(sizeof(T) * 8);
+    }
+}
+
+void slice_c::decode_mb_modes(mb_data_t mb_data) {
+    auto& ctx = m_pic->m_ctx;
+    auto& pcext = ctx.picture_coding_extension;
+    auto& pssext = ctx.picture_spatial_scalable_extension;
+    auto& modes = mb_data.mb.macroblock_modes;
+    auto weight_class = local_spatial_temporal_weights_classes_tbl[pssext->spatial_temporal_weight_code_table_index][modes.spatial_temporal_weight_code];
+    mb_data.spatial_temporal_weight_class = weight_class.spatial_temporal_weight_class;
+    mb_data.spatial_temporal_weight_fract[0] = weight_class.spatial_temporal_weight_fract[0];
+    mb_data.spatial_temporal_weight_fract[1] = weight_class.spatial_temporal_weight_fract[1];
+    mb_data.spatial_temporal_integer_weight = weight_class.spatial_temporal_integer_weight;
+    mb_data.motion_vector_count = 1;
+    mb_data.dmv = 0;
+    if (pcext->picture_structure == picture_structure_framepic) {
+        switch (modes.frame_motion_type)
+        {
+        case 0: //reserved
+            break;
+        case 1:
+            mb_data.mv_format = Field;
+            mb_data.prediction_type = Field_based;
+            if (mb_data.spatial_temporal_weight_class == 0 || mb_data.spatial_temporal_weight_class == 1)
+                mb_data.motion_vector_count = 2;
+            break;
+        case 2:
+            mb_data.mv_format = Frame;
+            mb_data.prediction_type = Frame_based;
+            break;
+        case 3:
+            mb_data.mv_format = Field;
+            mb_data.prediction_type = Dual_Prime;
+            if (mb_data.spatial_temporal_weight_class == 0 || mb_data.spatial_temporal_weight_class == 2 || mb_data.spatial_temporal_weight_class == 3)
+                mb_data.dmv = 1;
+            break;
+        }
+    }
+    else {
+        switch (modes.field_motion_type)
+        {
+        case 0: //reserved
+            break;
+        case 1:
+            mb_data.mv_format = Field;
+            mb_data.prediction_type = Field_based;
+            break;
+        case 2:
+            mb_data.mv_format = Field;
+            mb_data.prediction_type = MC16x8;
+            if (mb_data.spatial_temporal_weight_class == 0 || mb_data.spatial_temporal_weight_class == 1)
+                mb_data.motion_vector_count = 2;
+            break;
+        case 3:
+            mb_data.mv_format = Field;
+            mb_data.prediction_type = Dual_Prime;
+            mb_data.dmv = 1;
+            break;
+        }
     }
 }
 
@@ -65,8 +138,42 @@ bool slice_c::parse_coded_block_pattern(macroblock_t& mb) {
     return false;
 }
 
+bool slice_c::parse_motion_vector(mb_data_t& mb_data, int r, int s) {
+    auto& ctx = m_pic->m_ctx;
+    auto& pcext = ctx.picture_coding_extension;
+    auto& mvs = mb_data.mb.motion_vectors;
+    mvs.motion_code[r][s][0] = get_motion_code(m_bs);
+    if ((pcext->f_code[s][0] != 1) && (mvs.motion_code[r][s][0] != 0))
+        mvs.motion_residual[r][s][0] = m_bs->read_next_bits(pcext->f_code[s][0] - 1);
+    if (mb_data.dmv == 1)
+        mvs.dmvector[0] = get_dmvector(m_bs);
+    mvs.motion_code[r][s][1] = get_motion_code(m_bs);
+    if ((pcext->f_code[s][1] != 1) && (mvs.motion_code[r][s][1] != 0))
+        mvs.motion_residual[r][s][1] = m_bs->read_next_bits(pcext->f_code[s][1] - 1);
+    if (mb_data.dmv == 1)
+        mvs.dmvector[1] = get_dmvector(m_bs);
+    return true;
+}
+
+bool slice_c::parse_motion_vectors(mb_data_t& mb_data, int s) {
+    auto& mvs = mb_data.mb.motion_vectors;
+    if (mb_data.motion_vector_count == 1) {
+        if ((mb_data.mv_format == Field) && (mb_data.dmv != 1))
+            mvs.motion_vertical_field_select[0][s] = m_bs->read_next_bits(1);
+        parse_motion_vector(mb_data, 0, s);
+    }
+    else {
+        mvs.motion_vertical_field_select[0][s] = m_bs->read_next_bits(1);
+        parse_motion_vector(mb_data, 0, s);
+        mvs.motion_vertical_field_select[1][s] = m_bs->read_next_bits(1);
+        parse_motion_vector(mb_data, 1, s);
+    }
+    return true;
+}
+
 bool slice_c::parse_macroblock() {
-    macroblock_t mb;
+    mb_data_t mb_data;
+    auto& mb = mb_data.mb;
     auto& ctx = m_pic->m_ctx;
     auto& pcext = ctx.picture_coding_extension;
     auto& modes = mb.macroblock_modes;
@@ -77,18 +184,22 @@ bool slice_c::parse_macroblock() {
         mb.macroblock_address_increment += 33;
     }
     mb.macroblock_address_increment += get_macroblock_address_increment(m_bs);
+
     parse_modes(mb);
+    decode_mb_modes(mb_data);
+
     if (modes.macroblock_type & macroblock_quant_bit)
         mb.quantiser_scale_code = m_bs->read_next_bits(5);
     if (modes.macroblock_type & macroblock_motion_forward_bit || ((modes.macroblock_type & macroblock_intra_bit) && pcext->concealment_motion_vectors));
-        //motion_vectors(0);
+        parse_motion_vectors(mb_data, 0);
     if (modes.macroblock_type & macroblock_motion_backward_bit);
-        //motion_vectors(1);
+        parse_motion_vectors(mb_data, 1);
     if ((modes.macroblock_type & macroblock_intra_bit) && pcext->concealment_motion_vectors)
         m_bs->skip_bits(1);
     if (modes.macroblock_type & macroblock_pattern_bit)
         parse_coded_block_pattern(mb);
-    /*for (i = 0; i < block_count; i + +) {
+
+    /*for (i = 0; i < block_count; i++) {
         block(i)
     }*/
     return true;
@@ -256,10 +367,10 @@ bool video_sequence_c::parse_picture_coding_extension() {
     auto& pcext = m_picture_coding_extension.back();
     pcext.extension_start_code = m_bs->read_next_bits(32);
     pcext.extension_start_code_identifier = m_bs->read_next_bits(4);
-    pcext.f_code[0] = m_bs->read_next_bits(4);
-    pcext.f_code[1] = m_bs->read_next_bits(4);
-    pcext.f_code[2] = m_bs->read_next_bits(4);
-    pcext.f_code[3] = m_bs->read_next_bits(4);
+    pcext.f_code[0][0] = m_bs->read_next_bits(4);
+    pcext.f_code[0][1] = m_bs->read_next_bits(4);
+    pcext.f_code[1][0] = m_bs->read_next_bits(4);
+    pcext.f_code[1][1] = m_bs->read_next_bits(4);
     pcext.intra_dc_precision = m_bs->read_next_bits(2);
     pcext.picture_structure = m_bs->read_next_bits(2);
     pcext.top_field_first = m_bs->read_next_bits(1);

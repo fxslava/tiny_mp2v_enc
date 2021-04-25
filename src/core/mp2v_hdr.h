@@ -149,7 +149,7 @@ struct picture_coding_extension_t {
     //     | Syntax element                               | No. of bits | Mnemonic
     uint32_t extension_start_code;                     // | 32          | bslbf
     uint32_t extension_start_code_identifier;          // | 4           | uimsbf
-    uint32_t f_code[4];                                // | 4           | uimsbf
+    uint32_t f_code[2][2];                             // | 4           | uimsbf
     uint32_t intra_dc_precision;                       // | 2           | uimsbf
     uint32_t picture_structure;                        // | 2           | uimsbf
     uint32_t top_field_first;                          // | 1           | uimsbf
@@ -276,19 +276,14 @@ struct macroblock_modes_t {
     uint32_t dct_type;                                 // | 1           | uimsbf
 };
 
+// ISO/IEC 13818-2 : 2000 (E) 6.2.5.2
+struct motion_vectors_t {
+//         | Syntax element                               | No. of bits | Mnemonic
+    uint32_t motion_vertical_field_select[2][2];       // | 1           | uimsbf
 // ISO/IEC 13818-2 : 2000 (E) 6.2.5.2.1
-struct motion_vector_t {
-    //     | Syntax element                               | No. of bits | Mnemonic
     uint32_t motion_code[2][2][2];                     // | 1 - 11      | vlclbf
     uint32_t motion_residual[2][2][2];                 // | 1 - 8       | uimsbf
     uint32_t dmvector[2];                              // | 1 - 2       | vlclbf
-};
-
-// ISO/IEC 13818-2 : 2000 (E) 6.2.5.2
-struct motion_vectors_t {
-    //     | Syntax element                               | No. of bits | Mnemonic
-    uint32_t motion_vertical_field_select[2][2];       // | 1           | uimsbf
-    motion_vector_t motion_vector[2];                  // |             |
 };
 
 // ISO/IEC 13818-2 : 2000 (E) 6.2.5
@@ -308,7 +303,7 @@ struct macroblock_t {
     uint32_t macroblock_address_increment;             // |             |
     macroblock_modes_t macroblock_modes;               // |             |
     uint32_t quantiser_scale_code;                     // | 5           | uimsbf
-    motion_vectors_t motion_vectors[2];                // |             |
+    motion_vectors_t motion_vectors;                   // |             |
     coded_block_pattern_t coded_block_pattern;         // |             |
 };
 
