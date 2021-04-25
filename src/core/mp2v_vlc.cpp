@@ -91,12 +91,12 @@ uint8_t get_spatial_scalability_macroblock_type(bitstream_reader_i* bs, int pict
 }
 
 macroblock_type_vlc_t snr_macroblock_type[3] = {
-    { 0b1,   1, 0b000100 }, //0x80
-    { 0b01,  2, 0b100100 },
-    { 0b001, 3, 0b000000 }
+    { { 0b1,   1 }, 0b000100 }, //0x80
+    { { 0b01,  2 }, 0b100100 },
+    { { 0b001, 3 }, 0b000000 }
 };
 
-uint8_t get_snr_scalability_macroblock_type(bitstream_reader_i* bs, int picture_coding_type) {
+uint8_t get_snr_scalability_macroblock_type(bitstream_reader_i* bs) {
     uint8_t buffer = (uint8_t)bs->get_next_bits(2);
     if (buffer >= 2) { bs->skip_bits(1); return 0b000100; }
     if (buffer >= 1) { bs->skip_bits(2); return 0b100100; }

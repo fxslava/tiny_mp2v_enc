@@ -20,7 +20,6 @@ public:
     random_vlc_code_bitstream_generator_c(uint32_t seed = 1729) : gen(seed) {}
 
     void generate_vlc_code(vlc_t vlc_code)                 { generate_vlc_code(vlc_code.value, vlc_code.len); }
-    void generate_vlc_code(macroblock_type_vlc_t vlc_code) { generate_vlc_code(vlc_code.code,  vlc_code.len); }
     int  get_fullness() { return fullness; }
 
     uint32_t get_next_bits(int len) {

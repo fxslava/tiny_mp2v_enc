@@ -8,8 +8,7 @@ struct vlc_t {
     uint16_t len;
 };
 struct macroblock_type_vlc_t {
-    uint16_t code;
-    uint16_t len;
+    vlc_t vlc;
     uint8_t value;
 };
 
@@ -48,7 +47,7 @@ extern macroblock_type_vlc_t ss_p_macroblock_type[16];
 extern macroblock_type_vlc_t ss_b_macroblock_type[20];
 uint8_t get_spatial_scalability_macroblock_type(bitstream_reader_i* bs, int picture_coding_type);
 extern macroblock_type_vlc_t snr_macroblock_type[3];
-uint8_t get_snr_scalability_macroblock_type(bitstream_reader_i* bs, int picture_coding_type);
+uint8_t get_snr_scalability_macroblock_type(bitstream_reader_i* bs);
 
 //ISO/IEC 13818-2 : 2000 (E) Annex B - Variable length code tables. B.9 Macroblock pattern
 extern vlc_t coded_block_pattern_to_vlc[64];
