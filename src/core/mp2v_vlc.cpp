@@ -23,14 +23,14 @@ int32_t get_macroblock_address_increment(bitstream_reader_i* bs) {
     case 2: return 7  - bs->read_next_bits(4);
     case 3: return 9  - bs->read_next_bits(5);
     case 4:
-        if (buffer > 0x0B000000)
+        if (buffer >= 0x0C000000)
             return 15 - bs->read_next_bits(7);
         else
             return 21 - bs->read_next_bits(8);
     case 5:
-        if (buffer > 0x05C00000)
+        if (buffer >= 0x06000000)
             return 21 - bs->read_next_bits(8);
-        else if (buffer > 0x04600000)
+        else if (buffer >= 0x04800000)
             return 39 - bs->read_next_bits(10);
         else
             return 57 - bs->read_next_bits(11);
@@ -42,8 +42,8 @@ int32_t get_macroblock_address_increment(bitstream_reader_i* bs) {
 uint8_t get_macroblock_type(bitstream_reader_i* bs, int picture_coding_type) {
     uint8_t buffer = (uint8_t)bs->get_next_bits(8);
     if (picture_coding_type == 1) {// I
-        if (buffer >= 0x80) return 0b000010;
-        else                return 0b100010;
+        if (buffer >= 0x80) { bs->skip_bits(1);  return 0b000010; }
+        else                { bs->skip_bits(2);  return 0b100010; }
     }
     if (picture_coding_type == 2) {// P
         if (buffer >= 0x80) { bs->skip_bits(1);  return 0b010100; } else
@@ -98,8 +98,9 @@ macroblock_type_vlc_t snr_macroblock_type[3] = {
 
 uint8_t get_snr_scalability_macroblock_type(bitstream_reader_i* bs, int picture_coding_type) {
     uint8_t buffer = (uint8_t)bs->get_next_bits(2);
-    if (buffer >= 2) return 0b000100;
-    if (buffer >= 1) return 0b100100;
+    if (buffer >= 2) { bs->skip_bits(1); return 0b000100; }
+    if (buffer >= 1) { bs->skip_bits(2); return 0b100100; }
+    bs->skip_bits(3);
     return 0b000000;
 }
 

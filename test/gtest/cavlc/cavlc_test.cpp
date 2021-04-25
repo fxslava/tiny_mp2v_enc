@@ -51,7 +51,7 @@ static bool perf_test_vlc(random_vlc_code_bitstream_generator_c & gen_vlc, vlc_t
     for (int i = 0; i < PERF_TEST_NUM_ITERATIONS; i++) {
         gen_vlc.generate_vlc_code(vlc);
         int parsed_vlc = func(&gen_vlc);
-        if (parsed_vlc != val)
+        if (parsed_vlc != val || gen_vlc.get_fullness() != 0)
             test = false;
     }
     return test;
@@ -65,6 +65,10 @@ static bool template_test_vlc(random_vlc_code_bitstream_generator_c& gen_vlc, vl
         T parsed_vlc = func(&gen_vlc);
         if (parsed_vlc != val) {
             TEST_COUT << "VLC parse failed: parsed VLC value =  " << parsed_vlc << "expected " << val << std::endl;
+            test = false;
+        }
+        if (gen_vlc.get_fullness() != 0) {
+            TEST_COUT << "VLC length parse failed: parsed VLC value =  " << parsed_vlc << std::endl;
             test = false;
         }
     }
@@ -81,6 +85,10 @@ static bool test_vlc(random_vlc_code_bitstream_generator_c &gen_vlc, vlc_t vlc, 
             ERROR_PRINTF("VLC parse failed: parsed VLC value =  %d, expected %d\n", parsed_vlc, val);
             test = false;
         }
+        if (gen_vlc.get_fullness() != 0) {
+            TEST_COUT << "VLC length parse failed: parsed VLC value =  " << parsed_vlc << std::endl;
+            test = false;
+        }
     }
     return test;
 }
@@ -93,6 +101,10 @@ static bool test_macroblock_type_vlc(random_vlc_code_bitstream_generator_c& gen_
         auto parsed_value = func(&gen_vlc, picture_coding_type);
         if (parsed_value != vlc.value) {
             ERROR_PRINTF("VLC parse failed: parsed macroblock_type value =  %d, expected %d\n", parsed_value, vlc.value);
+            test = false;
+        }
+        if (gen_vlc.get_fullness() != 0) {
+            TEST_COUT << "VLC length parse failed: parsed VLC value =  " << (int)parsed_value << std::endl;
             test = false;
         }
     }

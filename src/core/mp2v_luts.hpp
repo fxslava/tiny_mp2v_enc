@@ -414,9 +414,9 @@ vlc_t dct_size_chrominance_to_vlc[12] = {
     { 0b1111111111, 10 }  //11
 };
 
-vlc_coeff_t coeff_zero_vlc[112] = {
-    { { 0b1, 1 }, { 0, 1 } },
-    { { 0b11, 2 }, { 0, 1 } },
+vlc_coeff_t coeff_zero_vlc[111] = {
+  //{ { 0b1, 1 }, { 0, 1 } }, // (NOTE 3) This code shall be used for the first (DC) coefficient in the block.
+    { { 0b11, 2 }, { 0, 1 } }, // (NOTE 4) This code shall be used for all other coefficients.
     { { 0b011, 3 }, { 1, 1 } },
     { { 0b0100, 4 }, { 0, 2 } },
     { { 0b0101, 4 }, { 2, 1 } },

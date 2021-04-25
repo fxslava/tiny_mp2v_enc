@@ -7,6 +7,7 @@
 class random_vlc_code_bitstream_generator_c : public bitstream_reader_i {
 private:
     void generate_vlc_code(uint32_t value, uint32_t len) {
+        fullness = len;
         uint32_t offset = 32 - len;
         uint64_t max_val = (1ll << offset) - 1;
         std::uniform_int_distribution<uint32_t> distr_low(0, (uint32_t)max_val);
@@ -20,6 +21,7 @@ public:
 
     void generate_vlc_code(vlc_t vlc_code)                 { generate_vlc_code(vlc_code.value, vlc_code.len); }
     void generate_vlc_code(macroblock_type_vlc_t vlc_code) { generate_vlc_code(vlc_code.code,  vlc_code.len); }
+    int  get_fullness() { return fullness; }
 
     uint32_t get_next_bits(int len) {
         uint64_t mask = (1ll << len) - 1;
@@ -27,13 +29,15 @@ public:
     }
 
     uint32_t read_next_bits(int len) {
+        fullness -= len;
         return get_next_bits(len);
     }
 
     bool seek_pattern(uint32_t pattern, int len) { return true; }
-    void skip_bits(int len) {}
+    void skip_bits(int len) { fullness -= len; }
 
 private:
     uint64_t buffer = 0;
+    uint32_t fullness = 0;
     std::mt19937 gen;
 };
