@@ -148,6 +148,13 @@ TEST(cavlc_test, get_coeff_zero) {
     }
 }
 
+TEST(cavlc_test, get_coeff_one) {
+    random_vlc_code_bitstream_generator_c gen_vlc;
+    for (auto coeff : coeff_one_vlc) {
+        EXPECT_TRUE(template_test_vlc(gen_vlc, coeff.vlc, coeff.coeff, get_coeff_one));
+    }
+}
+
 /* Perfomance tests */
 TEST(cavlc_performance_test, get_macroblock_address_increment) {
     random_vlc_code_bitstream_generator_c gen_vlc;

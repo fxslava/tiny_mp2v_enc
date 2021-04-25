@@ -73,3 +73,7 @@ int32_t get_dct_size_chrominance(bitstream_reader_i* bs);
 //ISO/IEC 13818-2 : 2000 (E) Annex B - B.5 DCT coefficients. B.14 Table.
 extern vlc_coeff_t coeff_zero_vlc[112];
 coeff_t get_coeff_zero(bitstream_reader_i* bs);
+
+//ISO/IEC 13818-2 : 2000 (E) Annex B - B.5 DCT coefficients. B.15 Table.
+extern vlc_coeff_t coeff_one_vlc[111];
+coeff_t get_coeff_one(bitstream_reader_i* bs);
