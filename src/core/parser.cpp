@@ -67,8 +67,8 @@ static void read_block_coefficients(bitstream_reader_i* bs, bool use_dct_one_tab
         int eob_code = use_dct_one_table ? 6 : 2;
 
         if (eob != eob_code) {
-            if (bs->get_next_bits(5) == 0b00001) {
-                bs->skip_bits(5);
+            if (bs->get_next_bits(6) == 0b000001) {
+                bs->skip_bits(6);
                 run = bs->read_next_bits(6);
                 signed_level = bs->read_next_bits(12);
                 if (signed_level & 0b100000000000)
@@ -135,7 +135,7 @@ bool slice_c::init_slice() {
     return true;
 }
 
-void slice_c::decode_mb_modes(mb_data_t mb_data) {
+void slice_c::decode_mb_modes(mb_data_t& mb_data) {
     auto& ctx = m_pic->m_ctx;
     auto& mb = mb_data.mb;
     if (ctx.picture_spatial_scalable_extension) {
@@ -195,7 +195,7 @@ void slice_c::decode_mb_modes(mb_data_t mb_data) {
     use_dct_one_table = (intra_vlc_format == 1) && (mb.macroblock_type & macroblock_intra_bit);
 }
 
-void slice_c::decode_mb_pattern(mb_data_t mb_data) {
+void slice_c::decode_mb_pattern(mb_data_t &mb_data) {
     auto& mb = mb_data.mb;
     bool macroblock_intra = mb.macroblock_type & macroblock_intra_bit;
     bool macroblock_pattern = mb.macroblock_type & macroblock_pattern_bit;
@@ -283,6 +283,7 @@ bool slice_c::parse_motion_vectors(mb_data_t& mb_data, int s) {
 
 bool slice_c::parse_macroblock() {
     mb_data_t mb_data = { 0 };
+    auto& ctx = m_pic->m_ctx;
     auto& mb = mb_data.mb;
 
     mb.macroblock_address_increment = 0;
@@ -305,20 +306,18 @@ bool slice_c::parse_macroblock() {
         m_bs->skip_bits(1);
     if (mb.macroblock_type & macroblock_pattern_bit)
         parse_coded_block_pattern(mb);
+    decode_mb_pattern(mb_data);
 
-    /*for (i = 0; i < block_count; i++) {
-        block(i)
-    }*/
-    m_bs->seek_pattern(0, 32);
+    for (int i = 0; i < ctx.block_count; i++)
+        parse_block(mb_data, i);
 
     macroblocks.push_back(mb_data);
-
     return true;
 }
 
 bool slice_c::parse_block(mb_data_t& mb_data, int i) {
     auto& mb = mb_data.mb;
-    int QFS[64];
+    int QFS[64] = { 0 };
     int n = 0;
 
     if (mb_data.pattern_code[i]) {

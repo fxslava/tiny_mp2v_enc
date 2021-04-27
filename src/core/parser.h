@@ -67,8 +67,8 @@ public:
     bool parse_motion_vector(mb_data_t& mb_data, int r, int s);
     bool parse_block(mb_data_t& mb_data, int i);
 
-    void decode_mb_modes(mb_data_t mb_data);
-    void decode_mb_pattern(mb_data_t mb_data);
+    void decode_mb_modes(mb_data_t& mb_data);
+    void decode_mb_pattern(mb_data_t& mb_data);
 private:
     // local context from headers
     uint32_t vertical_size_value = 0;
