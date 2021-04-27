@@ -35,19 +35,22 @@ struct parsed_context_t {
     picture_temporal_scalable_extension_t* picture_temporal_scalable_extension;
     picture_spatial_scalable_extension_t* picture_spatial_scalable_extension;
     copyright_extension_t* copyright_extension;
+    int block_count;
 };
 
 class picture_c;
 
 struct mb_data_t {
     macroblock_t mb;
-    uint8_t spatial_temporal_weight_class;
-    uint8_t spatial_temporal_integer_weight;
-    uint8_t spatial_temporal_weight_fract[2];
-    uint8_t motion_vector_count;
-    uint8_t dmv;
+    // decoded parameters
+    uint32_t spatial_temporal_weight_class;
+    uint32_t spatial_temporal_integer_weight;
+    uint32_t spatial_temporal_weight_fract[2];
+    uint32_t motion_vector_count;
+    uint32_t dmv;
     mv_format_e mv_format;
     prediction_type_e prediction_type;
+    bool pattern_code[12];
 };
 
 class slice_c {
@@ -55,18 +58,33 @@ public:
     slice_t slice;
 public:
     slice_c(bitstream_reader_i* bitstream, picture_c* pic) : m_bs(bitstream), m_pic(pic), slice{0} {};
+    bool init_slice();
     bool parse_slice();
     bool parse_modes(macroblock_t &mb);
     bool parse_coded_block_pattern(macroblock_t& mb);
     bool parse_macroblock();
     bool parse_motion_vectors(mb_data_t& mb, int s);
     bool parse_motion_vector(mb_data_t& mb_data, int r, int s);
+    bool parse_block(mb_data_t& mb_data, int i);
 
     void decode_mb_modes(mb_data_t mb_data);
+    void decode_mb_pattern(mb_data_t mb_data);
+private:
+    // local context from headers
+    uint32_t vertical_size_value = 0;
+    uint32_t picture_coding_type = 0;
+    uint32_t spatial_temporal_weight_code_table_index = 0;
+    uint32_t picture_structure = 0;
+    uint32_t f_code[2][2] = { { 0 } };
+    uint32_t concealment_motion_vectors = 0;
+    uint32_t chroma_format = 0;
+    uint32_t frame_pred_frame_dct = 0;
+    uint32_t intra_vlc_format = 0;
+    bool use_dct_one_table = false;
 private:
     bitstream_reader_i* m_bs;
     picture_c* m_pic;
-    std::vector<mb_data_t> mb_data;
+    std::vector<mb_data_t> macroblocks;
 };
 
 class picture_c {

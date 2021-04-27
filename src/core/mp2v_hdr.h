@@ -24,6 +24,7 @@ constexpr uint8_t picture_display_extension_id           = 7;
 constexpr uint8_t picture_coding_extension_id            = 8;
 constexpr uint8_t picture_spatial_scalable_extension_id  = 9;
 constexpr uint8_t picture_temporal_scalable_extension_id = 10;
+constexpr uint8_t picture_camera_parameters_extension_id = 11;
 
 /* scalable mode */
 constexpr uint8_t scalable_mode_data_partitioning    = 0;
@@ -266,34 +267,6 @@ struct slice_t {
     uint32_t slice_picture_id;                         // | 6           | uimbsf
 };
 
-// ISO/IEC 13818-2 : 2000 (E) 6.2.5.1
-struct macroblock_modes_t {
-    //     | Syntax element                               | No. of bits | Mnemonic
-    uint32_t macroblock_type;                          // | 1 - 9       | vlclbf
-    uint32_t spatial_temporal_weight_code;             // | 2           | uimsbf
-    uint32_t frame_motion_type;                        // | 2           | uimsbf
-    uint32_t field_motion_type;                        // | 2           | uimsbf
-    uint32_t dct_type;                                 // | 1           | uimsbf
-};
-
-// ISO/IEC 13818-2 : 2000 (E) 6.2.5.2
-struct motion_vectors_t {
-//         | Syntax element                               | No. of bits | Mnemonic
-    uint32_t motion_vertical_field_select[2][2];       // | 1           | uimsbf
-// ISO/IEC 13818-2 : 2000 (E) 6.2.5.2.1
-    uint32_t motion_code[2][2][2];                     // | 1 - 11      | vlclbf
-    uint32_t motion_residual[2][2][2];                 // | 1 - 8       | uimsbf
-    uint32_t dmvector[2];                              // | 1 - 2       | vlclbf
-};
-
-// ISO/IEC 13818-2 : 2000 (E) 6.2.5
-struct coded_block_pattern_t {
-    //     | Syntax element                               | No. of bits | Mnemonic
-    uint32_t coded_block_pattern_420;                  // | 3 - 9       | vlclbf
-    uint32_t coded_block_pattern_1;                    // | 2           | uimsbf
-    uint32_t coded_block_pattern_2;                    // | 6           | uimsbf
-};
-
 // ISO/IEC 13818-2 : 2000 (E) 6.2.5
 struct macroblock_t {
     //     | Syntax element                               | No. of bits | Mnemonic
@@ -301,10 +274,26 @@ struct macroblock_t {
     //  macroblock_escape                                 | 11          | bslbf
     //macroblock_address_increment                        | 1 - 11      | vlclbf
     uint32_t macroblock_address_increment;             // |             |
-    macroblock_modes_t macroblock_modes;               // |             |
     uint32_t quantiser_scale_code;                     // | 5           | uimsbf
-    motion_vectors_t motion_vectors;                   // |             |
-    coded_block_pattern_t coded_block_pattern;         // |             |
+    // ISO/IEC 13818-2 : 2000 (E) 6.2.5.1 Macroblock Modes -----------------------
+    //     | Syntax element                               | No. of bits | Mnemonic
+    uint32_t macroblock_type;                          // | 1 - 9       | vlclbf
+    uint32_t spatial_temporal_weight_code;             // | 2           | uimsbf
+    uint32_t frame_motion_type;                        // | 2           | uimsbf
+    uint32_t field_motion_type;                        // | 2           | uimsbf
+    uint32_t dct_type;                                 // | 1           | uimsbf
+    // ISO/IEC 13818-2 : 2000 (E) 6.2.5.2 Motion Vectors   -----------------------
+    //     | Syntax element                               | No. of bits | Mnemonic
+    uint32_t motion_vertical_field_select[2][2];       // | 1           | uimsbf
+    // ISO/IEC 13818-2 : 2000 (E) 6.2.5.2.1
+    uint32_t motion_code[2][2][2];                     // | 1 - 11      | vlclbf
+    uint32_t motion_residual[2][2][2];                 // | 1 - 8       | uimsbf
+    uint32_t dmvector[2];                              // | 1 - 2       | vlclbf
+    // ISO/IEC 13818-2 : 2000 (E) 6.2.5 Coded Block Pattern ----------------------
+    //     | Syntax element                               | No. of bits | Mnemonic
+    uint32_t coded_block_pattern_420;                  // | 3 - 9       | vlclbf
+    uint32_t coded_block_pattern_1;                    // | 2           | uimsbf
+    uint32_t coded_block_pattern_2;                    // | 6           | uimsbf
 };
 
 // ISO/IEC 13818-2 : 2000 (E) 6.2.2

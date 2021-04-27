@@ -171,6 +171,7 @@ int32_t get_dct_size_luminance(bitstream_reader_i* bs) {
         case 0b101: bs->skip_bits(3); return 3;
         }
     }
+    return 0;
 }
 
 //ISO/IEC 13818-2 : 2000 (E) Annex B - B.5 DCT coefficients. B.13 Table.

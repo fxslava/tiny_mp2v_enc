@@ -23,7 +23,7 @@ private:
     void update_buffer() {
         if (buffer_idx == 64)
             read64();
-        else if (buffer_idx > 32)
+        else if (buffer_idx >= 32)
             read32();
     }
 public:
