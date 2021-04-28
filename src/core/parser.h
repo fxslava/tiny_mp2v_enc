@@ -1,8 +1,11 @@
 // Copyright © 2021 Vladislav Ovchinnikov. All rights reserved.
-
+#pragma once
 #include <vector>
+#include <concurrent_queue.h>
 #include "mp2v_hdr.h"
 #include "api/bitstream.h"
+
+using namespace concurrency;
 
 enum mv_format_e {
     Field = 0,
@@ -36,20 +39,22 @@ struct mb_data_t {
     mv_format_e mv_format;
     prediction_type_e prediction_type;
     bool pattern_code[12];
+    int16_t QFS[64];
 };
 
 class slice_c {
+    friend class mp2v_decoder_c;
 public:
     slice_t slice;
 public:
     slice_c(bitstream_reader_i* bitstream, picture_c* pic) : m_bs(bitstream), m_pic(pic), slice{0} {};
     bool init_slice();
-    bool parse_slice();
     bool parse_modes(macroblock_t &mb);
     bool parse_coded_block_pattern(macroblock_t& mb);
-    bool parse_macroblock();
     bool parse_motion_vectors(mb_data_t& mb, int s);
     bool parse_motion_vector(mb_data_t& mb_data, int r, int s);
+    bool parse_slice();
+    bool parse_macroblock();
 
     void decode_mb_modes(mb_data_t& mb_data);
     void decode_mb_pattern(mb_data_t& mb_data);
@@ -65,7 +70,9 @@ private:
     uint32_t frame_pred_frame_dct = 0;
     uint32_t intra_vlc_format = 0;
     bool m_use_dct_one_table = false;
-    int block_count;
+    int block_count = 0;
+    uint16_t dct_dc_pred_reset_value = 0;
+    uint16_t dct_dc_pred[3];
 private:
     bitstream_reader_i* m_bs;
     picture_c* m_pic;
@@ -73,7 +80,8 @@ private:
 };
 
 class picture_c {
-    friend slice_c;
+    friend class slice_c;
+    friend class mp2v_decoder_c;
 public:
     // headers
     picture_header_t m_picture_header = { 0 }; //mandatory
@@ -115,11 +123,15 @@ public:
     bool parse_extension_data(extension_after_code_e after_code, picture_c* pic);
     bool parse_picture_data();
 
+    bool get_parsed_picture(picture_c*& pic) {
+        return m_pictures_queue.try_pop(pic);
+    }
 private:
     bitstream_reader_i* m_bs;
 
     // stream data
     std::vector<picture_c> m_pictures;
+    concurrent_queue<picture_c*> m_pictures_queue;
 };
 
 class mp2v_parser_c {
@@ -128,6 +140,9 @@ public:
         m_bs(bitstream), 
         m_video_sequence(bitstream) {};
     bool parse();
+    bool get_parsed_picture(picture_c*& pic) {
+        return m_video_sequence.get_parsed_picture(pic);
+    }
 
 private:
     bitstream_reader_i* m_bs;

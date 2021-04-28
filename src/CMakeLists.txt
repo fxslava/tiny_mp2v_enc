@@ -8,6 +8,7 @@ file(
 file(
     GLOB SOURCES
         ./core/parser.cpp
+        ./core/decoder.cpp
         ./core/mp2v_vlc.cpp
         ./core/mp2v_hdr.cpp
         ./core/common/cpu.cpp

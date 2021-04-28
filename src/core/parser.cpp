@@ -21,6 +21,10 @@ spatial_temporal_weights_classes_t local_spatial_temporal_weights_classes_tbl[4]
     {{{2, 0}, 2, 1}, {{2, 1}, 2, 0}, {{1, 2}, 3, 0}, {{1, 1}, 1, 0} }
 };
 
+uint16_t predictor_reset_value[4] = { 128, 256, 512, 1024 };
+
+uint8_t color_component_index[12] = { 0, 0, 0, 0, 1, 2, 1, 2, 1, 2, 1, 2 };
+
 template<bool use_dct_one_table>
 static void read_first_coefficient(bitstream_reader_i* bs, uint32_t &run, int32_t &level) {
     if (use_dct_one_table) {
@@ -45,7 +49,7 @@ static void read_first_coefficient(bitstream_reader_i* bs, uint32_t &run, int32_
 }
 
 template<bool use_dct_one_table>
-static void read_block_coefficients(bitstream_reader_i* bs, int& n, int QFS[64]) {
+static void read_block_coefficients(bitstream_reader_i* bs, int& n, int16_t QFS[64]) {
     bool eob_not_read = true;
     while (eob_not_read) {
         //<decode VLC, decode Escape coded coefficient if required>
@@ -92,33 +96,50 @@ static void read_block_coefficients(bitstream_reader_i* bs, int& n, int QFS[64])
 }
 
 template<bool use_dct_one_table>
-static bool parse_block(bitstream_reader_i* bs, mb_data_t& mb_data, int i) {
+static bool parse_block(bitstream_reader_i* bs, mb_data_t& mb_data, int i, uint16_t* dct_dc_pred) {
     auto& mb = mb_data.mb;
-    int QFS[64] = { 0 };
     int n = 0;
+
+    int cc = color_component_index[i];
 
     if (mb_data.pattern_code[i]) {
         if (mb.macroblock_type & macroblock_intra_bit) {
+            uint16_t dct_dc_differential;
+            uint16_t dct_dc_size;
             if (i < 4) {
-                uint32_t dct_dc_size_luminance = get_dct_size_luminance(bs);
-                if (dct_dc_size_luminance != 0)
-                    QFS[0] = bs->read_next_bits(dct_dc_size_luminance);
+                dct_dc_size = get_dct_size_luminance(bs);
+                if (dct_dc_size != 0)
+                    dct_dc_differential = bs->read_next_bits(dct_dc_size);
             }
             else {
-                uint32_t dct_dc_size_chrominance = get_dct_size_chrominance(bs);
-                if (dct_dc_size_chrominance != 0)
-                    QFS[0] = bs->read_next_bits(dct_dc_size_chrominance);
+                dct_dc_size = get_dct_size_chrominance(bs);
+                if (dct_dc_size != 0)
+                    dct_dc_differential = bs->read_next_bits(dct_dc_size);
             }
             n++;
+
+            int16_t dct_diff;
+            if (dct_dc_size == 0) {
+                dct_diff = 0;
+            }
+            else {
+                uint16_t half_range = 1 << (dct_dc_size - 1);
+                if (dct_dc_differential >= half_range)
+                    dct_diff = dct_dc_differential;
+                else
+                    dct_diff = (dct_dc_differential + 1) - (2 * half_range);
+            }
+            mb_data.QFS[0] = dct_dc_pred[cc] + dct_diff;
+            dct_dc_pred[cc] = mb_data.QFS[0];
         }
         else {
             uint32_t run;
             int32_t level;
             read_first_coefficient<use_dct_one_table>(bs, run, level);
-            QFS[0] = level;
+            mb_data.QFS[0] = level;
             n += run;
         }
-        read_block_coefficients<use_dct_one_table>(bs, n, QFS);
+        read_block_coefficients<use_dct_one_table>(bs, n, mb_data.QFS);
     }
 
     return true;
@@ -145,6 +166,8 @@ bool slice_c::init_slice() {
     intra_vlc_format = pcext.intra_vlc_format;
     block_count = m_pic->block_count;
 
+    dct_dc_pred_reset_value = predictor_reset_value[pcext.intra_dc_precision];
+
     if (pssext)
         spatial_temporal_weight_code_table_index = pssext->spatial_temporal_weight_code_table_index;
     return true;
@@ -152,6 +175,13 @@ bool slice_c::init_slice() {
 
 void slice_c::decode_mb_modes(mb_data_t& mb_data) {
     auto& mb = mb_data.mb;
+    if (!(mb.macroblock_type & macroblock_intra_bit) || mb.macroblock_address_increment > 1) {
+        // reset DCT DC predictor
+        dct_dc_pred[0] = dct_dc_pred_reset_value;
+        dct_dc_pred[1] = dct_dc_pred_reset_value;
+        dct_dc_pred[2] = dct_dc_pred_reset_value;
+    }
+
     if (m_pic->m_picture_spatial_scalable_extension) {
         auto weight_class = local_spatial_temporal_weights_classes_tbl[spatial_temporal_weight_code_table_index][mb.spatial_temporal_weight_code];
         mb_data.spatial_temporal_weight_class = weight_class.spatial_temporal_weight_class;
@@ -324,10 +354,10 @@ bool slice_c::parse_macroblock() {
     // TODO: try to unroll loop
     if (m_use_dct_one_table)
         for (int i = 0; i < block_count; i++)
-            parse_block<true>(m_bs, mb_data, i);
+            parse_block<true>(m_bs, mb_data, i, dct_dc_pred);
     else
         for (int i = 0; i < block_count; i++)
-            parse_block<true>(m_bs, mb_data, i);
+            parse_block<true>(m_bs, mb_data, i, dct_dc_pred);
 
     macroblocks.push_back(mb_data);
     return true;
@@ -335,6 +365,11 @@ bool slice_c::parse_macroblock() {
 
 bool slice_c::parse_slice() {
     auto* seq = m_pic->get_seq();
+
+    // reset predictor
+    dct_dc_pred[0] = dct_dc_pred_reset_value;
+    dct_dc_pred[1] = dct_dc_pred_reset_value;
+    dct_dc_pred[2] = dct_dc_pred_reset_value;
 
     slice.slice_start_code = m_bs->read_next_bits(32);
     if (vertical_size_value > 2800)
@@ -455,6 +490,7 @@ bool video_sequence_c::parse() {
                     parse_extension_and_user_data(after_group_of_picture_header, nullptr);
                 }
                 parse_picture_data();
+                return true; // remove it after test complete
             } while ((local_next_start_code(m_bs) == picture_start_code) || (local_next_start_code(m_bs) == group_start_code));
             if (local_next_start_code(m_bs) != sequence_end_code) {
                 parse_sequence_header(m_bs, m_sequence_header);
@@ -482,6 +518,7 @@ bool video_sequence_c::parse_picture_data() {
     pic.parse_picture();
 
     m_pictures.push_back(pic);
+    m_pictures_queue.push(&m_pictures.back());
     return true;
 }
 

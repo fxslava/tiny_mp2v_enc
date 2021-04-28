@@ -4,6 +4,7 @@
 #include "sample_args.h"
 #include "bitstream.h"
 #include "core/parser.h"
+#include "core/decoder.h"
 
 class bitstream_file_reader: public bitstream_reader_i {
 private:
@@ -82,6 +83,12 @@ private:
 
 int main(int argc, char* argv[])
 {
+    decoder_config_t config;
+    config.width = 1920;
+    config.height = 1088;
+    config.chroma_format = 1;
+    config.frames_pool_size = 16;
+
     std::string *bitstream_file;
     std::vector<arg_desc_t> args_desc{{ "-v", "Input MPEG2 elementary bitsream file", ARG_TYPE_TEXT, &bitstream_file }};
     args_parser cmd_parser(args_desc);
@@ -90,8 +97,13 @@ int main(int argc, char* argv[])
     if (bitstream_file) {
         bitstream_file_reader stream_reader(*bitstream_file);
         mp2v_parser_c mp2v_parser(&stream_reader);
+        mp2v_decoder_c mp2v_decoder;
 
-        printf("Hello world!");
+        mp2v_decoder.decoder_init(&config);
         mp2v_parser.parse();
+
+        picture_c* pic = nullptr;
+        if (mp2v_parser.get_parsed_picture(pic))
+            mp2v_decoder.decode(pic);
     }
 }
