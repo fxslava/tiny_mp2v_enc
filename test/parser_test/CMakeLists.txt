@@ -21,4 +21,5 @@ target_link_libraries(
 		tiny_mp2v_enc
 	)
 	
+target_link_options(${PROJECT_NAME} PRIVATE -mwindows)
 set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER "samples")

@@ -91,6 +91,7 @@ int main(int argc, char* argv[])
         bitstream_file_reader stream_reader(*bitstream_file);
         mp2v_parser_c mp2v_parser(&stream_reader);
 
+        printf("Hello world!");
         mp2v_parser.parse();
     }
 }

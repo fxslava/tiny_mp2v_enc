@@ -2,6 +2,7 @@
 
 #pragma once
 #include <stdint.h>
+#include "api/bitstream.h"
 
 /* start codes */
 constexpr uint8_t picture_start_code   = 0x00;
@@ -298,3 +299,16 @@ struct macroblock_t {
 
 // ISO/IEC 13818-2 : 2000 (E) 6.2.2
 // video_sequence()
+
+bool parse_sequence_header(bitstream_reader_i* m_bs, sequence_header_t& sh);
+bool parse_sequence_extension(bitstream_reader_i* m_bs, sequence_extension_t& sext);
+bool parse_sequence_display_extension(bitstream_reader_i* m_bs, sequence_display_extension_t& sdext);
+bool parse_sequence_scalable_extension(bitstream_reader_i* m_bs, sequence_scalable_extension_t& ssext);
+bool parse_group_of_pictures_header(bitstream_reader_i* m_bs, group_of_pictures_header_t& gph);
+bool parse_picture_header(bitstream_reader_i* m_bs, picture_header_t& ph);
+bool parse_picture_coding_extension(bitstream_reader_i* m_bs, picture_coding_extension_t& pcext);
+bool parse_quant_matrix_extension(bitstream_reader_i* m_bs, quant_matrix_extension_t& qmext);
+bool parse_picture_display_extension(bitstream_reader_i* m_bs, picture_display_extension_t& pdext, sequence_extension_t& sext, picture_coding_extension_t& pcext);
+bool parse_picture_temporal_scalable_extension(bitstream_reader_i* m_bs, picture_temporal_scalable_extension_t& ptsext);
+bool parse_picture_spatial_scalable_extension(bitstream_reader_i* m_bs, picture_spatial_scalable_extension_t& pssext);
+bool parse_copyright_extension(bitstream_reader_i* m_bs, copyright_extension_t& crext);
