@@ -65,7 +65,6 @@ public:
     bool parse_macroblock();
     bool parse_motion_vectors(mb_data_t& mb, int s);
     bool parse_motion_vector(mb_data_t& mb_data, int r, int s);
-    bool parse_block(mb_data_t& mb_data, int i);
 
     void decode_mb_modes(mb_data_t& mb_data);
     void decode_mb_pattern(mb_data_t& mb_data);
@@ -80,7 +79,7 @@ private:
     uint32_t chroma_format = 0;
     uint32_t frame_pred_frame_dct = 0;
     uint32_t intra_vlc_format = 0;
-    bool use_dct_one_table = false;
+    bool m_use_dct_one_table = false;
 private:
     bitstream_reader_i* m_bs;
     picture_c* m_pic;

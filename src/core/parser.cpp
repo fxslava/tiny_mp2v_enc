@@ -35,7 +35,8 @@ static uint8_t local_read_start_code(bitstream_reader_i* bs) {
     return full_start_code & 0xff;
 }
 
-static void read_first_coefficient(bitstream_reader_i* bs, bool use_dct_one_table, uint32_t &run, int32_t &level) {
+template<bool use_dct_one_table>
+static void read_first_coefficient(bitstream_reader_i* bs, uint32_t &run, int32_t &level) {
     if (use_dct_one_table) {
         coeff_t c =  get_coeff_one(bs);
         int s = bs->read_next_bits(1);
@@ -57,7 +58,8 @@ static void read_first_coefficient(bitstream_reader_i* bs, bool use_dct_one_tabl
     }
 }
 
-static void read_block_coefficients(bitstream_reader_i* bs, bool use_dct_one_table, int& n, int QFS[64]) {
+template<bool use_dct_one_table>
+static void read_block_coefficients(bitstream_reader_i* bs, int& n, int QFS[64]) {
     bool eob_not_read = true;
     while (eob_not_read) {
         //<decode VLC, decode Escape coded coefficient if required>
@@ -101,6 +103,39 @@ static void read_block_coefficients(bitstream_reader_i* bs, bool use_dct_one_tab
             }
         }
     }
+}
+
+template<bool use_dct_one_table>
+static bool parse_block(bitstream_reader_i* bs, mb_data_t& mb_data, int i) {
+    auto& mb = mb_data.mb;
+    int QFS[64] = { 0 };
+    int n = 0;
+
+    if (mb_data.pattern_code[i]) {
+        if (mb.macroblock_type & macroblock_intra_bit) {
+            if (i < 4) {
+                uint32_t dct_dc_size_luminance = get_dct_size_luminance(bs);
+                if (dct_dc_size_luminance != 0)
+                    QFS[0] = bs->read_next_bits(dct_dc_size_luminance);
+            }
+            else {
+                uint32_t dct_dc_size_chrominance = get_dct_size_chrominance(bs);
+                if (dct_dc_size_chrominance != 0)
+                    QFS[0] = bs->read_next_bits(dct_dc_size_chrominance);
+            }
+            n++;
+        }
+        else {
+            uint32_t run;
+            int32_t level;
+            read_first_coefficient<use_dct_one_table>(bs, run, level);
+            QFS[0] = level;
+            n += run;
+        }
+        read_block_coefficients<use_dct_one_table>(bs, n, QFS);
+    }
+
+    return true;
 }
 
 template <typename T, int count>
@@ -192,7 +227,7 @@ void slice_c::decode_mb_modes(mb_data_t& mb_data) {
         }
     }
 
-    use_dct_one_table = (intra_vlc_format == 1) && (mb.macroblock_type & macroblock_intra_bit);
+    m_use_dct_one_table = (intra_vlc_format == 1) && (mb.macroblock_type & macroblock_intra_bit);
 }
 
 void slice_c::decode_mb_pattern(mb_data_t &mb_data) {
@@ -308,42 +343,15 @@ bool slice_c::parse_macroblock() {
         parse_coded_block_pattern(mb);
     decode_mb_pattern(mb_data);
 
-    for (int i = 0; i < ctx.block_count; i++)
-        parse_block(mb_data, i);
+    // TODO: try to unroll loop
+    if (m_use_dct_one_table)
+        for (int i = 0; i < ctx.block_count; i++)
+            parse_block<true>(m_bs, mb_data, i);
+    else
+        for (int i = 0; i < ctx.block_count; i++)
+            parse_block<true>(m_bs, mb_data, i);
 
     macroblocks.push_back(mb_data);
-    return true;
-}
-
-bool slice_c::parse_block(mb_data_t& mb_data, int i) {
-    auto& mb = mb_data.mb;
-    int QFS[64] = { 0 };
-    int n = 0;
-
-    if (mb_data.pattern_code[i]) {
-        if (mb.macroblock_type & macroblock_intra_bit) {
-            if (i < 4) {
-                uint32_t dct_dc_size_luminance = get_dct_size_luminance(m_bs);
-                if (dct_dc_size_luminance != 0)
-                    QFS[0] = m_bs->read_next_bits(dct_dc_size_luminance);
-            }
-            else {
-                uint32_t dct_dc_size_chrominance = get_dct_size_chrominance(m_bs);
-                if (dct_dc_size_chrominance != 0)
-                    QFS[0] = m_bs->read_next_bits(dct_dc_size_chrominance);
-            }
-            n++;
-        }
-        else {
-            uint32_t run;
-            int32_t level;
-            read_first_coefficient(m_bs, use_dct_one_table, run, level);
-            QFS[0] = level;
-            n += run;
-        }
-        read_block_coefficients(m_bs, use_dct_one_table, n, QFS);
-    }
-
     return true;
 }
 
