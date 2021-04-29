@@ -4,6 +4,13 @@
 #include <stdint.h>
 #include "api/bitstream.h"
 
+constexpr uint32_t macroblock_quant_bit = 0b100000;
+constexpr uint32_t macroblock_motion_forward_bit = 0b10000;
+constexpr uint32_t macroblock_motion_backward_bit = 0b1000;
+constexpr uint32_t macroblock_pattern_bit = 0b100;
+constexpr uint32_t macroblock_intra_bit = 0b10;
+constexpr uint32_t spatial_temporal_weight_code_flag_bit = 0b1;
+
 /* start codes */
 constexpr uint8_t picture_start_code   = 0x00;
 constexpr uint8_t slice_start_code_min = 0x01;

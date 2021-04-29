@@ -9,6 +9,7 @@ file(
     GLOB SOURCES
         ./core/parser.cpp
         ./core/decoder.cpp
+        ./core/mb_decoder_c.cpp
         ./core/mp2v_vlc.cpp
         ./core/mp2v_hdr.cpp
         ./core/scan_c.cpp

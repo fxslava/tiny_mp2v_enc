@@ -26,19 +26,21 @@ template <typename T> int sgn(T val) {
 }
 
 template<bool intra>
-int32_t inverse_quant_scalar_c(int16_t F, int16_t QF, uint16_t W, uint8_t quantizer_scale) {
+int16_t inverse_quant_scalar_c(int16_t &F, int16_t QF, uint16_t W, uint8_t quantizer_scale) {
     int32_t k = intra ? 0 : sgn(QF);
-    int32_t res = ((((int32_t)QF << 1) + k) * (int32_t)W * (int32_t)quantizer_scale) >> 5;
-    return std::max(std::min(res, 2047), -2048);
+    int16_t res = (int16_t)(((((int32_t)QF << 1) + k) * (int32_t)W * (int32_t)quantizer_scale) >> 5);
+    F = res;
+    return std::max<int16_t>(std::min<int16_t>(res, (int16_t)2047), (int16_t )-2048);
 }
 
-template<bool intra, int intra_dc_precision>
-void inverse_quant_template_c(int16_t F[64], int16_t QF[64], uint16_t W[64], uint8_t quantizer_scale) {
+template<bool intra>
+void inverse_quant_template_c(int16_t F[64], int16_t QF[64], uint16_t W[64], uint8_t quantizer_scale, int intra_dc_precision) {
     int32_t sum = 0;
     int i = intra ? 1 : 0;
     if (intra)
     {
         int32_t res = QF[0] << (3 - intra_dc_precision);
+        F[0] = res;
         sum += res;
     }
     for (; i < 64; i++)
@@ -47,41 +49,9 @@ void inverse_quant_template_c(int16_t F[64], int16_t QF[64], uint16_t W[64], uin
 }
 
 void inverse_quant_c(int16_t F[64], int16_t QF[64], uint16_t W[64], uint8_t quantizer_scale) {
-    inverse_quant_template_c<false, 0>(F, QF, W, quantizer_scale);
+    inverse_quant_template_c<false>(F, QF, W, quantizer_scale, 0);
 }
 
-void inverse_quant_intra_c(int16_t F[64], int16_t QF[64], uint16_t W[64], uint8_t quantizer_scale) {
-    inverse_quant_template_c<true, 0>(F, QF, W, quantizer_scale);
-}
-
-void inverse_quant_intra_9bit_c(int16_t F[64], int16_t QF[64], uint16_t W[64], uint8_t quantizer_scale) {
-    inverse_quant_template_c<true, 1>(F, QF, W, quantizer_scale);
-}
-
-void inverse_quant_intra_10bit_c(int16_t F[64], int16_t QF[64], uint16_t W[64], uint8_t quantizer_scale) {
-    inverse_quant_template_c<true, 2>(F, QF, W, quantizer_scale);
-}
-
-void inverse_quant_intra_11bit_c(int16_t F[64], int16_t QF[64], uint16_t W[64], uint8_t quantizer_scale) {
-    inverse_quant_template_c<true, 3>(F, QF, W, quantizer_scale);
-}
-
-void inverse_quant_c(int16_t F[64], int16_t QF[64], uint8_t quantizer_scale) {
-    inverse_quant_template_c<false, 0>(F, QF, default_non_intra_quantiser_matrix, quantizer_scale);
-}
-
-void inverse_quant_intra_c(int16_t F[64], int16_t QF[64], uint8_t quantizer_scale) {
-    inverse_quant_template_c<true, 0>(F, QF, default_intra_quantiser_matrix, quantizer_scale);
-}
-
-void inverse_quant_intra_9bit_c(int16_t F[64], int16_t QF[64], uint8_t quantizer_scale) {
-    inverse_quant_template_c<true, 1>(F, QF, default_intra_quantiser_matrix, quantizer_scale);
-}
-
-void inverse_quant_intra_10bit_c(int16_t F[64], int16_t QF[64], uint8_t quantizer_scale) {
-    inverse_quant_template_c<true, 2>(F, QF, default_intra_quantiser_matrix, quantizer_scale);
-}
-
-void inverse_quant_intra_11bit_c(int16_t F[64], int16_t QF[64], uint8_t quantizer_scale) {
-    inverse_quant_template_c<true, 3>(F, QF, default_intra_quantiser_matrix, quantizer_scale);
+void inverse_quant_intra_c(int16_t F[64], int16_t QF[64], uint16_t W[64], uint8_t quantizer_scale, int intra_dc_precision) {
+    inverse_quant_template_c<true>(F, QF, W, quantizer_scale, intra_dc_precision);
 }

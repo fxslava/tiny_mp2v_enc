@@ -24,13 +24,7 @@ struct vlc_coeff_t {
 
 constexpr vlc_t    vlc_start_code = { 0x000001, 24 };
 constexpr uint32_t macroblock_escape_code = 34;
-constexpr vlc_t    vlc_macroblock_escape_code = { 0b00000001000, 11 };
-constexpr uint32_t macroblock_quant_bit = 0b100000;
-constexpr uint32_t macroblock_motion_forward_bit = 0b10000;
-constexpr uint32_t macroblock_motion_backward_bit = 0b1000;
-constexpr uint32_t macroblock_pattern_bit = 0b100;
-constexpr uint32_t macroblock_intra_bit = 0b10;
-constexpr uint32_t spatial_temporal_weight_code_flag_bit = 0b1;
+constexpr vlc_t    vlc_macroblock_escape_code = { 0b00000001000, 11 };;
 
 //ISO/IEC 13818-2 : 2000 (E) Annex B - Variable length code tables. B.1 Macroblock addressing
 extern vlc_t macroblock_address_increment_to_vlc[35];
