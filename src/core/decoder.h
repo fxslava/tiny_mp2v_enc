@@ -43,6 +43,12 @@ public:
     mp2v_decoded_picture_c(bitstream_reader_i* bitstream, mp2v_sequence_decoder_c* sequence) : mp2v_picture_c(bitstream, sequence) {};
     bool decode();
     bool parse_slice();
+
+private:
+    uint16_t intra_quantiser_matrix[64];
+    uint16_t non_intra_quantiser_matrix[64];
+    uint16_t chroma_intra_quantiser_matrix[64];
+    uint16_t chroma_non_intra_quantiser_matrix[64];
 };
 
 class mp2v_decoded_slice_c : public mp2v_slice_c {

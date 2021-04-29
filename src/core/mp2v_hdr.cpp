@@ -145,15 +145,19 @@ bool parse_quant_matrix_extension(bitstream_reader_i* m_bs, quant_matrix_extensi
     qmext.load_intra_quantiser_matrix = m_bs->read_next_bits(1);
     if (qmext.load_intra_quantiser_matrix)
         local_copy_array<uint8_t, 64>(m_bs, qmext.intra_quantiser_matrix);
+        //local_load_quantiser_matrix(m_bs, qmext.intra_quantiser_matrix);
     qmext.load_non_intra_quantiser_matrix = m_bs->read_next_bits(1);
     if (qmext.load_non_intra_quantiser_matrix)
         local_copy_array<uint8_t, 64>(m_bs, qmext.non_intra_quantiser_matrix);
+        //local_load_quantiser_matrix(m_bs, qmext.non_intra_quantiser_matrix);
     qmext.load_chroma_intra_quantiser_matrix = m_bs->read_next_bits(1);
     if (qmext.load_chroma_intra_quantiser_matrix)
         local_copy_array<uint8_t, 64>(m_bs, qmext.chroma_intra_quantiser_matrix);
+        //local_load_quantiser_matrix(m_bs, qmext.chroma_intra_quantiser_matrix);
     qmext.load_chroma_non_intra_quantiser_matrix = m_bs->read_next_bits(1);
     if (qmext.load_chroma_non_intra_quantiser_matrix)
         local_copy_array<uint8_t, 64>(m_bs, qmext.chroma_non_intra_quantiser_matrix);
+        //local_load_quantiser_matrix(m_bs, qmext.chroma_non_intra_quantiser_matrix);
     local_find_start_code(m_bs);
     return true;
 }
@@ -343,11 +347,11 @@ bool parse_motion_vectors(bitstream_reader_i* m_bs, macroblock_t& mb, uint32_t f
     return true;
 }
 
-template<uint8_t picture_coding_type,   //3 bit (I, P, B)
-    uint8_t picture_structure,          //2 bit (top|bottom field, frame)
-    uint8_t frame_pred_frame_dct,       //1 bit // only with picture_structure == frame
-    uint8_t concealment_motion_vectors, //1 bit // only with picture_coding_type == I
-    uint8_t chroma_format>              //2 bit (420, 422, 444)
+template<uint8_t picture_coding_type,        //3 bit (I, P, B)
+         uint8_t picture_structure,          //2 bit (top|bottom field, frame)
+         uint8_t frame_pred_frame_dct,       //1 bit // only with picture_structure == frame
+         uint8_t concealment_motion_vectors, //1 bit // only with picture_coding_type == I
+         uint8_t chroma_format>              //2 bit (420, 422, 444)
 bool parse_macroblock_template(bitstream_reader_i* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index, uint32_t f_code[2][2]) {
     mb.macroblock_address_increment = 0;
     while (m_bs->get_next_bits(vlc_macroblock_escape_code.len) == vlc_macroblock_escape_code.value) {
@@ -386,13 +390,10 @@ DEF_CHROMA_FROMATS_PARSE_MACROBLOCKS_ROUTINES(prefix##_frame, pct, picture_struc
 DEF_CHROMA_FROMATS_PARSE_MACROBLOCKS_ROUTINES(prefix##_frame_dct, pct, picture_structure_framepic, 1, cmv) \
 DEF_CHROMA_FROMATS_PARSE_MACROBLOCKS_ROUTINES(prefix##_field, pct, picture_structure_topfield, 0, cmv)
 
-#define DEF_PARSE_MACROBLOCKSS_ROUTINES() \
-DEF_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(i, picture_coding_type_intra, 0) \
-DEF_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(i_cmv, picture_coding_type_intra, 1) \
-DEF_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(p, picture_coding_type_pred, 0) \
-DEF_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(b, picture_coding_type_bidir, 0)
-
-DEF_PARSE_MACROBLOCKSS_ROUTINES()
+DEF_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(i, picture_coding_type_intra, 0);
+DEF_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(i_cmv, picture_coding_type_intra, 1);
+DEF_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(p, picture_coding_type_pred, 0);
+DEF_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(b, picture_coding_type_bidir, 0);
 
 #define SEL_CHROMA_FROMATS_PARSE_MACROBLOCKS_ROUTINES(prefix, pct, ps, fpfdct, cmv) \
     switch (chroma_format) { \

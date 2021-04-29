@@ -308,7 +308,7 @@ struct macroblock_t {
     uint32_t coded_block_pattern_1;                    // | 2           | uimsbf
     uint32_t coded_block_pattern_2;                    // | 6           | uimsbf
 
-    // Additional parameters
+    // Decoded fields
     uint32_t          motion_vector_count;
     uint32_t          dmv;
     mv_format_e       mv_format;

@@ -1,4 +1,5 @@
 #include "decoder.h"
+#include "scan.h"
 
 frame_c::frame_c(int width, int height, int chroma_format) {
     m_stride = (width + CACHE_LINE - 1) & ~(CACHE_LINE - 1);
@@ -69,6 +70,18 @@ bool mp2v_sequence_decoder_c::parse_picture_data() {
 }
 
 bool mp2v_decoded_picture_c::decode() {
+    if (m_quant_matrix_extension) {
+        for (int i = 0; i < 64; i++) {
+            if (m_quant_matrix_extension->load_intra_quantiser_matrix)
+                intra_quantiser_matrix[i] = m_quant_matrix_extension->intra_quantiser_matrix[g_scan[0][i]];
+            if (m_quant_matrix_extension->load_non_intra_quantiser_matrix)
+                non_intra_quantiser_matrix[i] = m_quant_matrix_extension->non_intra_quantiser_matrix[g_scan[0][i]];
+            if (m_quant_matrix_extension->load_intra_quantiser_matrix)
+                chroma_intra_quantiser_matrix[i] = m_quant_matrix_extension->chroma_intra_quantiser_matrix[g_scan[0][i]];
+            if (m_quant_matrix_extension->load_intra_quantiser_matrix)
+                chroma_non_intra_quantiser_matrix[i] = m_quant_matrix_extension->chroma_non_intra_quantiser_matrix[g_scan[0][i]];
+        }
+    }
     return parse_picture();
 }
 
