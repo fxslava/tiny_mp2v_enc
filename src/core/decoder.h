@@ -28,12 +28,37 @@ private:
     uint8_t* chroma_planes[2] = { 0 };
 };
 
-class mp2v_decoder_c {
+class mp2v_sequence_decoder_c : public video_sequence_c {
 public:
-    bool decoder_init(decoder_config_t* config);
-    bool decode_slice(slice_c& slice);
-    bool decode(picture_c* pic);
+    mp2v_sequence_decoder_c(bitstream_reader_i* bitstream) : video_sequence_c(bitstream) {};
+    bool decode();
+    virtual bool parse_picture_data();
 
 private:
+    std::vector<frame_c*> frames_pool;
+};
+
+class mp2v_decoded_picture_c : public mp2v_picture_c {
+public:
+    mp2v_decoded_picture_c(bitstream_reader_i* bitstream, mp2v_sequence_decoder_c* sequence) : mp2v_picture_c(bitstream, sequence) {};
+    bool decode();
+    bool parse_slice();
+};
+
+class mp2v_decoded_slice_c : public mp2v_slice_c {
+public:
+    mp2v_decoded_slice_c(bitstream_reader_i* bitstream, mp2v_decoded_picture_c* pic) : mp2v_slice_c(bitstream, pic) {};
+    bool decode();
+    bool decode_blocks(mb_data_t& mb_data);
+};
+
+class mp2v_decoder_c {
+public:
+    mp2v_decoder_c(bitstream_reader_i* bitstream) : video_sequence_decoder(bitstream) {}
+    bool decoder_init(decoder_config_t* config);
+    bool decode();
+
+private:
+    mp2v_sequence_decoder_c video_sequence_decoder;
     std::vector<frame_c*> frames_pool;
 };

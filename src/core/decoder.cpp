@@ -45,17 +45,46 @@ bool mp2v_decoder_c::decoder_init(decoder_config_t* config) {
 
     return true;
 }
+bool mp2v_decoder_c::decode() {
+    return video_sequence_decoder.decode();
+}
 
-bool mp2v_decoder_c::decode_slice(slice_c& slice) {
-    for (auto& mb : slice.macroblocks)
-        for (int i = 0; i < slice.block_count; i++) {
-            int16_t QF[64];
-        }
+bool mp2v_sequence_decoder_c::decode() {
+    return parse();
+}
+
+bool mp2v_sequence_decoder_c::parse_picture_data() {
+    /* Decode sequence parameters*/
+    mp2v_decoded_picture_c pic(m_bs, this);
+    pic.block_count = block_count_tbl[m_sequence_extension.chroma_format];
+
+    parse_picture_header(m_bs, pic.m_picture_header);
+    parse_picture_coding_extension(m_bs, pic.m_picture_coding_extension);
+    parse_extension_and_user_data(after_picture_coding_extension, &pic);
+    pic.decode();
+
+    m_pictures.push_back(pic);
+    m_pictures_queue.push(&m_pictures.back());
     return true;
 }
 
-bool mp2v_decoder_c::decode(picture_c* pic) {
-    for (auto& slice : pic->m_slices)
-        decode_slice(slice);
+bool mp2v_decoded_picture_c::decode() {
+    return parse_picture();
+}
+
+bool mp2v_decoded_picture_c::parse_slice() {
+    mp2v_decoded_slice_c slice(m_bs, this);
+    slice.init_slice();
+    slice.decode();
+    m_slices.push_back(slice);
+    return true;
+}
+
+bool mp2v_decoded_slice_c::decode() {
+    return parse_slice();
+}
+
+bool mp2v_decoded_slice_c::decode_blocks(mb_data_t& mb_data) {
+    macroblocks.push_back(mb_data);
     return true;
 }

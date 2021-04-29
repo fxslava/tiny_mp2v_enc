@@ -96,14 +96,9 @@ int main(int argc, char* argv[])
 
     if (bitstream_file) {
         bitstream_file_reader stream_reader(*bitstream_file);
-        mp2v_parser_c mp2v_parser(&stream_reader);
-        mp2v_decoder_c mp2v_decoder;
+        mp2v_decoder_c mp2v_decoder(&stream_reader);
 
         mp2v_decoder.decoder_init(&config);
-        mp2v_parser.parse();
-
-        picture_c* pic = nullptr;
-        if (mp2v_parser.get_parsed_picture(pic))
-            mp2v_decoder.decode(pic);
+        mp2v_decoder.decode();
     }
 }

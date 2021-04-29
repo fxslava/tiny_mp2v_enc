@@ -7,6 +7,9 @@
 
 #define CHECK(p) { if (!(p)) return false; }
 
+//[chroma_format]
+uint32_t block_count_tbl[4] = { 0 /*invalid chroma format*/, 6, 8, 12 };
+
 struct spatial_temporal_weights_classes_t {
     uint8_t spatial_temporal_weight_fract[2]; // 0 - 0.0, 1 - 0.5, 2 - 1.0
     uint8_t spatial_temporal_weight_class;
@@ -129,23 +132,23 @@ static bool parse_block(bitstream_reader_i* bs, mb_data_t& mb_data, int i, uint1
                 else
                     dct_diff = (dct_dc_differential + 1) - (2 * half_range);
             }
-            mb_data.QFS[0] = dct_dc_pred[cc] + dct_diff;
-            dct_dc_pred[cc] = mb_data.QFS[0];
+            mb_data.QFS[i][0] = dct_dc_pred[cc] + dct_diff;
+            dct_dc_pred[cc] = mb_data.QFS[i][0];
         }
         else {
             uint32_t run;
             int32_t level;
             read_first_coefficient<use_dct_one_table>(bs, run, level);
-            mb_data.QFS[0] = level;
+            mb_data.QFS[i][0] = level;
             n += run;
         }
-        read_block_coefficients<use_dct_one_table>(bs, n, mb_data.QFS);
+        read_block_coefficients<use_dct_one_table>(bs, n, mb_data.QFS[i]);
     }
 
     return true;
 }
 
-bool slice_c::init_slice() {
+bool mp2v_slice_c::init_slice() {
     auto* seq = m_pic->get_seq();
     auto& pcext = m_pic->m_picture_coding_extension;
     auto* pssext = m_pic->m_picture_spatial_scalable_extension;
@@ -153,93 +156,29 @@ bool slice_c::init_slice() {
     auto& se = seq->m_sequence_extension;
     auto& sh = seq->m_sequence_header;
 
-    picture_structure = pcext.picture_structure;
     f_code[0][0] = pcext.f_code[0][0];
     f_code[0][1] = pcext.f_code[0][1];
     f_code[1][0] = pcext.f_code[1][0];
     f_code[1][1] = pcext.f_code[1][1];
-    concealment_motion_vectors = pcext.concealment_motion_vectors;
-    frame_pred_frame_dct = pcext.frame_pred_frame_dct;
     chroma_format = se.chroma_format;
     vertical_size_value = sh.vertical_size_value;
-    picture_coding_type = ph.picture_coding_type;
     intra_vlc_format = pcext.intra_vlc_format;
     block_count = m_pic->block_count;
-
     dct_dc_pred_reset_value = predictor_reset_value[pcext.intra_dc_precision];
+
+    parse_macroblock_func = select_parse_macroblock_func(
+        ph.picture_coding_type,
+        pcext.picture_structure,
+        pcext.frame_pred_frame_dct,
+        pcext.concealment_motion_vectors,
+        chroma_format);
 
     if (pssext)
         spatial_temporal_weight_code_table_index = pssext->spatial_temporal_weight_code_table_index;
     return true;
 }
 
-void slice_c::decode_mb_modes(mb_data_t& mb_data) {
-    auto& mb = mb_data.mb;
-    if (!(mb.macroblock_type & macroblock_intra_bit) || mb.macroblock_address_increment > 1) {
-        // reset DCT DC predictor
-        dct_dc_pred[0] = dct_dc_pred_reset_value;
-        dct_dc_pred[1] = dct_dc_pred_reset_value;
-        dct_dc_pred[2] = dct_dc_pred_reset_value;
-    }
-
-    if (m_pic->m_picture_spatial_scalable_extension) {
-        auto weight_class = local_spatial_temporal_weights_classes_tbl[spatial_temporal_weight_code_table_index][mb.spatial_temporal_weight_code];
-        mb_data.spatial_temporal_weight_class = weight_class.spatial_temporal_weight_class;
-        mb_data.spatial_temporal_weight_fract[0] = weight_class.spatial_temporal_weight_fract[0];
-        mb_data.spatial_temporal_weight_fract[1] = weight_class.spatial_temporal_weight_fract[1];
-        mb_data.spatial_temporal_integer_weight = weight_class.spatial_temporal_integer_weight;
-    }
-    if (mb.macroblock_type & macroblock_intra_bit)
-    {
-        mb_data.motion_vector_count = 0;
-        mb_data.dmv = 0;
-    }
-    else
-    {
-        mb_data.motion_vector_count = 1;
-        if(mb.macroblock_type & macroblock_motion_backward_bit);
-            mb_data.motion_vector_count = 2;
-        mb_data.dmv = 0;
-        if (picture_structure == picture_structure_framepic) {
-            switch (mb.frame_motion_type) {
-            case 1:
-                mb_data.mv_format = Field;
-                mb_data.prediction_type = Field_based;
-                break;
-            case 2:
-                mb_data.mv_format = Frame;
-                mb_data.prediction_type = Frame_based;
-                break;
-            case 3:
-                mb_data.mv_format = Field;
-                mb_data.prediction_type = Dual_Prime;
-                mb_data.dmv = 1;
-                break;
-            }
-        }
-        else {
-            switch (mb.field_motion_type) {
-            case 1:
-                mb_data.mv_format = Field;
-                mb_data.prediction_type = Field_based;
-                break;
-            case 2:
-                mb_data.mv_format = Field;
-                mb_data.prediction_type = MC16x8;
-                break;
-            case 3:
-                mb_data.mv_format = Field;
-                mb_data.prediction_type = Dual_Prime;
-                mb_data.dmv = 1;
-                break;
-            }
-        }
-    }
-
-    m_use_dct_one_table = (intra_vlc_format == 1) && (mb.macroblock_type & macroblock_intra_bit);
-}
-
-void slice_c::decode_mb_pattern(mb_data_t &mb_data) {
+void mp2v_slice_c::decode_mb_pattern(mb_data_t &mb_data) {
     auto& mb = mb_data.mb;
     bool macroblock_intra = mb.macroblock_type & macroblock_intra_bit;
     bool macroblock_pattern = mb.macroblock_type & macroblock_pattern_bit;
@@ -264,92 +203,27 @@ void slice_c::decode_mb_pattern(mb_data_t &mb_data) {
     }
 }
 
-bool slice_c::parse_modes(macroblock_t &mb) {
-    mb.macroblock_type = get_macroblock_type(m_bs, picture_coding_type);
-    if ((mb.macroblock_type & spatial_temporal_weight_code_flag_bit) && (spatial_temporal_weight_code_table_index != 0)) {
-        mb.spatial_temporal_weight_code = m_bs->read_next_bits(2);
-    }
-    if ((mb.macroblock_type & macroblock_motion_forward_bit) || (mb.macroblock_type & macroblock_motion_backward_bit)) {
-        if (picture_structure == picture_structure_framepic) {
-            if (frame_pred_frame_dct == 0)
-                mb.frame_motion_type = m_bs->read_next_bits(2);
-        }
-        else {
-            mb.field_motion_type = m_bs->read_next_bits(2);
-        }
-    }
-    if ((picture_structure == picture_structure_framepic) && (frame_pred_frame_dct == 0) && 
-        ((mb.macroblock_type & macroblock_intra_bit) || (mb.macroblock_type & macroblock_pattern_bit))) {
-        mb.dct_type = m_bs->read_next_bits(1);
-    }
-    return true;
-}
-
-bool slice_c::parse_coded_block_pattern(macroblock_t& mb) {
-    mb.coded_block_pattern_420 = get_coded_block_pattern(m_bs);
-    if (chroma_format == chroma_format_422)
-        mb.coded_block_pattern_1 = m_bs->read_next_bits(2);
-    if (chroma_format == chroma_format_444)
-        mb.coded_block_pattern_2 = m_bs->read_next_bits(6);
-    return false;
-}
-
-bool slice_c::parse_motion_vector(mb_data_t& mb_data, int r, int s) {
-    auto& mb = mb_data.mb;
-    mb.motion_code[r][s][0] = get_motion_code(m_bs);
-    if ((f_code[s][0] != 1) && (mb.motion_code[r][s][0] != 0))
-        mb.motion_residual[r][s][0] = m_bs->read_next_bits(f_code[s][0] - 1);
-    if (mb_data.dmv == 1)
-        mb.dmvector[0] = get_dmvector(m_bs);
-    mb.motion_code[r][s][1] = get_motion_code(m_bs);
-    if ((f_code[s][1] != 1) && (mb.motion_code[r][s][1] != 0))
-        mb.motion_residual[r][s][1] = m_bs->read_next_bits(f_code[s][1] - 1);
-    if (mb_data.dmv == 1)
-        mb.dmvector[1] = get_dmvector(m_bs);
-    return true;
-}
-
-bool slice_c::parse_motion_vectors(mb_data_t& mb_data, int s) {
-    auto& mb = mb_data.mb;
-    if (mb_data.motion_vector_count == 1) {
-        if ((mb_data.mv_format == Field) && (mb_data.dmv != 1))
-            mb.motion_vertical_field_select[0][s] = m_bs->read_next_bits(1);
-        parse_motion_vector(mb_data, 0, s);
-    }
-    else {
-        mb.motion_vertical_field_select[0][s] = m_bs->read_next_bits(1);
-        parse_motion_vector(mb_data, 0, s);
-        mb.motion_vertical_field_select[1][s] = m_bs->read_next_bits(1);
-        parse_motion_vector(mb_data, 1, s);
-    }
-    return true;
-}
-
-bool slice_c::parse_macroblock() {
+bool mp2v_slice_c::parse_macroblock() {
     mb_data_t mb_data = { 0 };
     auto& mb = mb_data.mb;
-
-    mb.macroblock_address_increment = 0;
-    while (m_bs->get_next_bits(vlc_macroblock_escape_code.len) == vlc_macroblock_escape_code.value) {
-        m_bs->skip_bits(vlc_macroblock_escape_code.len);
-        mb.macroblock_address_increment += 33;
-    }
-    mb.macroblock_address_increment += get_macroblock_address_increment(m_bs);
-
-    parse_modes(mb);
-    decode_mb_modes(mb_data);
-
-    if (mb.macroblock_type & macroblock_quant_bit)
-        mb.quantiser_scale_code = m_bs->read_next_bits(5);
-    if ((mb.macroblock_type & macroblock_motion_forward_bit) || ((mb.macroblock_type & macroblock_intra_bit) && concealment_motion_vectors))
-        parse_motion_vectors(mb_data, 0);
-    if ((mb.macroblock_type & macroblock_motion_backward_bit) != 0)
-        parse_motion_vectors(mb_data, 1);
-    if ((mb.macroblock_type & macroblock_intra_bit != 0) && concealment_motion_vectors)
-        m_bs->skip_bits(1);
-    if (mb.macroblock_type & macroblock_pattern_bit)
-        parse_coded_block_pattern(mb);
+    parse_macroblock_func(m_bs, mb, 0/*spatial_temporal_weight_code_table_index*/, f_code);
     decode_mb_pattern(mb_data);
+    m_use_dct_one_table = (intra_vlc_format == 1) && (mb.macroblock_type & macroblock_intra_bit);
+    if (!(mb.macroblock_type & macroblock_intra_bit) || mb.macroblock_address_increment > 1) {
+        // reset DCT DC predictor
+        dct_dc_pred[0] = dct_dc_pred_reset_value;
+        dct_dc_pred[1] = dct_dc_pred_reset_value;
+        dct_dc_pred[2] = dct_dc_pred_reset_value;
+    }
+
+    /*
+    if (m_pic->m_picture_spatial_scalable_extension) {
+        auto weight_class = local_spatial_temporal_weights_classes_tbl[spatial_temporal_weight_code_table_index][mb.spatial_temporal_weight_code];
+        mb_data.spatial_temporal_weight_class = weight_class.spatial_temporal_weight_class;
+        mb_data.spatial_temporal_weight_fract[0] = weight_class.spatial_temporal_weight_fract[0];
+        mb_data.spatial_temporal_weight_fract[1] = weight_class.spatial_temporal_weight_fract[1];
+        mb_data.spatial_temporal_integer_weight = weight_class.spatial_temporal_integer_weight;
+    }*/
 
     // TODO: try to unroll loop
     if (m_use_dct_one_table)
@@ -357,13 +231,19 @@ bool slice_c::parse_macroblock() {
             parse_block<true>(m_bs, mb_data, i, dct_dc_pred);
     else
         for (int i = 0; i < block_count; i++)
-            parse_block<true>(m_bs, mb_data, i, dct_dc_pred);
+            parse_block<false>(m_bs, mb_data, i, dct_dc_pred);
 
+    decode_blocks(mb_data);
+    return true;
+}
+
+bool mp2v_slice_c::decode_blocks(mb_data_t& mb_data) {
+    // without decoding
     macroblocks.push_back(mb_data);
     return true;
 }
 
-bool slice_c::parse_slice() {
+bool mp2v_slice_c::parse_slice() {
     auto* seq = m_pic->get_seq();
 
     // reset predictor
@@ -394,18 +274,23 @@ bool slice_c::parse_slice() {
     return true;
 }
 
-bool picture_c::parse_picture() {
+bool mp2v_picture_c::parse_picture() {
     do {
-        m_slices.emplace_back(m_bs, this);
-        auto& slice = m_slices.back();
-        slice.init_slice();
-        slice.parse_slice();
+        parse_slice();
     } while (local_next_start_code(m_bs) >= slice_start_code_min && local_next_start_code(m_bs) <= slice_start_code_max);
     local_find_start_code(m_bs);
     return true;
 }
 
-bool video_sequence_c::parse_extension_and_user_data(extension_after_code_e after_code, picture_c* pic) {
+bool mp2v_picture_c::parse_slice() {
+    m_slices.emplace_back(m_bs, this);
+    auto& slice = m_slices.back();
+    slice.init_slice();
+    slice.parse_slice();
+    return true;
+}
+
+bool video_sequence_c::parse_extension_and_user_data(extension_after_code_e after_code, mp2v_picture_c* pic) {
     while ((local_next_start_code(m_bs) == extension_start_code) || (local_next_start_code(m_bs) == user_data_start_code)) {
         if ((after_code != after_group_of_picture_header) && (local_next_start_code(m_bs) == extension_start_code))
             parse_extension_data(after_code, pic);
@@ -425,7 +310,7 @@ bool video_sequence_c::parse_user_data() {
     return true;
 }
 
-bool video_sequence_c::parse_extension_data(extension_after_code_e after_code, picture_c* pic) {
+bool video_sequence_c::parse_extension_data(extension_after_code_e after_code, mp2v_picture_c* pic) {
     while (local_next_start_code(m_bs) == extension_start_code) {
         m_bs->skip_bits(32); //extension_start_code 32 bslbf
         if (after_code == after_sequence_extension) {
@@ -504,12 +389,9 @@ bool video_sequence_c::parse() {
     return true;
 }
 
-//[chroma_format]
-uint32_t block_count_tbl[4] = { 0 /*invalid chroma format*/, 6, 8, 12 };
-
 bool video_sequence_c::parse_picture_data() {
     /* Decode sequence parameters*/
-    picture_c pic(m_bs, this);
+    mp2v_picture_c pic(m_bs, this);
     pic.block_count = block_count_tbl[m_sequence_extension.chroma_format];
 
     parse_picture_header(m_bs, pic.m_picture_header);

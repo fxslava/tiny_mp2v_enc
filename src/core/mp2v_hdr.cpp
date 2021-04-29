@@ -232,3 +232,197 @@ bool parse_copyright_extension(bitstream_reader_i* m_bs, copyright_extension_t& 
     local_find_start_code(m_bs);
     return true;
 }
+
+template<int picture_coding_type, int picture_structure, int frame_pred_frame_dct>
+static bool parse_modes(bitstream_reader_i* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index) {
+    mb.macroblock_type = get_macroblock_type(m_bs, picture_coding_type);
+    if ((mb.macroblock_type & spatial_temporal_weight_code_flag_bit) && (spatial_temporal_weight_code_table_index != 0)) {
+        mb.spatial_temporal_weight_code = m_bs->read_next_bits(2);
+    }
+    if ((mb.macroblock_type & macroblock_motion_forward_bit) || (mb.macroblock_type & macroblock_motion_backward_bit)) {
+        if (picture_structure == picture_structure_framepic) {
+            if (frame_pred_frame_dct == 0)
+                mb.frame_motion_type = m_bs->read_next_bits(2);
+        }
+        else {
+            mb.field_motion_type = m_bs->read_next_bits(2);
+        }
+    }
+    if ((picture_structure == picture_structure_framepic) && (frame_pred_frame_dct == 0) &&
+        ((mb.macroblock_type & macroblock_intra_bit) || (mb.macroblock_type & macroblock_pattern_bit))) {
+        mb.dct_type = m_bs->read_next_bits(1);
+    }
+
+    // decode modes
+    if (mb.macroblock_type & macroblock_intra_bit)
+    {
+        mb.motion_vector_count = 0;
+        mb.dmv = 0;
+    }
+    else
+    {
+        mb.motion_vector_count = 1;
+        if (mb.macroblock_type & macroblock_motion_backward_bit)
+            mb.motion_vector_count = 2;
+        mb.dmv = 0;
+        if (picture_structure == picture_structure_framepic) {
+            switch (mb.frame_motion_type) {
+            case 1:
+                mb.mv_format = Field;
+                mb.prediction_type = Field_based;
+                break;
+            case 2:
+                mb.mv_format = Frame;
+                mb.prediction_type = Frame_based;
+                break;
+            case 3:
+                mb.mv_format = Field;
+                mb.prediction_type = Dual_Prime;
+                mb.dmv = 1;
+                break;
+            }
+        }
+        else {
+            switch (mb.field_motion_type) {
+            case 1:
+                mb.mv_format = Field;
+                mb.prediction_type = Field_based;
+                break;
+            case 2:
+                mb.mv_format = Field;
+                mb.prediction_type = MC16x8;
+                break;
+            case 3:
+                mb.mv_format = Field;
+                mb.prediction_type = Dual_Prime;
+                mb.dmv = 1;
+                break;
+            }
+        }
+    }
+    return true;
+}
+
+template<int chroma_format>
+bool parse_coded_block_pattern(bitstream_reader_i* m_bs, macroblock_t& mb) {
+    mb.coded_block_pattern_420 = get_coded_block_pattern(m_bs);
+    if (chroma_format == chroma_format_422)
+        mb.coded_block_pattern_1 = m_bs->read_next_bits(2);
+    if (chroma_format == chroma_format_444)
+        mb.coded_block_pattern_2 = m_bs->read_next_bits(6);
+    return false;
+}
+
+bool parse_motion_vector(bitstream_reader_i* m_bs, macroblock_t& mb, int r, int s, uint32_t f_code[2][2]) {
+    mb.motion_code[r][s][0] = get_motion_code(m_bs);
+    if ((f_code[s][0] != 1) && (mb.motion_code[r][s][0] != 0))
+        mb.motion_residual[r][s][0] = m_bs->read_next_bits(f_code[s][0] - 1);
+    if (mb.dmv == 1)
+        mb.dmvector[0] = get_dmvector(m_bs);
+    mb.motion_code[r][s][1] = get_motion_code(m_bs);
+    if ((f_code[s][1] != 1) && (mb.motion_code[r][s][1] != 0))
+        mb.motion_residual[r][s][1] = m_bs->read_next_bits(f_code[s][1] - 1);
+    if (mb.dmv == 1)
+        mb.dmvector[1] = get_dmvector(m_bs);
+    return true;
+}
+
+template <int s>
+bool parse_motion_vectors(bitstream_reader_i* m_bs, macroblock_t& mb, uint32_t f_code[2][2]) {
+    if (mb.motion_vector_count == 1) {
+        if ((mb.mv_format == Field) && (mb.dmv != 1))
+            mb.motion_vertical_field_select[0][s] = m_bs->read_next_bits(1);
+        parse_motion_vector(m_bs, mb, 0, s, f_code);
+    }
+    else {
+        mb.motion_vertical_field_select[0][s] = m_bs->read_next_bits(1);
+        parse_motion_vector(m_bs, mb, 0, s, f_code);
+        mb.motion_vertical_field_select[1][s] = m_bs->read_next_bits(1);
+        parse_motion_vector(m_bs, mb, 1, s, f_code);
+    }
+    return true;
+}
+
+template<uint8_t picture_coding_type,   //3 bit (I, P, B)
+    uint8_t picture_structure,          //2 bit (top|bottom field, frame)
+    uint8_t frame_pred_frame_dct,       //1 bit // only with picture_structure == frame
+    uint8_t concealment_motion_vectors, //1 bit // only with picture_coding_type == I
+    uint8_t chroma_format>              //2 bit (420, 422, 444)
+bool parse_macroblock_template(bitstream_reader_i* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index, uint32_t f_code[2][2]) {
+    mb.macroblock_address_increment = 0;
+    while (m_bs->get_next_bits(vlc_macroblock_escape_code.len) == vlc_macroblock_escape_code.value) {
+        m_bs->skip_bits(vlc_macroblock_escape_code.len);
+        mb.macroblock_address_increment += 33;
+    }
+    mb.macroblock_address_increment += get_macroblock_address_increment(m_bs);
+
+    parse_modes<picture_coding_type, picture_structure, frame_pred_frame_dct>(m_bs, mb, spatial_temporal_weight_code_table_index);
+    if (mb.macroblock_type & macroblock_quant_bit)
+        mb.quantiser_scale_code = m_bs->read_next_bits(5);
+    if ((mb.macroblock_type & macroblock_motion_forward_bit) || ((mb.macroblock_type & macroblock_intra_bit) && concealment_motion_vectors))
+        parse_motion_vectors<0>(m_bs, mb, f_code);
+    if ((mb.macroblock_type & macroblock_motion_backward_bit) != 0)
+        parse_motion_vectors<1>(m_bs, mb, f_code);
+    if ((mb.macroblock_type & macroblock_intra_bit != 0) && concealment_motion_vectors)
+        m_bs->skip_bits(1);
+    if (mb.macroblock_type & macroblock_pattern_bit)
+        parse_coded_block_pattern<chroma_format>(m_bs, mb);
+    return true;
+}
+
+#define DEF_CHROMA_FROMATS_PARSE_MACROBLOCKS_ROUTINES(prefix, pct, ps, fpfdct, cmv) \
+static bool parse_##prefix##_420_macroblock(bitstream_reader_i* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index, uint32_t f_code[2][2]) { \
+    return parse_macroblock_template<pct, ps, fpfdct, cmv, chroma_format_420>(m_bs, mb, spatial_temporal_weight_code_table_index, f_code); \
+} \
+static bool parse_##prefix##_422_macroblock(bitstream_reader_i* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index, uint32_t f_code[2][2]) { \
+    return parse_macroblock_template<pct, ps, fpfdct, cmv, chroma_format_422>(m_bs, mb, spatial_temporal_weight_code_table_index, f_code); \
+} \
+static bool parse_##prefix##_444_macroblock(bitstream_reader_i* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index, uint32_t f_code[2][2]) { \
+    return parse_macroblock_template<pct, ps, fpfdct, cmv, chroma_format_444>(m_bs, mb, spatial_temporal_weight_code_table_index, f_code); \
+}
+
+#define DEF_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(prefix, pct, cmv) \
+DEF_CHROMA_FROMATS_PARSE_MACROBLOCKS_ROUTINES(prefix##_frame, pct, picture_structure_framepic, 0, cmv) \
+DEF_CHROMA_FROMATS_PARSE_MACROBLOCKS_ROUTINES(prefix##_frame_dct, pct, picture_structure_framepic, 1, cmv) \
+DEF_CHROMA_FROMATS_PARSE_MACROBLOCKS_ROUTINES(prefix##_field, pct, picture_structure_topfield, 0, cmv)
+
+#define DEF_PARSE_MACROBLOCKSS_ROUTINES() \
+DEF_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(i, picture_coding_type_intra, 0) \
+DEF_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(i_cmv, picture_coding_type_intra, 1) \
+DEF_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(p, picture_coding_type_pred, 0) \
+DEF_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(b, picture_coding_type_bidir, 0)
+
+DEF_PARSE_MACROBLOCKSS_ROUTINES()
+
+#define SEL_CHROMA_FROMATS_PARSE_MACROBLOCKS_ROUTINES(prefix, pct, ps, fpfdct, cmv) \
+    switch (chroma_format) { \
+        case chroma_format_420: return parse_##prefix##_420_macroblock; \
+        case chroma_format_422: return parse_##prefix##_422_macroblock; \
+        case chroma_format_444: return parse_##prefix##_444_macroblock; \
+    }
+
+#define SEL_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(prefix, pct, cmv) \
+    if (picture_structure == picture_structure_framepic) { \
+        if (frame_pred_frame_dct) \
+            SEL_CHROMA_FROMATS_PARSE_MACROBLOCKS_ROUTINES(prefix##_frame_dct, pct, picture_structure_framepic, 1, cmv) \
+        else \
+            SEL_CHROMA_FROMATS_PARSE_MACROBLOCKS_ROUTINES(prefix##_frame, pct, picture_structure_framepic, 0, cmv) \
+    } else \
+        SEL_CHROMA_FROMATS_PARSE_MACROBLOCKS_ROUTINES(prefix##_field, pct, picture_structure_topfield, 0, cmv)
+
+parse_macroblock_func_t select_parse_macroblock_func(uint8_t picture_coding_type, uint8_t picture_structure, uint8_t frame_pred_frame_dct, uint8_t concealment_motion_vectors, uint8_t chroma_format) 
+{
+    switch (picture_coding_type) {
+    case picture_coding_type_intra:
+        if (concealment_motion_vectors) {
+            SEL_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(i_cmv, picture_coding_type_intra, 1)
+        }
+        else {
+            SEL_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(i, picture_coding_type_intra, 0)
+        }
+    case picture_coding_type_pred:
+        SEL_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(p, picture_coding_type_pred, 0)
+    case picture_coding_type_bidir:
+        SEL_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(b, picture_coding_type_bidir, 0)
+    };
+};

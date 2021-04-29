@@ -268,6 +268,18 @@ struct slice_t {
     uint32_t slice_picture_id;                         // | 6           | uimbsf
 };
 
+enum mv_format_e {
+    Field = 0,
+    Frame
+};
+
+enum prediction_type_e {
+    Field_based,
+    Frame_based,
+    Dual_Prime,
+    MC16x8
+};
+
 // ISO/IEC 13818-2 : 2000 (E) 6.2.5
 struct macroblock_t {
     //     | Syntax element                               | No. of bits | Mnemonic
@@ -295,6 +307,12 @@ struct macroblock_t {
     uint32_t coded_block_pattern_420;                  // | 3 - 9       | vlclbf
     uint32_t coded_block_pattern_1;                    // | 2           | uimsbf
     uint32_t coded_block_pattern_2;                    // | 6           | uimsbf
+
+    // Additional parameters
+    uint32_t          motion_vector_count;
+    uint32_t          dmv;
+    mv_format_e       mv_format;
+    prediction_type_e prediction_type;
 };
 
 // ISO/IEC 13818-2 : 2000 (E) 6.2.2
@@ -312,3 +330,11 @@ bool parse_picture_display_extension(bitstream_reader_i* m_bs, picture_display_e
 bool parse_picture_temporal_scalable_extension(bitstream_reader_i* m_bs, picture_temporal_scalable_extension_t& ptsext);
 bool parse_picture_spatial_scalable_extension(bitstream_reader_i* m_bs, picture_spatial_scalable_extension_t& pssext);
 bool parse_copyright_extension(bitstream_reader_i* m_bs, copyright_extension_t& crext);
+
+typedef bool (*parse_macroblock_func_t)(bitstream_reader_i* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index, uint32_t f_code[2][2]);
+parse_macroblock_func_t select_parse_macroblock_func(
+    uint8_t picture_coding_type, 
+    uint8_t picture_structure, 
+    uint8_t frame_pred_frame_dct, 
+    uint8_t concealment_motion_vectors, 
+    uint8_t chroma_format);
