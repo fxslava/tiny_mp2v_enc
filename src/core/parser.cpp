@@ -29,12 +29,13 @@ uint16_t predictor_reset_value[4] = { 128, 256, 512, 1024 };
 uint8_t color_component_index[12] = { 0, 0, 0, 0, 1, 2, 1, 2, 1, 2, 1, 2 };
 
 template<bool use_dct_one_table>
-static void read_first_coefficient(bitstream_reader_i* bs, uint32_t &run, int32_t &level) {
-    if (use_dct_one_table) {
-        coeff_t c =  get_coeff_one(bs);
-        int s = bs->read_next_bits(1);
-        level = s ? -c.level : c.level;
-        run = c.run;
+static void read_first_coefficient(bitstream_reader_i* bs, uint32_t& run, int32_t& level) {
+    if (bs->get_next_bits(6) == 0b000001) {
+        bs->skip_bits(6);
+        run = bs->read_next_bits(6);
+        level = bs->read_next_bits(12);
+        if (level & 0b100000000000)
+            level |= 0xfffff000;
     }
     else {
         if (bs->get_next_bits(1) == 1) {
@@ -43,7 +44,7 @@ static void read_first_coefficient(bitstream_reader_i* bs, uint32_t &run, int32_
             run = 0;
         }
         else {
-            coeff_t c = get_coeff_zero(bs);
+            coeff_t c = use_dct_one_table ? get_coeff_one(bs) : get_coeff_zero(bs);
             int s = bs->read_next_bits(1);
             level = s ? -c.level : c.level;
             run = c.run;
