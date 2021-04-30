@@ -266,7 +266,7 @@ static bool parse_modes(bitstream_reader_i* m_bs, macroblock_t& mb, int spatial_
     else
     {
         mb.motion_vector_count = 1;
-        if (mb.macroblock_type & macroblock_motion_backward_bit)
+        if ((mb.macroblock_type & macroblock_motion_backward_bit) && (mb.macroblock_type & macroblock_motion_forward_bit))
             mb.motion_vector_count = 2;
         mb.dmv = 0;
         if (picture_structure == picture_structure_framepic) {

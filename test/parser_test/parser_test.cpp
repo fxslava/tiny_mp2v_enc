@@ -81,12 +81,22 @@ private:
     uint32_t buffer_idx = 64;
 };
 
+void write_frame(frame_c* frame, char* fname) {
+    FILE* fp = fopen(fname, "wb");
+    for (int i = 0; i < 3; i++) {
+        uint8_t* plane = frame->get_planes(i);
+        for (int y = 0; y < frame->get_height(i); y++, plane += frame->get_strides(i))
+            fwrite(plane, 1, frame->get_width(i), fp);
+    }
+    fclose(fp);
+}
+
 int main(int argc, char* argv[])
 {
     decoder_config_t config;
     config.width = 1920;
     config.height = 1088;
-    config.chroma_format = 1;
+    config.chroma_format = 2;
     config.frames_pool_size = 16;
 
     std::string *bitstream_file;
@@ -97,8 +107,11 @@ int main(int argc, char* argv[])
     if (bitstream_file) {
         bitstream_file_reader stream_reader(*bitstream_file);
         mp2v_decoder_c mp2v_decoder(&stream_reader);
+        frame_c* frame = nullptr;
 
         mp2v_decoder.decoder_init(&config);
         mp2v_decoder.decode();
+        mp2v_decoder.get_decoded_frame(frame);
+        write_frame(frame, "first_decoded_frame.yuv");
     }
 }

@@ -29,8 +29,8 @@ template<bool intra>
 int16_t inverse_quant_scalar_c(int16_t &F, int16_t QF, uint16_t W, uint8_t quantizer_scale) {
     int32_t k = intra ? 0 : sgn(QF);
     int16_t res = (int16_t)(((((int32_t)QF << 1) + k) * (int32_t)W * (int32_t)quantizer_scale) >> 5);
-    F = res;
-    return std::max<int16_t>(std::min<int16_t>(res, (int16_t)2047), (int16_t )-2048);
+    F = std::max<int16_t>(std::min<int16_t>(res, (int16_t)2047), (int16_t)-2048);
+    return F;
 }
 
 template<bool intra>

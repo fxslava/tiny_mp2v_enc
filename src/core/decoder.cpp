@@ -1,6 +1,7 @@
 // Copyright © 2021 Vladislav Ovchinnikov. All rights reserved.
 #include "decoder.h"
 #include "scan.h"
+#include "idct.h"
 
 frame_c::frame_c(int width, int height, int chroma_format) {
     m_stride = (width + CACHE_LINE - 1) & ~(CACHE_LINE - 1);
@@ -14,9 +15,9 @@ frame_c::frame_c(int width, int height, int chroma_format) {
         m_chroma_height = m_height >> 1;
         break;
     case chroma_format_422:
-        m_chroma_stride = m_stride;
-        m_chroma_width = m_width;
-        m_chroma_height = m_height >> 1;
+        m_chroma_stride = ((m_stride >> 1) + CACHE_LINE - 1) & ~(CACHE_LINE - 1);
+        m_chroma_width = m_width >> 1;
+        m_chroma_height = m_height;
         break;
     case chroma_format_444:
         m_chroma_stride = m_stride;
@@ -44,6 +45,8 @@ bool mp2v_decoder_c::decoder_init(decoder_config_t* config) {
     for (int i = 0; i < pool_size; i++)
         frames_pool.push_back(new frame_c(width, height, chroma_format));
 
+    idct_init();
+
     return true;
 }
 bool mp2v_decoder_c::decode() {
@@ -67,8 +70,7 @@ bool mp2v_sequence_decoder_c::parse_picture_data() {
     pic.decode();
 
     m_owner->frames_pool.push_back(frame);
-    //m_pictures.push_back(pic);
-    //m_pictures_queue.push(&m_pictures.back());
+    m_owner->output_frames.push(frame);
     return true;
 }
 
@@ -93,19 +95,21 @@ bool mp2v_decoded_picture_c::decode() {
 bool mp2v_decoded_picture_c::parse_slice() {
     mp2v_decoded_slice_c slice(m_bs, this, decode_macroblock_func, m_frame);
     slice.init_slice();
-    slice.decode();
+    slice.parse_slice();
     m_slices.push_back(slice);
     return true;
 }
 
-bool mp2v_decoded_slice_c::decode() {
+bool mp2v_decoded_slice_c::decode_slice() {
     int slice_vertical_position = slice.slice_start_code & 0xff;
     if (vertical_size_value > 2800)
         mb_row = (slice.slice_vertical_position_extension << 7) + slice_vertical_position - 1;
     else
         mb_row = slice_vertical_position - 1;
+    mb_col = 0;
+    cur_quantiser_scale_code = slice.quantiser_scale_code;
 
-    return parse_slice();
+    return true;
 }
 
 bool mp2v_decoded_slice_c::decode_blocks(mb_data_t& mb_data) {
@@ -116,11 +120,25 @@ bool mp2v_decoded_slice_c::decode_blocks(mb_data_t& mb_data) {
     uint8_t* yuv[3];
     int stride = m_frame->m_stride;
     int chroma_stride = m_frame->m_chroma_stride;
-    yuv[0] = m_frame->planes[0] + mb_row * 16 * stride;
-    yuv[1] = m_frame->planes[1] + mb_row * 8 * chroma_stride;
-    yuv[2] = m_frame->planes[2] + mb_row * 8 * chroma_stride;
+    yuv[0] = m_frame->planes[0] + mb_row * 16 * stride + mb_col * 16;
+    switch (chroma_format) {
+    case chroma_format_420:
+        yuv[1] = m_frame->planes[1] + mb_row * 8 * chroma_stride + mb_col * 8;
+        yuv[2] = m_frame->planes[2] + mb_row * 8 * chroma_stride + mb_col * 8;
+        break;
+    case chroma_format_422:
+        yuv[1] = m_frame->planes[1] + mb_row * 16 * chroma_stride + mb_col * 8;
+        yuv[2] = m_frame->planes[2] + mb_row * 16 * chroma_stride + mb_col * 8;
+        break;
+    case chroma_format_444:
+        yuv[1] = m_frame->planes[1] + mb_row * 16 * chroma_stride + mb_col * 16;
+        yuv[2] = m_frame->planes[2] + mb_row * 16 * chroma_stride + mb_col * 16;
+        break;
+    }
 
-    decode_mb_func(yuv, stride, chroma_stride, mb_data, pic->quantiser_matrices, pcext.intra_dc_precision, slice.quantiser_scale_code);
+    decode_mb_func(yuv, stride, chroma_stride, mb_data, pic->quantiser_matrices, pcext.intra_dc_precision, cur_quantiser_scale_code);
+
+    mb_col += mb_data.mb.macroblock_address_increment;
     macroblocks.push_back(mb_data);
     return true;
 }

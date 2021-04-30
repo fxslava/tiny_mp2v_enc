@@ -266,6 +266,9 @@ bool mp2v_slice_c::parse_slice() {
             m_bs->skip_bits(9);
         }
     }
+
+    decode_slice();
+
     m_bs->skip_bits(1); /* with the value '0' */
     do {
         parse_macroblock();
@@ -287,6 +290,7 @@ bool mp2v_picture_c::parse_slice() {
     auto& slice = m_slices.back();
     slice.init_slice();
     slice.parse_slice();
+    slice.decode_slice();
     return true;
 }
 
@@ -375,7 +379,7 @@ bool video_sequence_c::parse() {
                     parse_extension_and_user_data(after_group_of_picture_header, nullptr);
                 }
                 parse_picture_data();
-                return true; // remove it after test complete
+                //return true; // remove it after test complete
             } while ((local_next_start_code(m_bs) == picture_start_code) || (local_next_start_code(m_bs) == group_start_code));
             if (local_next_start_code(m_bs) != sequence_end_code) {
                 parse_sequence_header(m_bs, m_sequence_header);

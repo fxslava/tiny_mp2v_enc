@@ -39,6 +39,7 @@ public:
 
     void decode_mb_modes(mb_data_t& mb_data);
     void decode_mb_pattern(mb_data_t& mb_data);
+    virtual bool decode_slice() { return true; };
     virtual bool decode_blocks(mb_data_t& mb_data);
 private:
     // local context from headers
