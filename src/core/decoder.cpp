@@ -45,8 +45,6 @@ bool mp2v_decoder_c::decoder_init(decoder_config_t* config) {
     for (int i = 0; i < pool_size; i++)
         frames_pool.push_back(new frame_c(width, height, chroma_format));
 
-    idct_init();
-
     return true;
 }
 bool mp2v_decoder_c::decode() {
