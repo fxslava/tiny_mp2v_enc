@@ -28,6 +28,30 @@ uint16_t predictor_reset_value[4] = { 128, 256, 512, 1024 };
 
 uint8_t color_component_index[12] = { 0, 0, 0, 0, 1, 2, 1, 2, 1, 2, 1, 2 };
 
+static void parse_mb_pattern(macroblock_t& mb, bool pattern_code[12], int chroma_format) {
+    bool macroblock_intra = mb.macroblock_type & macroblock_intra_bit;
+    bool macroblock_pattern = mb.macroblock_type & macroblock_pattern_bit;
+    uint32_t coded_block_pattern_1 = mb.coded_block_pattern_1;
+    uint32_t coded_block_pattern_2 = mb.coded_block_pattern_2;
+    uint32_t cbp = mb.coded_block_pattern_420;
+
+    memset(pattern_code, 0, sizeof(pattern_code));
+    for (int i = 0; i < 12; i++) {
+        if (macroblock_intra)
+            pattern_code[i] = true;
+    }
+    if (macroblock_pattern) {
+        for (int i = 0; i < 6; i++)
+            if (cbp & (1 << (5 - i))) pattern_code[i] = true;
+        if (chroma_format == chroma_format_422)
+            for (int i = 6; i < 8; i++)
+                if (coded_block_pattern_1 & (1 << (7 - i))) pattern_code[i] = true;
+        if (chroma_format == chroma_format_444)
+            for (int i = 6; i < 12; i++)
+                if (coded_block_pattern_2 & (1 << (11 - i))) pattern_code[i] = true;
+    }
+}
+
 template<bool use_dct_one_table>
 static void read_first_coefficient(bitstream_reader_i* bs, uint32_t& run, int32_t& level) {
     if (bs->get_next_bits(6) == 0b000001) {
@@ -149,126 +173,94 @@ static bool parse_block(bitstream_reader_i* bs, mb_data_t& mb_data, int i, uint1
     return true;
 }
 
-bool mp2v_slice_c::init_slice() {
-    auto* seq = m_pic->get_seq();
+mp2v_slice_c::mp2v_slice_c(bitstream_reader_i* bitstream, mp2v_picture_c* pic) :
+    m_bs(bitstream), m_pic(pic), m_slice{ 0 } 
+{
+    // headers
+    auto* seq = m_pic->m_sequence;
     auto& pcext = m_pic->m_picture_coding_extension;
     auto* pssext = m_pic->m_picture_spatial_scalable_extension;
     auto& ph = m_pic->m_picture_header;
     auto& se = seq->m_sequence_extension;
     auto& sh = seq->m_sequence_header;
 
-    f_code[0][0] = pcext.f_code[0][0];
-    f_code[0][1] = pcext.f_code[0][1];
-    f_code[1][0] = pcext.f_code[1][0];
-    f_code[1][1] = pcext.f_code[1][1];
-    chroma_format = se.chroma_format;
-    vertical_size_value = sh.vertical_size_value;
-    intra_vlc_format = pcext.intra_vlc_format;
-    block_count = m_pic->block_count;
-    dct_dc_pred_reset_value = predictor_reset_value[pcext.intra_dc_precision];
+    // copy useful parameters from headers
+    m_f_code[0][0] = pcext.f_code[0][0];
+    m_f_code[0][1] = pcext.f_code[0][1];
+    m_f_code[1][0] = pcext.f_code[1][0];
+    m_f_code[1][1] = pcext.f_code[1][1];
+    m_chroma_format = se.chroma_format;
+    m_vertical_size_value = sh.vertical_size_value;
+    m_intra_vlc_format = pcext.intra_vlc_format;
+    m_block_count = m_pic->block_count;
+    m_dct_dc_pred_reset_value = predictor_reset_value[pcext.intra_dc_precision];
 
-    parse_macroblock_func = select_parse_macroblock_func(
+    // set macroblock parser
+    m_parse_macroblock_func = select_parse_macroblock_func(
         ph.picture_coding_type,
         pcext.picture_structure,
         pcext.frame_pred_frame_dct,
         pcext.concealment_motion_vectors,
-        chroma_format);
+        m_chroma_format);
 
+    // if picture spatial scalable extension exist then store temporal weight code table index
     if (pssext)
-        spatial_temporal_weight_code_table_index = pssext->spatial_temporal_weight_code_table_index;
-    return true;
-}
-
-void mp2v_slice_c::decode_mb_pattern(mb_data_t &mb_data) {
-    auto& mb = mb_data.mb;
-    bool macroblock_intra = mb.macroblock_type & macroblock_intra_bit;
-    bool macroblock_pattern = mb.macroblock_type & macroblock_pattern_bit;
-    uint32_t coded_block_pattern_1 = mb.coded_block_pattern_1;
-    uint32_t coded_block_pattern_2 = mb.coded_block_pattern_2;
-    uint32_t cbp = mb.coded_block_pattern_420;
-
-    memset(mb_data.pattern_code, 0, sizeof(mb_data.pattern_code));
-    for (int i = 0; i < 12; i++) {
-        if (macroblock_intra)
-            mb_data.pattern_code[i] = true;
-    }
-    if (macroblock_pattern) {
-        for (int i = 0; i < 6; i++)
-            if (cbp & (1 << (5 - i))) mb_data.pattern_code[i] = true;
-        if (chroma_format == chroma_format_422)
-            for (int i = 6; i < 8; i++)
-                if (coded_block_pattern_1 & (1 << (7 - i))) mb_data.pattern_code[i] = true;
-        if (chroma_format == chroma_format_444)
-            for (int i = 6; i < 12; i++)
-                if (coded_block_pattern_2 & (1 << (11 - i))) mb_data.pattern_code[i] = true;
-    }
+        m_spatial_temporal_weight_code_table_index = pssext->spatial_temporal_weight_code_table_index;
 }
 
 bool mp2v_slice_c::parse_macroblock() {
     mb_data_t mb_data = { 0 };
     auto& mb = mb_data.mb;
-    parse_macroblock_func(m_bs, mb, 0/*spatial_temporal_weight_code_table_index*/, f_code);
-    decode_mb_pattern(mb_data);
-    m_use_dct_one_table = (intra_vlc_format == 1) && (mb.macroblock_type & macroblock_intra_bit);
-    if (!(mb.macroblock_type & macroblock_intra_bit) || mb.macroblock_address_increment > 1) {
-        // reset DCT DC predictor
-        dct_dc_pred[0] = dct_dc_pred_reset_value;
-        dct_dc_pred[1] = dct_dc_pred_reset_value;
-        dct_dc_pred[2] = dct_dc_pred_reset_value;
-    }
+    m_parse_macroblock_func(m_bs, mb, 0, m_f_code);
 
-    /*
-    if (m_pic->m_picture_spatial_scalable_extension) {
-        auto weight_class = local_spatial_temporal_weights_classes_tbl[spatial_temporal_weight_code_table_index][mb.spatial_temporal_weight_code];
-        mb_data.spatial_temporal_weight_class = weight_class.spatial_temporal_weight_class;
-        mb_data.spatial_temporal_weight_fract[0] = weight_class.spatial_temporal_weight_fract[0];
-        mb_data.spatial_temporal_weight_fract[1] = weight_class.spatial_temporal_weight_fract[1];
-        mb_data.spatial_temporal_integer_weight = weight_class.spatial_temporal_integer_weight;
-    }*/
+    parse_mb_pattern(mb, mb_data.pattern_code, m_chroma_format);
+    if (!(mb.macroblock_type & macroblock_intra_bit) || mb.macroblock_address_increment > 1)
+        reset_dct_dc_predictors();
 
     // TODO: try to unroll loop
+    bool m_use_dct_one_table = (m_intra_vlc_format == 1) && (mb.macroblock_type & macroblock_intra_bit);
     if (m_use_dct_one_table)
-        for (int i = 0; i < block_count; i++)
-            parse_block<true>(m_bs, mb_data, i, dct_dc_pred);
+        for (int i = 0; i < m_block_count; i++)
+            parse_block<true>(m_bs, mb_data, i, m_dct_dc_pred);
     else
-        for (int i = 0; i < block_count; i++)
-            parse_block<false>(m_bs, mb_data, i, dct_dc_pred);
+        for (int i = 0; i < m_block_count; i++)
+            parse_block<false>(m_bs, mb_data, i, m_dct_dc_pred);
 
-    decode_blocks(mb_data);
+    on_decode_macroblock(mb_data);
     return true;
 }
 
-bool mp2v_slice_c::decode_blocks(mb_data_t& mb_data) {
+bool mp2v_slice_c::on_decode_macroblock(mb_data_t& mb_data) {
     // without decoding
-    macroblocks.push_back(mb_data);
+    m_macroblocks.push_back(mb_data);
     return true;
 }
+
+bool mp2v_slice_c::on_decode_slice() {
+    return true; 
+};
 
 bool mp2v_slice_c::parse_slice() {
-    auto* seq = m_pic->get_seq();
+    auto* seq = m_pic->m_sequence;
+    reset_dct_dc_predictors();
 
-    // reset predictor
-    dct_dc_pred[0] = dct_dc_pred_reset_value;
-    dct_dc_pred[1] = dct_dc_pred_reset_value;
-    dct_dc_pred[2] = dct_dc_pred_reset_value;
-
-    slice.slice_start_code = m_bs->read_next_bits(32);
-    if (vertical_size_value > 2800)
-        slice.slice_vertical_position_extension = m_bs->read_next_bits(3);
+    m_slice.slice_start_code = m_bs->read_next_bits(32);
+    if (m_vertical_size_value > 2800)
+        m_slice.slice_vertical_position_extension = m_bs->read_next_bits(3);
     if (seq->m_sequence_scalable_extension && seq->m_sequence_scalable_extension->scalable_mode == scalable_mode_data_partitioning)
-        slice.priority_breakpoint = m_bs->read_next_bits(7);
-    slice.quantiser_scale_code = m_bs->read_next_bits(5);
+        m_slice.priority_breakpoint = m_bs->read_next_bits(7);
+    m_slice.quantiser_scale_code = m_bs->read_next_bits(5);
     if (m_bs->get_next_bits(1) == 1) {
-        slice.slice_extension_flag = m_bs->read_next_bits(1);
-        slice.intra_slice = m_bs->read_next_bits(1);
-        slice.slice_picture_id_enable = m_bs->read_next_bits(1);
-        slice.slice_picture_id = m_bs->read_next_bits(6);
+        m_slice.slice_extension_flag = m_bs->read_next_bits(1);
+        m_slice.intra_slice = m_bs->read_next_bits(1);
+        m_slice.slice_picture_id_enable = m_bs->read_next_bits(1);
+        m_slice.slice_picture_id = m_bs->read_next_bits(6);
         while (m_bs->get_next_bits(1) == 1) {
             m_bs->skip_bits(9);
         }
     }
 
-    decode_slice();
+    on_decode_slice();
 
     m_bs->skip_bits(1); /* with the value '0' */
     do {
@@ -278,20 +270,20 @@ bool mp2v_slice_c::parse_slice() {
     return true;
 }
 
-bool mp2v_picture_c::parse_picture() {
-    do {
-        parse_slice();
-    } while (local_next_start_code(m_bs) >= slice_start_code_min && local_next_start_code(m_bs) <= slice_start_code_max);
-    local_find_start_code(m_bs);
-    return true;
+void mp2v_slice_c::reset_dct_dc_predictors() {
+    // reset DCT DC predictor
+    m_dct_dc_pred[0] = m_dct_dc_pred_reset_value;
+    m_dct_dc_pred[1] = m_dct_dc_pred_reset_value;
+    m_dct_dc_pred[2] = m_dct_dc_pred_reset_value;
 }
 
-bool mp2v_picture_c::parse_slice() {
-    m_slices.emplace_back(m_bs, this);
-    auto& slice = m_slices.back();
-    slice.init_slice();
-    slice.parse_slice();
-    slice.decode_slice();
+bool mp2v_picture_c::parse_picture() {
+    do {
+        mp2v_slice_c slice(m_bs, this);
+        slice.parse_slice();
+        m_slices.push_back(slice);
+    } while (local_next_start_code(m_bs) >= slice_start_code_min && local_next_start_code(m_bs) <= slice_start_code_max);
+    local_find_start_code(m_bs);
     return true;
 }
 

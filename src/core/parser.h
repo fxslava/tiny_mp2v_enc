@@ -18,7 +18,6 @@ class video_sequence_c;
 
 struct mb_data_t {
     macroblock_t mb;
-    // decoded parameters
     bool pattern_code[12];
     int16_t QFS[12][64];
 };
@@ -26,41 +25,44 @@ struct mb_data_t {
 class mp2v_slice_c {
     friend class mp2v_decoded_slice_c;
 public:
-    slice_t slice;
-public:
-    mp2v_slice_c(bitstream_reader_i* bitstream, mp2v_picture_c* pic) : m_bs(bitstream), m_pic(pic), slice{0} {};
-    bool init_slice();
-    bool parse_modes(macroblock_t &mb);
-    bool parse_coded_block_pattern(macroblock_t& mb);
-    bool parse_motion_vectors(mb_data_t& mb, int s);
-    bool parse_motion_vector(mb_data_t& mb_data, int r, int s);
+    mp2v_slice_c(bitstream_reader_i* bitstream, mp2v_picture_c* pic);
     bool parse_slice();
     bool parse_macroblock();
+    virtual bool on_decode_slice();
+    virtual bool on_decode_macroblock(mb_data_t& mb_data);
 
-    void decode_mb_modes(mb_data_t& mb_data);
-    void decode_mb_pattern(mb_data_t& mb_data);
-    virtual bool decode_slice() { return true; };
-    virtual bool decode_blocks(mb_data_t& mb_data);
 private:
-    // local context from headers
-    uint32_t vertical_size_value = 0;
-    uint32_t chroma_format;
-    uint32_t spatial_temporal_weight_code_table_index = 0;
-    uint32_t f_code[2][2] = { { 0 } };
-    uint32_t intra_vlc_format = 0;
-    uint16_t dct_dc_pred_reset_value = 0;
-    uint16_t dct_dc_pred[3];
-    bool m_use_dct_one_table = false;
-    int block_count = 0;
+    void reset_dct_dc_predictors();
+
 private:
-    bitstream_reader_i* m_bs;
-    mp2v_picture_c* m_pic;
-    std::vector<mb_data_t> macroblocks;
-    parse_macroblock_func_t parse_macroblock_func;
+    uint32_t m_spatial_temporal_weight_code_table_index = 0;
+    uint32_t m_vertical_size_value = 0;
+    uint32_t m_chroma_format = 0;
+    uint32_t m_f_code[2][2] = { { 0 } };
+    uint32_t m_intra_vlc_format = 0;
+    uint16_t m_dct_dc_pred_reset_value = 0;
+    uint16_t m_dct_dc_pred[3] = { 0 };
+    uint16_t m_block_count = 0;
+    parse_macroblock_func_t m_parse_macroblock_func = nullptr;
+    bitstream_reader_i* m_bs = nullptr;
+    mp2v_picture_c* m_pic = nullptr;
+    std::vector<mb_data_t>  m_macroblocks;
+
+public:
+    slice_t m_slice = { 0 };
 };
 
 class mp2v_picture_c {
     friend class mp2v_slice_c;
+public:
+    mp2v_picture_c(bitstream_reader_i* bitstream, video_sequence_c* sequence) : m_bs(bitstream), m_sequence(sequence) {};
+    bool parse_picture();
+
+protected:
+    bitstream_reader_i* m_bs;
+    std::vector<mp2v_slice_c> m_slices;
+    video_sequence_c* m_sequence;
+
 public:
     // headers
     picture_header_t m_picture_header = { 0 }; //mandatory
@@ -71,30 +73,9 @@ public:
     picture_spatial_scalable_extension_t* m_picture_spatial_scalable_extension = nullptr;
     picture_temporal_scalable_extension_t* m_picture_temporal_scalable_extension = nullptr;
     int block_count = 0;
-
-public:
-    mp2v_picture_c(bitstream_reader_i* bitstream, video_sequence_c* sequence) : m_bs(bitstream), m_sequence(sequence) {};
-    bool parse_picture();
-    virtual bool parse_slice();
-    video_sequence_c* get_seq() { return m_sequence; }
-
-protected:
-    bitstream_reader_i* m_bs;
-    std::vector<mp2v_slice_c> m_slices;
-    video_sequence_c* m_sequence;
 };
 
 class video_sequence_c {
-public:
-    std::vector<uint8_t> user_data;
-public:
-    // headers
-    sequence_header_t m_sequence_header = { 0 }; //mandatory
-    sequence_extension_t m_sequence_extension = { 0 }; //mandatory
-    sequence_display_extension_t* m_sequence_display_extension = nullptr;
-    sequence_scalable_extension_t* m_sequence_scalable_extension = nullptr;
-    group_of_pictures_header_t* m_group_of_pictures_header = nullptr;
-
 public:
     video_sequence_c(bitstream_reader_i* bitstream) : m_bs(bitstream) {};
     bool parse();
@@ -112,6 +93,15 @@ protected:
     // stream data
     std::vector<mp2v_picture_c> m_pictures;
     concurrent_queue<mp2v_picture_c*> m_pictures_queue;
+
+public:
+    std::vector<uint8_t> user_data;
+    // headers
+    sequence_header_t m_sequence_header = { 0 }; //mandatory
+    sequence_extension_t m_sequence_extension = { 0 }; //mandatory
+    sequence_display_extension_t* m_sequence_display_extension = nullptr;
+    sequence_scalable_extension_t* m_sequence_scalable_extension = nullptr;
+    group_of_pictures_header_t* m_group_of_pictures_header = nullptr;
 };
 
 class mp2v_parser_c {

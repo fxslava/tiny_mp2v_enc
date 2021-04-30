@@ -55,45 +55,13 @@ private:
     uint8_t* planes[3] = { 0 };
 };
 
-class mp2v_decoder_c;
-
 class mp2v_sequence_decoder_c : public video_sequence_c {
 public:
-    mp2v_sequence_decoder_c(bitstream_reader_i* bitstream, mp2v_decoder_c* owner) : video_sequence_c(bitstream), m_owner(owner){};
+    mp2v_sequence_decoder_c(bitstream_reader_i* bitstream, mp2v_decoder_c* owner) : video_sequence_c(bitstream), m_owner(owner) {};
     bool decode();
     virtual bool parse_picture_data();
 private:
     mp2v_decoder_c* m_owner;
-};
-
-class mp2v_decoded_picture_c : public mp2v_picture_c {
-    friend class mp2v_decoded_slice_c;
-public:
-    mp2v_decoded_picture_c(bitstream_reader_i* bitstream, mp2v_sequence_decoder_c* sequence, frame_c* frame) : mp2v_picture_c(bitstream, sequence), m_frame(frame){};
-    bool decode();
-    bool parse_slice();
-
-private:
-    uint16_t quantiser_matrices[4][64];
-
-private:
-    decode_macroblock_func_t decode_macroblock_func;
-    frame_c* m_frame;
-};
-
-class mp2v_decoded_slice_c : public mp2v_slice_c {
-public:
-    mp2v_decoded_slice_c(bitstream_reader_i* bitstream, mp2v_decoded_picture_c* pic, decode_macroblock_func_t dec_mb_func, frame_c* frame) :
-        mp2v_slice_c(bitstream, pic), decode_mb_func(dec_mb_func), m_frame(frame){};
-    bool decode_slice();
-    bool decode_blocks(mb_data_t& mb_data);
-
-private:
-    decode_macroblock_func_t decode_mb_func;
-    frame_c* m_frame;
-    int cur_quantiser_scale_code = 0;
-    int mb_row = 0;
-    int mb_col = 0;
 };
 
 class mp2v_decoder_c {
@@ -110,4 +78,34 @@ private:
     mp2v_sequence_decoder_c video_sequence_decoder;
     std::vector<frame_c*> frames_pool;
     concurrent_queue<frame_c*> output_frames;
+};
+
+class mp2v_decoded_picture_c : public mp2v_picture_c {
+    friend class mp2v_decoded_slice_c;
+public:
+    mp2v_decoded_picture_c(bitstream_reader_i* bitstream, mp2v_sequence_decoder_c* sequence, frame_c* frame) : mp2v_picture_c(bitstream, sequence), m_frame(frame){};
+    bool decode();
+    bool parse_picture();
+
+private:
+    uint16_t quantiser_matrices[4][64];
+
+private:
+    decode_macroblock_func_t decode_macroblock_func;
+    frame_c* m_frame;
+};
+
+class mp2v_decoded_slice_c : public mp2v_slice_c {
+public:
+    mp2v_decoded_slice_c(bitstream_reader_i* bitstream, mp2v_decoded_picture_c* pic, decode_macroblock_func_t dec_mb_func, frame_c* frame) :
+        mp2v_slice_c(bitstream, pic), decode_mb_func(dec_mb_func), m_frame(frame) {};
+    bool on_decode_slice();
+    bool on_decode_macroblock(mb_data_t& mb_data);
+
+private:
+    decode_macroblock_func_t decode_mb_func;
+    frame_c* m_frame;
+    int cur_quantiser_scale_code = 0;
+    int mb_row = 0;
+    int mb_col = 0;
 };
