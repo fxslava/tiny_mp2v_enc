@@ -67,37 +67,25 @@ void decode_macroblock_template(
         if (mb_data.pattern_code[3])
                 decode_block_template<uint8_t, alt_scan, true>(yuv_planes[0] + 8 * (stride + 1), stride, mb_data.QFS[3], W[0], W[1], quantizer_scale, intra_dc_prec);
 
-        if (chroma_format == 1) {
+        if (chroma_format >= 1) {
             if (mb_data.pattern_code[4])
                 decode_block_template<uint8_t, alt_scan, true>(yuv_planes[1], chroma_stride, mb_data.QFS[4], W[0], W[1], quantizer_scale, intra_dc_prec);
             if (mb_data.pattern_code[5])
                 decode_block_template<uint8_t, alt_scan, true>(yuv_planes[2], chroma_stride, mb_data.QFS[5], W[0], W[1], quantizer_scale, intra_dc_prec);
         }
-        if (chroma_format == 2) {
-            if (mb_data.pattern_code[4])
-                decode_block_template<uint8_t, alt_scan, true>(yuv_planes[1], chroma_stride, mb_data.QFS[4], W[2], W[3], quantizer_scale, intra_dc_prec);
-            if (mb_data.pattern_code[5])
-                decode_block_template<uint8_t, alt_scan, true>(yuv_planes[1] + 8 * chroma_stride, chroma_stride, mb_data.QFS[5], W[2], W[3], quantizer_scale, intra_dc_prec);
+        if (chroma_format >= 2) {
             if (mb_data.pattern_code[6])
-                decode_block_template<uint8_t, alt_scan, true>(yuv_planes[2], chroma_stride, mb_data.QFS[6], W[2], W[3], quantizer_scale, intra_dc_prec);
+                decode_block_template<uint8_t, alt_scan, true>(yuv_planes[1] + 8 * chroma_stride, chroma_stride, mb_data.QFS[6], W[2], W[3], quantizer_scale, intra_dc_prec);
             if (mb_data.pattern_code[7])
                 decode_block_template<uint8_t, alt_scan, true>(yuv_planes[2] + 8 * chroma_stride, chroma_stride, mb_data.QFS[7], W[2], W[3], quantizer_scale, intra_dc_prec);
         }
         if (chroma_format == 3) {
-            if (mb_data.pattern_code[4])
-                decode_block_template<uint8_t, alt_scan, true>(yuv_planes[1], stride, mb_data.QFS[4], W[2], W[3], quantizer_scale, intra_dc_prec);
-            if (mb_data.pattern_code[5])
-                decode_block_template<uint8_t, alt_scan, true>(yuv_planes[1] + 8, stride, mb_data.QFS[5], W[2], W[3], quantizer_scale, intra_dc_prec);
-            if (mb_data.pattern_code[6])
-                decode_block_template<uint8_t, alt_scan, true>(yuv_planes[1] + 8 * stride, stride, mb_data.QFS[6], W[2], W[3], quantizer_scale, intra_dc_prec);
-            if (mb_data.pattern_code[7])
-                decode_block_template<uint8_t, alt_scan, true>(yuv_planes[1] + 8 * (stride + 1), stride, mb_data.QFS[7], W[2], W[3], quantizer_scale, intra_dc_prec);
             if (mb_data.pattern_code[8])
-                decode_block_template<uint8_t, alt_scan, true>(yuv_planes[2], stride, mb_data.QFS[8], W[2], W[3], quantizer_scale, intra_dc_prec);
+                decode_block_template<uint8_t, alt_scan, true>(yuv_planes[2] + 8, stride, mb_data.QFS[8], W[2], W[3], quantizer_scale, intra_dc_prec);
             if (mb_data.pattern_code[9])
                 decode_block_template<uint8_t, alt_scan, true>(yuv_planes[2] + 8, stride, mb_data.QFS[9], W[2], W[3], quantizer_scale, intra_dc_prec);
             if (mb_data.pattern_code[10])
-                decode_block_template<uint8_t, alt_scan, true>(yuv_planes[2] + 8 * stride, stride, mb_data.QFS[10], W[2], W[3], quantizer_scale, intra_dc_prec);
+                decode_block_template<uint8_t, alt_scan, true>(yuv_planes[2] + 8 * (stride + 1), stride, mb_data.QFS[10], W[2], W[3], quantizer_scale, intra_dc_prec);
             if (mb_data.pattern_code[11])
                 decode_block_template<uint8_t, alt_scan, true>(yuv_planes[2] + 8 * (stride + 1), stride, mb_data.QFS[11], W[2], W[3], quantizer_scale, intra_dc_prec);
         }

@@ -453,7 +453,7 @@ bool mp2v_decoder_c::decode() {
 }
 
 bool mp2v_decoder_c::decode_picture_data() {
-    frame_c* frame = frames_pool.back();
+    frame_c* frame = m_frames_pool.back();
 
     /* Decode sequence parameters*/
     mp2v_picture_c pic(m_bs, this, frame);
@@ -464,8 +464,8 @@ bool mp2v_decoder_c::decode_picture_data() {
     decode_extension_and_user_data(after_picture_coding_extension, &pic);
     pic.decode_picture();
 
-    frames_pool.push_back(frame);
-    output_frames.push(frame);
+    m_frames_pool.push_back(frame);
+    m_output_frames.push(frame);
     return true;
 }
 
@@ -476,7 +476,7 @@ bool mp2v_decoder_c::decoder_init(decoder_config_t* config) {
     int chroma_format = config->chroma_format;
 
     for (int i = 0; i < pool_size; i++)
-        frames_pool.push_back(new frame_c(width, height, chroma_format));
+        m_frames_pool.push_back(new frame_c(width, height, chroma_format));
 
     return true;
 }

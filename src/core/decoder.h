@@ -9,6 +9,9 @@
 using namespace concurrency;
 constexpr int CACHE_LINE = 64;
 
+class mp2v_picture_c;
+class mp2v_decoder_c;
+
 enum extension_after_code_e {
     after_sequence_extension = 0,
     after_group_of_picture_header,
@@ -23,7 +26,6 @@ struct decoder_config_t {
 };
 
 class frame_c {
-    friend class mp2v_decoder_c;
     friend class mp2v_slice_c;
 public:
     frame_c(int width, int height, int chroma_format);
@@ -40,11 +42,7 @@ private:
     uint8_t* m_planes[3] = { 0 };
 };
 
-class mp2v_picture_c;
-class mp2v_decoder_c;
-
 class mp2v_slice_c {
-    friend class mp2v_decoded_slice_c;
 public:
     mp2v_slice_c(bitstream_reader_i* bitstream, mp2v_picture_c* pic, decode_macroblock_func_t dec_mb_func, frame_c* frame);
     bool decode_slice();
@@ -111,14 +109,14 @@ public:
     bool decode_picture_data();
 
     bool get_decoded_frame(frame_c*& frame) {
-        return output_frames.try_pop(frame);
+        return m_output_frames.try_pop(frame);
     }
 protected:
     bitstream_reader_i* m_bs;
 
     // stream data
-    std::vector<frame_c*> frames_pool;
-    concurrent_queue<frame_c*> output_frames;
+    std::vector<frame_c*> m_frames_pool;
+    concurrent_queue<frame_c*> m_output_frames;
 
 public:
     std::vector<uint8_t> user_data;
