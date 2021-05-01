@@ -29,36 +29,15 @@ public:
     frame_c(int width, int height, int chroma_format);
     ~frame_c();
 
-    uint8_t* get_planes(int plane_idx) { return planes[plane_idx]; }
-    int      get_strides(int plane_idx) {
-        switch (plane_idx) {
-        case 0: return m_stride;
-        case 1: return m_chroma_stride;
-        case 2: return m_chroma_stride;
-        };
-    }
-    int      get_width(int plane_idx) {
-        switch (plane_idx) {
-        case 0: return m_width;
-        case 1: return m_chroma_width;
-        case 2: return m_chroma_width;
-        };
-    }
-    int      get_height(int plane_idx) {
-        switch (plane_idx) {
-        case 0: return m_height;
-        case 1: return m_chroma_height;
-        case 2: return m_chroma_height;
-        };
-    }
+    uint8_t* get_planes (int plane_idx) { return m_planes[plane_idx]; }
+    int      get_strides(int plane_idx) { return m_stride[plane_idx]; }
+    int      get_width  (int plane_idx) { return m_width [plane_idx]; }
+    int      get_height (int plane_idx) { return m_height[plane_idx]; }
 private:
-    int m_width = 0;
-    int m_height = 0;
-    int m_stride = 0;
-    int m_chroma_stride = 0;
-    int m_chroma_width = 0;
-    int m_chroma_height = 0;
-    uint8_t* planes[3] = { 0 };
+    uint32_t m_width[3]  = { 0 };
+    uint32_t m_height[3] = { 0 };
+    uint32_t m_stride[3] = { 0 };
+    uint8_t* m_planes[3] = { 0 };
 };
 
 class mp2v_picture_c;
@@ -70,11 +49,6 @@ public:
     mp2v_slice_c(bitstream_reader_i* bitstream, mp2v_picture_c* pic, decode_macroblock_func_t dec_mb_func, frame_c* frame);
     bool decode_slice();
     bool decode_macroblock();
-    virtual bool on_decode_slice();
-    virtual bool on_decode_macroblock(mb_data_t& mb_data);
-
-private:
-    void reset_dct_dc_predictors();
 
 private:
     uint32_t m_spatial_temporal_weight_code_table_index = 0;

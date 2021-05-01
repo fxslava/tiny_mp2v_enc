@@ -29,36 +29,37 @@ uint16_t predictor_reset_value[4] = { 128, 256, 512, 1024 };
 uint8_t color_component_index[12] = { 0, 0, 0, 0, 1, 2, 1, 2, 1, 2, 1, 2 };
 
 frame_c::frame_c(int width, int height, int chroma_format) {
-    m_stride = (width + CACHE_LINE - 1) & ~(CACHE_LINE - 1);
-    m_width = width;
-    m_height = height;
+    m_stride[0] = (width + CACHE_LINE - 1) & ~(CACHE_LINE - 1);
+    m_width [0] = width;
+    m_height[0] = height;
 
     switch (chroma_format) {
     case chroma_format_420:
-        m_chroma_stride = ((m_stride >> 1) + CACHE_LINE - 1) & ~(CACHE_LINE - 1);
-        m_chroma_width = m_width >> 1;
-        m_chroma_height = m_height >> 1;
+        m_stride[1] = ((m_stride[0] >> 1) + CACHE_LINE - 1) & ~(CACHE_LINE - 1);
+        m_width [1] = m_width[0] >> 1;
+        m_height[1] = m_height[0] >> 1;
         break;
     case chroma_format_422:
-        m_chroma_stride = ((m_stride >> 1) + CACHE_LINE - 1) & ~(CACHE_LINE - 1);
-        m_chroma_width = m_width >> 1;
-        m_chroma_height = m_height;
+        m_stride[1] = ((m_stride[0] >> 1) + CACHE_LINE - 1) & ~(CACHE_LINE - 1);
+        m_width [1] = m_width[0] >> 1;
+        m_height[1] = m_height[0];
         break;
     case chroma_format_444:
-        m_chroma_stride = m_stride;
-        m_chroma_width = m_width;
-        m_chroma_height = m_height;
+        m_stride[1] = m_stride[0];
+        m_width [1] = m_width [0];
+        m_height[1] = m_height[0];
         break;
     }
+    m_stride[2] = m_stride[1];
+    m_width[2] = m_width[1];
 
-    planes[0] = new uint8_t[m_height * m_stride];
-    planes[1] = new uint8_t[m_chroma_height * m_chroma_stride];
-    planes[2] = new uint8_t[m_chroma_height * m_chroma_stride];
+    for (int i = 0; i < 3; i++)
+        m_planes[i] = new uint8_t[m_height[i] * m_stride[i]];
 }
 
 frame_c::~frame_c() {
     for (int i = 0; i < 3; i++)
-        if (planes[i]) delete[] planes[i];
+        if (m_planes[i]) delete[] m_planes[i];
 }
 
 static void parse_mb_pattern(macroblock_t& mb, bool pattern_code[12], int chroma_format) {
@@ -248,7 +249,8 @@ bool mp2v_slice_c::decode_macroblock() {
 
     parse_mb_pattern(mb, mb_data.pattern_code, m_chroma_format);
     if (!(mb.macroblock_type & macroblock_intra_bit) || mb.macroblock_address_increment > 1)
-        reset_dct_dc_predictors();
+        for (auto &pred : m_dct_dc_pred)
+            pred = m_dct_dc_pred_reset_value;
 
     // TODO: try to unroll loop
     bool m_use_dct_one_table = (m_intra_vlc_format == 1) && (mb.macroblock_type & macroblock_intra_bit);
@@ -259,30 +261,25 @@ bool mp2v_slice_c::decode_macroblock() {
         for (int i = 0; i < m_block_count; i++)
             parse_block<false>(m_bs, mb_data, i, m_dct_dc_pred);
 
-    on_decode_macroblock(mb_data);
-    return true;
-}
-
-bool mp2v_slice_c::on_decode_macroblock(mb_data_t& mb_data) {
     mp2v_picture_c* pic = reinterpret_cast<mp2v_picture_c*>(m_pic);
     auto& pcext = m_pic->m_picture_coding_extension;
 
     uint8_t* yuv[3];
-    int stride = m_frame->m_stride;
-    int chroma_stride = m_frame->m_chroma_stride;
-    yuv[0] = m_frame->planes[0] + mb_row * 16 * stride + mb_col * 16;
+    int stride = m_frame->m_stride[0];
+    int chroma_stride = m_frame->m_stride[1];
+    yuv[0] = m_frame->m_planes[0] + mb_row * 16 * stride + mb_col * 16;
     switch (m_chroma_format) {
     case chroma_format_420:
-        yuv[1] = m_frame->planes[1] + mb_row * 8 * chroma_stride + mb_col * 8;
-        yuv[2] = m_frame->planes[2] + mb_row * 8 * chroma_stride + mb_col * 8;
+        yuv[1] = m_frame->m_planes[1] + mb_row * 8 * chroma_stride + mb_col * 8;
+        yuv[2] = m_frame->m_planes[2] + mb_row * 8 * chroma_stride + mb_col * 8;
         break;
     case chroma_format_422:
-        yuv[1] = m_frame->planes[1] + mb_row * 16 * chroma_stride + mb_col * 8;
-        yuv[2] = m_frame->planes[2] + mb_row * 16 * chroma_stride + mb_col * 8;
+        yuv[1] = m_frame->m_planes[1] + mb_row * 16 * chroma_stride + mb_col * 8;
+        yuv[2] = m_frame->m_planes[2] + mb_row * 16 * chroma_stride + mb_col * 8;
         break;
     case chroma_format_444:
-        yuv[1] = m_frame->planes[1] + mb_row * 16 * chroma_stride + mb_col * 16;
-        yuv[2] = m_frame->planes[2] + mb_row * 16 * chroma_stride + mb_col * 16;
+        yuv[1] = m_frame->m_planes[1] + mb_row * 16 * chroma_stride + mb_col * 16;
+        yuv[2] = m_frame->m_planes[2] + mb_row * 16 * chroma_stride + mb_col * 16;
         break;
     }
 
@@ -293,21 +290,10 @@ bool mp2v_slice_c::on_decode_macroblock(mb_data_t& mb_data) {
     return true;
 }
 
-bool mp2v_slice_c::on_decode_slice() {
-    int slice_vertical_position = m_slice.slice_start_code & 0xff;
-    if (m_vertical_size_value > 2800)
-        mb_row = (m_slice.slice_vertical_position_extension << 7) + slice_vertical_position - 1;
-    else
-        mb_row = slice_vertical_position - 1;
-    mb_col = 0;
-    cur_quantiser_scale_code = m_slice.quantiser_scale_code;
-
-    return true;
-};
-
 bool mp2v_slice_c::decode_slice() {
     auto* seq = m_pic->m_dec;
-    reset_dct_dc_predictors();
+    for (auto& pred : m_dct_dc_pred)
+        pred = m_dct_dc_pred_reset_value;
 
     m_slice.slice_start_code = m_bs->read_next_bits(32);
     if (m_vertical_size_value > 2800)
@@ -325,7 +311,13 @@ bool mp2v_slice_c::decode_slice() {
         }
     }
 
-    on_decode_slice();
+    int slice_vertical_position = m_slice.slice_start_code & 0xff;
+    if (m_vertical_size_value > 2800)
+        mb_row = (m_slice.slice_vertical_position_extension << 7) + slice_vertical_position - 1;
+    else
+        mb_row = slice_vertical_position - 1;
+    mb_col = 0;
+    cur_quantiser_scale_code = m_slice.quantiser_scale_code;
 
     m_bs->skip_bits(1); /* with the value '0' */
     do {
@@ -333,13 +325,6 @@ bool mp2v_slice_c::decode_slice() {
     } while (m_bs->get_next_bits(23) != 0);
     local_find_start_code(m_bs);
     return true;
-}
-
-void mp2v_slice_c::reset_dct_dc_predictors() {
-    // reset DCT DC predictor
-    m_dct_dc_pred[0] = m_dct_dc_pred_reset_value;
-    m_dct_dc_pred[1] = m_dct_dc_pred_reset_value;
-    m_dct_dc_pred[2] = m_dct_dc_pred_reset_value;
 }
 
 bool mp2v_picture_c::decode_picture() {
