@@ -51,7 +51,8 @@ frame_c::frame_c(int width, int height, int chroma_format) {
         break;
     }
     m_stride[2] = m_stride[1];
-    m_width[2] = m_width[1];
+    m_width [2] = m_width [1];
+    m_height[2] = m_height[1];
 
     for (int i = 0; i < 3; i++)
         m_planes[i] = new uint8_t[m_height[i] * m_stride[i]];
@@ -437,7 +438,7 @@ bool mp2v_decoder_c::decode() {
                     decode_extension_and_user_data(after_group_of_picture_header, nullptr);
                 }
                 decode_picture_data();
-                return true; // remove it after test complete
+                //return true; // remove it after test complete
             } while ((local_next_start_code(m_bs) == picture_start_code) || (local_next_start_code(m_bs) == group_start_code));
             if (local_next_start_code(m_bs) != sequence_end_code) {
                 parse_sequence_header(m_bs, m_sequence_header);

@@ -266,13 +266,12 @@ static bool parse_modes(bitstream_reader_i* m_bs, macroblock_t& mb, int spatial_
     else
     {
         mb.motion_vector_count = 1;
-        if ((mb.macroblock_type & macroblock_motion_backward_bit) && (mb.macroblock_type & macroblock_motion_forward_bit))
-            mb.motion_vector_count = 2;
         mb.dmv = 0;
         if (picture_structure == picture_structure_framepic) {
             switch (mb.frame_motion_type) {
             case 1:
                 mb.mv_format = Field;
+                mb.motion_vector_count = 2;
                 mb.prediction_type = Field_based;
                 break;
             case 2:
@@ -294,6 +293,7 @@ static bool parse_modes(bitstream_reader_i* m_bs, macroblock_t& mb, int spatial_
                 break;
             case 2:
                 mb.mv_format = Field;
+                mb.motion_vector_count = 2;
                 mb.prediction_type = MC16x8;
                 break;
             case 3:

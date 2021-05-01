@@ -34,7 +34,7 @@ public:
     int      get_width  (int plane_idx) { return m_width [plane_idx]; }
     int      get_height (int plane_idx) { return m_height[plane_idx]; }
 private:
-    uint32_t m_width[3]  = { 0 };
+    uint32_t m_width [3] = { 0 };
     uint32_t m_height[3] = { 0 };
     uint32_t m_stride[3] = { 0 };
     uint8_t* m_planes[3] = { 0 };
@@ -80,11 +80,10 @@ public:
     mp2v_picture_c(bitstream_reader_i* bitstream, mp2v_decoder_c* decoder, frame_c* frame) : m_bs(bitstream), m_dec(decoder), m_frame(frame) {};
     bool decode_picture();
 
-protected:
+private:
     bitstream_reader_i* m_bs;
     std::vector<mp2v_slice_c> m_slices;
     mp2v_decoder_c* m_dec;
-
     uint16_t quantiser_matrices[4][64];
     decode_macroblock_func_t decode_macroblock_func;
     frame_c* m_frame;
@@ -111,9 +110,6 @@ public:
     bool decode_extension_data(extension_after_code_e after_code, mp2v_picture_c* pic);
     bool decode_picture_data();
 
-    bool get_parsed_picture(mp2v_picture_c*& pic) {
-        return m_pictures_queue.try_pop(pic);
-    }
     bool get_decoded_frame(frame_c*& frame) {
         return output_frames.try_pop(frame);
     }
@@ -121,8 +117,6 @@ protected:
     bitstream_reader_i* m_bs;
 
     // stream data
-    std::vector<mp2v_picture_c> m_pictures;
-    concurrent_queue<mp2v_picture_c*> m_pictures_queue;
     std::vector<frame_c*> frames_pool;
     concurrent_queue<frame_c*> output_frames;
 
