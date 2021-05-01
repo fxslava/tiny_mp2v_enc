@@ -3,7 +3,6 @@
 #include <iostream>
 #include "sample_args.h"
 #include "bitstream.h"
-#include "core/parser.h"
 #include "core/decoder.h"
 
 class bitstream_file_reader: public bitstream_reader_i {

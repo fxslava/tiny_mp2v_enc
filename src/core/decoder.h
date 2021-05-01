@@ -1,13 +1,19 @@
 // Copyright © 2021 Vladislav Ovchinnikov. All rights reserved.
 #pragma once
-#include "parser.h"
 #include <vector>
 #include <concurrent_queue.h>
+#include "mp2v_hdr.h"
+#include "api/bitstream.h"
 #include "mb_decoder.h"
 
 using namespace concurrency;
-
 constexpr int CACHE_LINE = 64;
+
+enum extension_after_code_e {
+    after_sequence_extension = 0,
+    after_group_of_picture_header,
+    after_picture_coding_extension
+};
 
 struct decoder_config_t {
     int width;
@@ -18,27 +24,27 @@ struct decoder_config_t {
 
 class frame_c {
     friend class mp2v_decoder_c;
-    friend class mp2v_decoded_slice_c;
+    friend class mp2v_slice_c;
 public:
     frame_c(int width, int height, int chroma_format);
     ~frame_c();
 
-    uint8_t* get_planes (int plane_idx) { return planes[plane_idx]; }
-    int      get_strides(int plane_idx) { 
+    uint8_t* get_planes(int plane_idx) { return planes[plane_idx]; }
+    int      get_strides(int plane_idx) {
         switch (plane_idx) {
         case 0: return m_stride;
         case 1: return m_chroma_stride;
         case 2: return m_chroma_stride;
         };
     }
-    int      get_width  (int plane_idx) {
+    int      get_width(int plane_idx) {
         switch (plane_idx) {
         case 0: return m_width;
         case 1: return m_chroma_width;
         case 2: return m_chroma_width;
         };
     }
-    int      get_height (int plane_idx) {
+    int      get_height(int plane_idx) {
         switch (plane_idx) {
         case 0: return m_height;
         case 1: return m_chroma_height;
@@ -55,57 +61,105 @@ private:
     uint8_t* planes[3] = { 0 };
 };
 
-class mp2v_sequence_decoder_c : public video_sequence_c {
-public:
-    mp2v_sequence_decoder_c(bitstream_reader_i* bitstream, mp2v_decoder_c* owner) : video_sequence_c(bitstream), m_owner(owner) {};
-    bool decode();
-    virtual bool parse_picture_data();
-private:
-    mp2v_decoder_c* m_owner;
-};
+class mp2v_picture_c;
+class mp2v_decoder_c;
 
-class mp2v_decoder_c {
-    friend mp2v_sequence_decoder_c;
-public:
-    mp2v_decoder_c(bitstream_reader_i* bitstream) : video_sequence_decoder(bitstream, this) {}
-    bool decoder_init(decoder_config_t* config);
-    bool decode();
-    bool get_decoded_frame(frame_c*& frame) {
-        return output_frames.try_pop(frame);
-    }
-
-private:
-    mp2v_sequence_decoder_c video_sequence_decoder;
-    std::vector<frame_c*> frames_pool;
-    concurrent_queue<frame_c*> output_frames;
-};
-
-class mp2v_decoded_picture_c : public mp2v_picture_c {
+class mp2v_slice_c {
     friend class mp2v_decoded_slice_c;
 public:
-    mp2v_decoded_picture_c(bitstream_reader_i* bitstream, mp2v_sequence_decoder_c* sequence, frame_c* frame) : mp2v_picture_c(bitstream, sequence), m_frame(frame){};
-    bool decode();
-    bool parse_picture();
+    mp2v_slice_c(bitstream_reader_i* bitstream, mp2v_picture_c* pic, decode_macroblock_func_t dec_mb_func, frame_c* frame);
+    bool decode_slice();
+    bool decode_macroblock();
+    virtual bool on_decode_slice();
+    virtual bool on_decode_macroblock(mb_data_t& mb_data);
 
 private:
-    uint16_t quantiser_matrices[4][64];
+    void reset_dct_dc_predictors();
 
 private:
-    decode_macroblock_func_t decode_macroblock_func;
-    frame_c* m_frame;
-};
+    uint32_t m_spatial_temporal_weight_code_table_index = 0;
+    uint32_t m_vertical_size_value = 0;
+    uint32_t m_chroma_format = 0;
+    uint32_t m_f_code[2][2] = { { 0 } };
+    uint32_t m_intra_vlc_format = 0;
+    uint16_t m_dct_dc_pred_reset_value = 0;
+    uint16_t m_dct_dc_pred[3] = { 0 };
+    uint16_t m_block_count = 0;
+    parse_macroblock_func_t m_parse_macroblock_func = nullptr;
+    bitstream_reader_i* m_bs = nullptr;
+    mp2v_picture_c* m_pic = nullptr;
+    std::vector<mb_data_t>  m_macroblocks;
 
-class mp2v_decoded_slice_c : public mp2v_slice_c {
-public:
-    mp2v_decoded_slice_c(bitstream_reader_i* bitstream, mp2v_decoded_picture_c* pic, decode_macroblock_func_t dec_mb_func, frame_c* frame) :
-        mp2v_slice_c(bitstream, pic), decode_mb_func(dec_mb_func), m_frame(frame) {};
-    bool on_decode_slice();
-    bool on_decode_macroblock(mb_data_t& mb_data);
-
-private:
     decode_macroblock_func_t decode_mb_func;
     frame_c* m_frame;
     int cur_quantiser_scale_code = 0;
     int mb_row = 0;
     int mb_col = 0;
+
+public:
+    slice_t m_slice = { 0 };
 };
+
+class mp2v_picture_c {
+    friend class mp2v_slice_c;
+public:
+    mp2v_picture_c(bitstream_reader_i* bitstream, mp2v_decoder_c* decoder, frame_c* frame) : m_bs(bitstream), m_dec(decoder), m_frame(frame) {};
+    bool decode_picture();
+
+protected:
+    bitstream_reader_i* m_bs;
+    std::vector<mp2v_slice_c> m_slices;
+    mp2v_decoder_c* m_dec;
+
+    uint16_t quantiser_matrices[4][64];
+    decode_macroblock_func_t decode_macroblock_func;
+    frame_c* m_frame;
+
+public:
+    // headers
+    picture_header_t m_picture_header = { 0 }; //mandatory
+    picture_coding_extension_t m_picture_coding_extension = { 0 }; //mandatory
+    quant_matrix_extension_t* m_quant_matrix_extension = nullptr;
+    copyright_extension_t* m_copyright_extension = nullptr;
+    picture_display_extension_t* m_picture_display_extension = nullptr;
+    picture_spatial_scalable_extension_t* m_picture_spatial_scalable_extension = nullptr;
+    picture_temporal_scalable_extension_t* m_picture_temporal_scalable_extension = nullptr;
+    int block_count = 0;
+};
+
+class mp2v_decoder_c {
+public:
+    mp2v_decoder_c(bitstream_reader_i* bitstream) : m_bs(bitstream) {};
+    bool decoder_init(decoder_config_t* config);
+    bool decode();
+    bool decode_user_data();
+    bool decode_extension_and_user_data(extension_after_code_e after_code, mp2v_picture_c* pic);
+    bool decode_extension_data(extension_after_code_e after_code, mp2v_picture_c* pic);
+    bool decode_picture_data();
+
+    bool get_parsed_picture(mp2v_picture_c*& pic) {
+        return m_pictures_queue.try_pop(pic);
+    }
+    bool get_decoded_frame(frame_c*& frame) {
+        return output_frames.try_pop(frame);
+    }
+protected:
+    bitstream_reader_i* m_bs;
+
+    // stream data
+    std::vector<mp2v_picture_c> m_pictures;
+    concurrent_queue<mp2v_picture_c*> m_pictures_queue;
+    std::vector<frame_c*> frames_pool;
+    concurrent_queue<frame_c*> output_frames;
+
+public:
+    std::vector<uint8_t> user_data;
+    // headers
+    sequence_header_t m_sequence_header = { 0 }; //mandatory
+    sequence_extension_t m_sequence_extension = { 0 }; //mandatory
+    sequence_display_extension_t* m_sequence_display_extension = nullptr;
+    sequence_scalable_extension_t* m_sequence_scalable_extension = nullptr;
+    group_of_pictures_header_t* m_group_of_pictures_header = nullptr;
+};
+
+extern uint32_t block_count_tbl[4];
