@@ -5,6 +5,7 @@
 struct mb_data_t {
     macroblock_t mb;
     bool pattern_code[12];
+    int16_t m_MVs[2][2][2];
     int16_t QFS[12][64];
 };
 

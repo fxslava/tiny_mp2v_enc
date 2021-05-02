@@ -53,7 +53,12 @@ private:
     uint32_t m_vertical_size_value = 0;
     uint32_t m_chroma_format = 0;
     uint32_t m_f_code[2][2] = { { 0 } };
+    int32_t  m_PMV[2][2][2] = { { 0 } };
+    int32_t  m_MVs[2][2][2] = { { 0 } };
     uint32_t m_intra_vlc_format = 0;
+    uint32_t m_picture_structure = 0;
+    uint32_t m_picture_coding_type = 0;
+    uint32_t m_concealment_motion_vectors = 0;
     uint16_t m_dct_dc_pred_reset_value = 0;
     uint16_t m_dct_dc_pred[3] = { 0 };
     uint16_t m_block_count = 0;
@@ -64,6 +69,7 @@ private:
 
     decode_macroblock_func_t decode_mb_func;
     frame_c* m_frame;
+    mb_data_t cur_mb_data = { 0 };
     int cur_quantiser_scale_code = 0;
     int mb_row = 0;
     int mb_col = 0;

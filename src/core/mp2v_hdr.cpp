@@ -262,6 +262,14 @@ static bool parse_modes(bitstream_reader_i* m_bs, macroblock_t& mb, int spatial_
     {
         mb.motion_vector_count = 0;
         mb.dmv = 0;
+        if (picture_structure == picture_structure_framepic) {
+            mb.mv_format = Frame;
+            mb.prediction_type = Frame_based;
+        }
+        else {
+            mb.mv_format = Field;
+            mb.prediction_type = Field_based;
+        }
     }
     else
     {

@@ -224,6 +224,9 @@ mp2v_slice_c::mp2v_slice_c(bitstream_reader_i* bitstream, mp2v_picture_c* pic, d
     m_f_code[0][1] = pcext.f_code[0][1];
     m_f_code[1][0] = pcext.f_code[1][0];
     m_f_code[1][1] = pcext.f_code[1][1];
+    m_picture_structure = pcext.picture_structure;
+    m_picture_coding_type = ph.picture_coding_type;
+    m_concealment_motion_vectors = pcext.concealment_motion_vectors;
     m_chroma_format = se.chroma_format;
     m_vertical_size_value = sh.vertical_size_value;
     m_intra_vlc_format = pcext.intra_vlc_format;
@@ -244,50 +247,115 @@ mp2v_slice_c::mp2v_slice_c(bitstream_reader_i* bitstream, mp2v_picture_c* pic, d
 }
 
 bool mp2v_slice_c::decode_macroblock() {
-    mb_data_t mb_data = { 0 };
-    auto& mb = mb_data.mb;
-    m_parse_macroblock_func(m_bs, mb, 0, m_f_code);
-
-    parse_mb_pattern(mb, mb_data.pattern_code, m_chroma_format);
-    if (!(mb.macroblock_type & macroblock_intra_bit) || mb.macroblock_address_increment > 1)
-        for (auto &pred : m_dct_dc_pred)
-            pred = m_dct_dc_pred_reset_value;
-
-    // TODO: try to unroll loop
-    bool m_use_dct_one_table = (m_intra_vlc_format == 1) && (mb.macroblock_type & macroblock_intra_bit);
-    if (m_use_dct_one_table)
-        for (int i = 0; i < m_block_count; i++)
-            parse_block<true>(m_bs, mb_data, i, m_dct_dc_pred);
-    else
-        for (int i = 0; i < m_block_count; i++)
-            parse_block<false>(m_bs, mb_data, i, m_dct_dc_pred);
-
     mp2v_picture_c* pic = reinterpret_cast<mp2v_picture_c*>(m_pic);
     auto& pcext = m_pic->m_picture_coding_extension;
+    auto& mb = cur_mb_data.mb;
+    m_parse_macroblock_func(m_bs, mb, 0, m_f_code);
+    parse_mb_pattern(mb, cur_mb_data.pattern_code, m_chroma_format);
 
     uint8_t* yuv[3];
     int stride = m_frame->m_stride[0];
     int chroma_stride = m_frame->m_stride[1];
-    yuv[0] = m_frame->m_planes[0] + mb_row * 16 * stride + mb_col * 16;
-    switch (m_chroma_format) {
-    case chroma_format_420:
-        yuv[1] = m_frame->m_planes[1] + mb_row * 8 * chroma_stride + mb_col * 8;
-        yuv[2] = m_frame->m_planes[2] + mb_row * 8 * chroma_stride + mb_col * 8;
-        break;
-    case chroma_format_422:
-        yuv[1] = m_frame->m_planes[1] + mb_row * 16 * chroma_stride + mb_col * 8;
-        yuv[2] = m_frame->m_planes[2] + mb_row * 16 * chroma_stride + mb_col * 8;
-        break;
-    case chroma_format_444:
-        yuv[1] = m_frame->m_planes[1] + mb_row * 16 * chroma_stride + mb_col * 16;
-        yuv[2] = m_frame->m_planes[2] + mb_row * 16 * chroma_stride + mb_col * 16;
-        break;
+
+    // decode skipped macroblocks
+    for (int i = 0; i < cur_mb_data.mb.macroblock_address_increment; i++, mb_col++) {
+
+        // prepare planes ptrs
+        yuv[0] = m_frame->m_planes[0] + mb_row * 16 * stride + mb_col * 16;
+        switch (m_chroma_format) {
+        case chroma_format_420:
+            yuv[1] = m_frame->m_planes[1] + mb_row * 8 * chroma_stride + mb_col * 8;
+            yuv[2] = m_frame->m_planes[2] + mb_row * 8 * chroma_stride + mb_col * 8;
+            break;
+        case chroma_format_422:
+            yuv[1] = m_frame->m_planes[1] + mb_row * 16 * chroma_stride + mb_col * 8;
+            yuv[2] = m_frame->m_planes[2] + mb_row * 16 * chroma_stride + mb_col * 8;
+            break;
+        case chroma_format_444:
+            yuv[1] = m_frame->m_planes[1] + mb_row * 16 * chroma_stride + mb_col * 16;
+            yuv[2] = m_frame->m_planes[2] + mb_row * 16 * chroma_stride + mb_col * 16;
+            break;
+        }
+
+        if (i == (cur_mb_data.mb.macroblock_address_increment - 1)) break;
+
+        //update motion vectors predictors
+        if (m_picture_coding_type == picture_coding_type_pred) {
+            memset(m_MVs, 0, sizeof(m_MVs));
+            memset(m_PMV, 0, sizeof(m_PMV));
+        }
+
+        decode_mb_func(yuv, stride, chroma_stride, cur_mb_data, pic->quantiser_matrices, pcext.intra_dc_precision, cur_quantiser_scale_code);
+        m_macroblocks.push_back(cur_mb_data);
     }
 
-    decode_mb_func(yuv, stride, chroma_stride, mb_data, pic->quantiser_matrices, pcext.intra_dc_precision, cur_quantiser_scale_code);
+    // Update motion vectors predictors conditions (Table 7-9 – Updating of motion vector predictors in frame pictures)
+    if (mb.prediction_type == Field_based) {
+        if (mb.macroblock_type & macroblock_intra_bit)
+            for (int t : { 0, 1 }) m_PMV[1][0][t] = m_PMV[0][0][t];
+        if ((mb.macroblock_type & macroblock_motion_forward_bit) && (mb.macroblock_type & macroblock_motion_backward_bit) && !(mb.macroblock_type & macroblock_intra_bit))
+            for (int t : { 0, 1 }) {
+                m_PMV[1][0][t] = m_PMV[0][0][t];
+                m_PMV[1][1][t] = m_PMV[0][1][t];
+            }
+        if ((mb.macroblock_type & macroblock_motion_forward_bit) && !(mb.macroblock_type & macroblock_motion_backward_bit) && !(mb.macroblock_type & macroblock_intra_bit))
+            for (int t : { 0, 1 }) m_PMV[1][0][t] = m_PMV[0][0][t];
+        if (!(mb.macroblock_type & macroblock_motion_forward_bit) && (mb.macroblock_type & macroblock_motion_backward_bit) && !(mb.macroblock_type & macroblock_intra_bit))
+            for (int t : { 0, 1 }) m_PMV[1][1][t] = m_PMV[0][1][t];
+    }
+    if (mb.prediction_type == Dual_Prime)
+        if ((mb.macroblock_type & macroblock_motion_forward_bit) && !(mb.macroblock_type & macroblock_motion_backward_bit) && !(mb.macroblock_type & macroblock_intra_bit))
+            for (int t : { 0, 1 }) m_PMV[1][0][t] = m_PMV[0][0][t];
 
-    mb_col += mb_data.mb.macroblock_address_increment;
-    m_macroblocks.push_back(mb_data);
+    // Reset motion vectors predictors conditions
+    if (!(mb.macroblock_type & macroblock_intra_bit) || mb.macroblock_address_increment > 1)
+        for (auto& pred : m_dct_dc_pred)
+            pred = m_dct_dc_pred_reset_value;
+    if (((mb.macroblock_type & macroblock_intra_bit) && !m_concealment_motion_vectors) ||
+        ((m_picture_structure == picture_coding_type_pred) && !(mb.macroblock_type & macroblock_intra_bit) && !(mb.macroblock_type & macroblock_motion_forward_bit)))
+        memset(m_PMV, 0, sizeof(m_PMV));
+
+    // Decode motion vectors. TODO: Think about branching reduction
+    for (int r : { 0, 1 }) for (int s : { 0, 1 }) for (int t : { 0, 1 })
+    {
+        int r_size = m_f_code[s][t] - 1;
+        int f = 1 << r_size;
+        int high = (16 * f) - 1;
+        int low = ((-16) * f);
+        int range = (32 * f);
+        int delta;
+        if ((f == 1) || (mb.motion_code[r][s][t] == 0))
+            delta = mb.motion_code[r][s][t];
+        else {
+            delta = ((labs(mb.motion_code[r][s][t]) - 1) * f) + mb.motion_residual[r][s][t] + 1;
+            if (mb.motion_code[r][s][t] < 0)
+                delta = -delta;
+        }
+        int prediction = m_PMV[r][s][t];
+        if ((mb.mv_format == Field) && (t == 1) && (m_picture_structure == picture_structure_framepic))
+            prediction = m_PMV[r][s][t] / 2;
+        m_MVs[r][s][t] = prediction + delta;
+        if (m_MVs[r][s][t] < low)  m_MVs[r][s][t] += range;
+        if (m_MVs[r][s][t] > high) m_MVs[r][s][t] -= range;
+        if ((mb.mv_format == Field) && (t == 1) && (m_picture_structure == picture_structure_framepic))
+            m_PMV[r][s][t] = m_MVs[r][s][t] * 2;
+        else
+            m_PMV[r][s][t] = m_MVs[r][s][t];
+    }
+
+    // Decode coefficients
+    bool m_use_dct_one_table = (m_intra_vlc_format == 1) && (mb.macroblock_type & macroblock_intra_bit);
+    if (m_use_dct_one_table)
+        for (int i = 0; i < m_block_count; i++)
+            parse_block<true>(m_bs, cur_mb_data, i, m_dct_dc_pred);
+    else
+        for (int i = 0; i < m_block_count; i++)
+            parse_block<false>(m_bs, cur_mb_data, i, m_dct_dc_pred);
+
+    decode_mb_func(yuv, stride, chroma_stride, cur_mb_data, pic->quantiser_matrices, pcext.intra_dc_precision, cur_quantiser_scale_code);
+    mb_col++;
+
+    m_macroblocks.push_back(cur_mb_data);
     return true;
 }
 
@@ -296,6 +364,11 @@ bool mp2v_slice_c::decode_slice() {
     for (auto& pred : m_dct_dc_pred)
         pred = m_dct_dc_pred_reset_value;
 
+    // reset motion vectors predictors
+    memset(&cur_mb_data, 0, sizeof(cur_mb_data));
+    memset(m_PMV, 0, sizeof(m_PMV));
+
+    // decode slice header
     m_slice.slice_start_code = m_bs->read_next_bits(32);
     if (m_vertical_size_value > 2800)
         m_slice.slice_vertical_position_extension = m_bs->read_next_bits(3);
@@ -312,6 +385,7 @@ bool mp2v_slice_c::decode_slice() {
         }
     }
 
+    // calculate row|col position of the slice
     int slice_vertical_position = m_slice.slice_start_code & 0xff;
     if (m_vertical_size_value > 2800)
         mb_row = (m_slice.slice_vertical_position_extension << 7) + slice_vertical_position - 1;
@@ -320,6 +394,7 @@ bool mp2v_slice_c::decode_slice() {
     mb_col = 0;
     cur_quantiser_scale_code = m_slice.quantiser_scale_code;
 
+    // decode macroblocks
     m_bs->skip_bits(1); /* with the value '0' */
     do {
         decode_macroblock();
@@ -438,7 +513,7 @@ bool mp2v_decoder_c::decode() {
                     decode_extension_and_user_data(after_group_of_picture_header, nullptr);
                 }
                 decode_picture_data();
-                //return true; // remove it after test complete
+                return true; // remove it after test complete
             } while ((local_next_start_code(m_bs) == picture_start_code) || (local_next_start_code(m_bs) == group_start_code));
             if (local_next_start_code(m_bs) != sequence_end_code) {
                 parse_sequence_header(m_bs, m_sequence_header);
