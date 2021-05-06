@@ -247,6 +247,7 @@ mp2v_slice_c::mp2v_slice_c(bitstream_reader_i* bitstream, mp2v_picture_c* pic, d
 }
 
 bool mp2v_slice_c::decode_macroblock() {
+    auto refs = m_pic->m_dec->ref_frames;
     mp2v_picture_c* pic = reinterpret_cast<mp2v_picture_c*>(m_pic);
     auto& pcext = m_pic->m_picture_coding_extension;
     auto& mb = cur_mb_data.mb;
@@ -258,8 +259,11 @@ bool mp2v_slice_c::decode_macroblock() {
     int chroma_stride = m_frame->m_stride[1];
 
     // decode skipped macroblocks
+    mb_data_t skipped_mb_data = { 0 };
+    if ((cur_mb_data.mb.macroblock_address_increment > 1) && (m_picture_coding_type == picture_coding_type_bidir)) {
+        skipped_mb_data.mb = cur_mb_data.mb;
+    }
     for (int i = 0; i < cur_mb_data.mb.macroblock_address_increment; i++, mb_col++) {
-
         // prepare planes ptrs
         yuv[0] = m_frame->m_planes[0] + mb_row * 16 * stride + mb_col * 16;
         switch (m_chroma_format) {
@@ -285,7 +289,11 @@ bool mp2v_slice_c::decode_macroblock() {
             memset(m_PMV, 0, sizeof(m_PMV));
         }
 
-        decode_mb_func(yuv, stride, chroma_stride, cur_mb_data, pic->quantiser_matrices, pcext.intra_dc_precision, cur_quantiser_scale_code);
+        //copy motion vectors for skipped macroblocks
+        if (m_picture_coding_type == picture_coding_type_bidir)
+            memcpy(skipped_mb_data.MVs, m_MVs, sizeof(m_MVs));
+
+        decode_mb_func(yuv, stride, chroma_stride, skipped_mb_data, pic->quantiser_matrices, pcext.intra_dc_precision, cur_quantiser_scale_code, refs);
         m_macroblocks.push_back(cur_mb_data);
     }
 
@@ -352,7 +360,7 @@ bool mp2v_slice_c::decode_macroblock() {
         for (int i = 0; i < m_block_count; i++)
             parse_block<false>(m_bs, cur_mb_data, i, m_dct_dc_pred);
 
-    decode_mb_func(yuv, stride, chroma_stride, cur_mb_data, pic->quantiser_matrices, pcext.intra_dc_precision, cur_quantiser_scale_code);
+    decode_mb_func(yuv, stride, chroma_stride, cur_mb_data, pic->quantiser_matrices, pcext.intra_dc_precision, cur_quantiser_scale_code, refs);
     mb_col++;
 
     m_macroblocks.push_back(cur_mb_data);
@@ -503,6 +511,7 @@ bool mp2v_decoder_c::decode() {
     CHECK(local_next_start_code(m_bs) == sequence_header_code);
     CHECK(parse_sequence_header(m_bs, m_sequence_header));
 
+    int pic_num = 0;
     if (local_next_start_code(m_bs) == extension_start_code) {
         parse_sequence_extension(m_bs, m_sequence_extension);
         do {
@@ -513,7 +522,9 @@ bool mp2v_decoder_c::decode() {
                     decode_extension_and_user_data(after_group_of_picture_header, nullptr);
                 }
                 decode_picture_data();
-                return true; // remove it after test complete
+                pic_num++;
+                //if (pic_num > 2)
+                    return true; // remove it after test complete
             } while ((local_next_start_code(m_bs) == picture_start_code) || (local_next_start_code(m_bs) == group_start_code));
             if (local_next_start_code(m_bs) != sequence_end_code) {
                 parse_sequence_header(m_bs, m_sequence_header);

@@ -105,6 +105,7 @@ public:
 };
 
 class mp2v_decoder_c {
+    friend class mp2v_slice_c;
 public:
     mp2v_decoder_c(bitstream_reader_i* bitstream) : m_bs(bitstream) {};
     bool decoder_init(decoder_config_t* config);
@@ -121,6 +122,7 @@ protected:
     bitstream_reader_i* m_bs;
 
     // stream data
+    frame_c* ref_frames[2];
     std::vector<frame_c*> m_frames_pool;
     concurrent_queue<frame_c*> m_output_frames;
 

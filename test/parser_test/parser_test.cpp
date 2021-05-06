@@ -112,5 +112,7 @@ int main(int argc, char* argv[])
         mp2v_decoder.decode();
         mp2v_decoder.get_decoded_frame(frame);
         write_frame(frame, "first_decoded_frame.yuv");
+        mp2v_decoder.get_decoded_frame(frame);
+        write_frame(frame, "second_decoded_frame.yuv");
     }
 }

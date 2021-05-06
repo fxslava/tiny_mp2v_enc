@@ -14,6 +14,7 @@ file(
         ./core/scan_c.cpp
         ./core/quant_c.cpp
         ./core/idct_c.cpp
+        ./core/mc_c.cpp
         ./core/common/cpu.cpp
 )
 
