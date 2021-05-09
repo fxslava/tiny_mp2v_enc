@@ -20,42 +20,36 @@ void pred_mc_template(uint8_t* dst, uint8_t* src, uint32_t stride, int height)
 {
     for (int j = 0; j < height; j++) {
 #pragma unroll
-        for (int i = 0; i < width; i++)
+        for (int i = 0; i < width; i++) {
             dst[i] = mc_func_template<mc_type>(src, i, stride);
+        }
         src += stride;
         dst += stride;
     }
 }
 
-template<mc_type_e mc_type, int width>
-void cache_pred_mc_template(uint8_t* dst, uint8_t* src, uint32_t stride, int height)
-{
-    for (int j = 0; j < height; j++) {
-#pragma unroll
-        for (int i = 0; i < width; i++)
-            dst[i] = mc_func_template<mc_type>(src, i, stride);
-        src += stride;
-        dst += width;
-    }
-}
+void mc_pred00_16xh_c  (uint8_t* dst, uint8_t* src, uint32_t stride, uint32_t height) { pred_mc_template<MC_00, 16>(dst, src, stride, height); }
+void mc_pred01_16xh_c  (uint8_t* dst, uint8_t* src, uint32_t stride, uint32_t height) { pred_mc_template<MC_01, 16>(dst, src, stride, height); }
+void mc_pred10_16xh_c  (uint8_t* dst, uint8_t* src, uint32_t stride, uint32_t height) { pred_mc_template<MC_10, 16>(dst, src, stride, height); }
+void mc_pred11_16xh_c  (uint8_t* dst, uint8_t* src, uint32_t stride, uint32_t height) { pred_mc_template<MC_11, 16>(dst, src, stride, height); }
+void mc_pred00_8xh_c   (uint8_t* dst, uint8_t* src, uint32_t stride, uint32_t height) { pred_mc_template<MC_00, 8 >(dst, src, stride, height); }
+void mc_pred01_8xh_c   (uint8_t* dst, uint8_t* src, uint32_t stride, uint32_t height) { pred_mc_template<MC_01, 8 >(dst, src, stride, height); }
+void mc_pred10_8xh_c   (uint8_t* dst, uint8_t* src, uint32_t stride, uint32_t height) { pred_mc_template<MC_10, 8 >(dst, src, stride, height); }
+void mc_pred11_8xh_c   (uint8_t* dst, uint8_t* src, uint32_t stride, uint32_t height) { pred_mc_template<MC_11, 8 >(dst, src, stride, height); }
 
-void mc_pred00_16xh_c(uint8_t* dst, uint8_t* src, uint32_t stride, uint32_t height) { pred_mc_template<MC_00, 16>(dst, src, stride, height); }
-void mc_pred01_16xh_c(uint8_t* dst, uint8_t* src, uint32_t stride, uint32_t height) { pred_mc_template<MC_01, 16>(dst, src, stride, height); }
-void mc_pred10_16xh_c(uint8_t* dst, uint8_t* src, uint32_t stride, uint32_t height) { pred_mc_template<MC_10, 16>(dst, src, stride, height); }
-void mc_pred11_16xh_c(uint8_t* dst, uint8_t* src, uint32_t stride, uint32_t height) { pred_mc_template<MC_11, 16>(dst, src, stride, height); }
-void mc_pred00_8xh_c (uint8_t* dst, uint8_t* src, uint32_t stride, uint32_t height) { pred_mc_template<MC_00, 8 >(dst, src, stride, height); }
-void mc_pred01_8xh_c (uint8_t* dst, uint8_t* src, uint32_t stride, uint32_t height) { pred_mc_template<MC_01, 8 >(dst, src, stride, height); }
-void mc_pred10_8xh_c (uint8_t* dst, uint8_t* src, uint32_t stride, uint32_t height) { pred_mc_template<MC_10, 8 >(dst, src, stride, height); }
-void mc_pred11_8xh_c (uint8_t* dst, uint8_t* src, uint32_t stride, uint32_t height) { pred_mc_template<MC_11, 8 >(dst, src, stride, height); }
+mc_pred_func_t mc_pred_16xh[4] = {
+    mc_pred00_16xh_c,
+    mc_pred01_16xh_c,
+    mc_pred10_16xh_c,
+    mc_pred11_16xh_c
+};
 
-void mc_cache_pred00_16xh_c(uint8_t* dst, uint8_t* src, uint32_t stride, uint32_t height) { cache_pred_mc_template<MC_00, 16>(dst, src, stride, height); }
-void mc_cache_pred01_16xh_c(uint8_t* dst, uint8_t* src, uint32_t stride, uint32_t height) { cache_pred_mc_template<MC_01, 16>(dst, src, stride, height); }
-void mc_cache_pred10_16xh_c(uint8_t* dst, uint8_t* src, uint32_t stride, uint32_t height) { cache_pred_mc_template<MC_10, 16>(dst, src, stride, height); }
-void mc_cache_pred11_16xh_c(uint8_t* dst, uint8_t* src, uint32_t stride, uint32_t height) { cache_pred_mc_template<MC_11, 16>(dst, src, stride, height); }
-void mc_cache_pred00_8xh_c (uint8_t* dst, uint8_t* src, uint32_t stride, uint32_t height) { cache_pred_mc_template<MC_00, 8 >(dst, src, stride, height); }
-void mc_cache_pred01_8xh_c (uint8_t* dst, uint8_t* src, uint32_t stride, uint32_t height) { cache_pred_mc_template<MC_01, 8 >(dst, src, stride, height); }
-void mc_cache_pred10_8xh_c (uint8_t* dst, uint8_t* src, uint32_t stride, uint32_t height) { cache_pred_mc_template<MC_10, 8 >(dst, src, stride, height); }
-void mc_cache_pred11_8xh_c (uint8_t* dst, uint8_t* src, uint32_t stride, uint32_t height) { cache_pred_mc_template<MC_11, 8 >(dst, src, stride, height); }
+mc_pred_func_t mc_pred_8xh[4] = {
+    mc_pred00_8xh_c,
+    mc_pred01_8xh_c,
+    mc_pred10_8xh_c,
+    mc_pred11_8xh_c
+};
 
 template<mc_type_e mc_type_src0, mc_type_e mc_type_src1, int width>
 void bidir_mc_template(uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, int height)
@@ -65,27 +59,12 @@ void bidir_mc_template(uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stri
         for (int i = 0; i < width; i++) {
             uint8_t tmp0 = mc_func_template<mc_type_src0>(src0, i, stride);
             uint8_t tmp1 = mc_func_template<mc_type_src1>(src1, i, stride);
-            dst[i] = (tmp0 + tmp1 + 1) >> 1;
+            uint8_t res  = (tmp0 + tmp1 + 1) >> 1;
+            dst[i] = res;
         }
         src0 += stride;
         src1 += stride;
         dst += stride;
-    }
-}
-
-template<mc_type_e mc_type_src0, mc_type_e mc_type_src1, int width>
-void cache_bidir_mc_template(uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, int height)
-{
-    for (int j = 0; j < height; j++) {
-#pragma unroll
-        for (int i = 0; i < width; i++) {
-            uint8_t tmp0 = mc_func_template<mc_type_src0>(src0, i, stride);
-            uint8_t tmp1 = mc_func_template<mc_type_src1>(src1, i, stride);
-            dst[i] = (tmp0 + tmp1 + 1) >> 1;
-        }
-        src0 += stride;
-        src1 += stride;
-        dst += width;
     }
 }
 
@@ -122,35 +101,40 @@ void mc_bidir1101_8xh_c (uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t st
 void mc_bidir1110_8xh_c (uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_11, MC_10, 8 >(dst, src0, src1, stride, height); }
 void mc_bidir1111_8xh_c (uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_11, MC_11, 8 >(dst, src0, src1, stride, height); }
 
-void mc_cache_bidir0000_16xh_c(uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_00, MC_00, 16>(dst, src0, src1, stride, height); }
-void mc_cache_bidir0001_16xh_c(uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_00, MC_01, 16>(dst, src0, src1, stride, height); }
-void mc_cache_bidir0010_16xh_c(uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_00, MC_10, 16>(dst, src0, src1, stride, height); }
-void mc_cache_bidir0011_16xh_c(uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_00, MC_11, 16>(dst, src0, src1, stride, height); }
-void mc_cache_bidir0100_16xh_c(uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_01, MC_00, 16>(dst, src0, src1, stride, height); }
-void mc_cache_bidir0101_16xh_c(uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_01, MC_01, 16>(dst, src0, src1, stride, height); }
-void mc_cache_bidir0110_16xh_c(uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_01, MC_10, 16>(dst, src0, src1, stride, height); }
-void mc_cache_bidir0111_16xh_c(uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_01, MC_11, 16>(dst, src0, src1, stride, height); }
-void mc_cache_bidir1000_16xh_c(uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_10, MC_00, 16>(dst, src0, src1, stride, height); }
-void mc_cache_bidir1001_16xh_c(uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_10, MC_01, 16>(dst, src0, src1, stride, height); }
-void mc_cache_bidir1010_16xh_c(uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_10, MC_10, 16>(dst, src0, src1, stride, height); }
-void mc_cache_bidir1011_16xh_c(uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_10, MC_11, 16>(dst, src0, src1, stride, height); }
-void mc_cache_bidir1100_16xh_c(uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_11, MC_00, 16>(dst, src0, src1, stride, height); }
-void mc_cache_bidir1101_16xh_c(uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_11, MC_01, 16>(dst, src0, src1, stride, height); }
-void mc_cache_bidir1110_16xh_c(uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_11, MC_10, 16>(dst, src0, src1, stride, height); }
-void mc_cache_bidir1111_16xh_c(uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_11, MC_11, 16>(dst, src0, src1, stride, height); }
-void mc_cache_bidir0000_8xh_c (uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_00, MC_00, 8 >(dst, src0, src1, stride, height); }
-void mc_cache_bidir0001_8xh_c (uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_00, MC_01, 8 >(dst, src0, src1, stride, height); }
-void mc_cache_bidir0010_8xh_c (uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_00, MC_10, 8 >(dst, src0, src1, stride, height); }
-void mc_cache_bidir0011_8xh_c (uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_00, MC_11, 8 >(dst, src0, src1, stride, height); }
-void mc_cache_bidir0100_8xh_c (uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_01, MC_00, 8 >(dst, src0, src1, stride, height); }
-void mc_cache_bidir0101_8xh_c (uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_01, MC_01, 8 >(dst, src0, src1, stride, height); }
-void mc_cache_bidir0110_8xh_c (uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_01, MC_10, 8 >(dst, src0, src1, stride, height); }
-void mc_cache_bidir0111_8xh_c (uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_01, MC_11, 8 >(dst, src0, src1, stride, height); }
-void mc_cache_bidir1000_8xh_c (uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_10, MC_00, 8 >(dst, src0, src1, stride, height); }
-void mc_cache_bidir1001_8xh_c (uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_10, MC_01, 8 >(dst, src0, src1, stride, height); }
-void mc_cache_bidir1010_8xh_c (uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_10, MC_10, 8 >(dst, src0, src1, stride, height); }
-void mc_cache_bidir1011_8xh_c (uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_10, MC_11, 8 >(dst, src0, src1, stride, height); }
-void mc_cache_bidir1100_8xh_c (uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_11, MC_00, 8 >(dst, src0, src1, stride, height); }
-void mc_cache_bidir1101_8xh_c (uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_11, MC_01, 8 >(dst, src0, src1, stride, height); }
-void mc_cache_bidir1110_8xh_c (uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_11, MC_10, 8 >(dst, src0, src1, stride, height); }
-void mc_cache_bidir1111_8xh_c (uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, uint32_t height) { bidir_mc_template<MC_11, MC_11, 8 >(dst, src0, src1, stride, height); }
+mc_bidir_func_t mc_bidir_16xh[16] = {
+    mc_bidir0000_16xh_c,
+    mc_bidir0001_16xh_c,
+    mc_bidir0010_16xh_c,
+    mc_bidir0011_16xh_c,
+    mc_bidir0100_16xh_c,
+    mc_bidir0101_16xh_c,
+    mc_bidir0110_16xh_c,
+    mc_bidir0111_16xh_c,
+    mc_bidir1000_16xh_c,
+    mc_bidir1001_16xh_c,
+    mc_bidir1010_16xh_c,
+    mc_bidir1011_16xh_c,
+    mc_bidir1100_16xh_c,
+    mc_bidir1101_16xh_c,
+    mc_bidir1110_16xh_c,
+    mc_bidir1111_16xh_c
+};
+
+mc_bidir_func_t mc_bidir_8xh[16] = {
+    mc_bidir0000_8xh_c,
+    mc_bidir0001_8xh_c,
+    mc_bidir0010_8xh_c,
+    mc_bidir0011_8xh_c,
+    mc_bidir0100_8xh_c,
+    mc_bidir0101_8xh_c,
+    mc_bidir0110_8xh_c,
+    mc_bidir0111_8xh_c,
+    mc_bidir1000_8xh_c,
+    mc_bidir1001_8xh_c,
+    mc_bidir1010_8xh_c,
+    mc_bidir1011_8xh_c,
+    mc_bidir1100_8xh_c,
+    mc_bidir1101_8xh_c,
+    mc_bidir1110_8xh_c,
+    mc_bidir1111_8xh_c
+};

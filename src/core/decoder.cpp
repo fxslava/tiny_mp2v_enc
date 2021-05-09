@@ -246,45 +246,80 @@ mp2v_slice_c::mp2v_slice_c(bitstream_reader_i* bitstream, mp2v_picture_c* pic, d
         m_spatial_temporal_weight_code_table_index = pssext->spatial_temporal_weight_code_table_index;
 }
 
+template<int chroma_format>
+static void make_macroblock_yuv_ptrs(uint8_t* (&yuv)[3], frame_c* frame, int mb_row, int mb_col, int stride, int chroma_stride) {
+    yuv[0] = frame->get_planes(0) + mb_row * 16 * stride + mb_col * 16;
+    switch (chroma_format) {
+    case chroma_format_420:
+        yuv[1] = frame->get_planes(1) + mb_row * 8 * chroma_stride + mb_col * 8;
+        yuv[2] = frame->get_planes(2) + mb_row * 8 * chroma_stride + mb_col * 8;
+        break;
+    case chroma_format_422:
+        yuv[1] = frame->get_planes(1) + mb_row * 16 * chroma_stride + mb_col * 8;
+        yuv[2] = frame->get_planes(2) + mb_row * 16 * chroma_stride + mb_col * 8;
+        break;
+    case chroma_format_444:
+        yuv[1] = frame->get_planes(1) + mb_row * 16 * chroma_stride + mb_col * 16;
+        yuv[2] = frame->get_planes(2) + mb_row * 16 * chroma_stride + mb_col * 16;
+        break;
+    }
+}
+
 bool mp2v_slice_c::decode_macroblock() {
+    if (m_picture_coding_type == picture_coding_type_pred) {
+        m_cur_mb_data.mb.prediction_type = Frame_based;
+        m_cur_mb_data.mb.motion_vector_count = 1;
+    }
+
     auto refs = m_pic->m_dec->ref_frames;
     mp2v_picture_c* pic = reinterpret_cast<mp2v_picture_c*>(m_pic);
     auto& pcext = m_pic->m_picture_coding_extension;
-    auto& mb = cur_mb_data.mb;
+    auto& mb = m_cur_mb_data.mb;
     m_parse_macroblock_func(m_bs, mb, 0, m_f_code);
-    parse_mb_pattern(mb, cur_mb_data.pattern_code, m_chroma_format);
+    parse_mb_pattern(mb, m_cur_mb_data.pattern_code, m_chroma_format);
 
-    uint8_t* yuv[3];
+    uint8_t *yuv[3], *ref0[3], *ref1[3];
     int stride = m_frame->m_stride[0];
     int chroma_stride = m_frame->m_stride[1];
 
     // decode skipped macroblocks
     mb_data_t skipped_mb_data = { 0 };
-    if ((cur_mb_data.mb.macroblock_address_increment > 1) && (m_picture_coding_type == picture_coding_type_bidir)) {
-        skipped_mb_data.mb = cur_mb_data.mb;
+    if ((mb.macroblock_address_increment > 1) && (m_picture_coding_type == picture_coding_type_bidir)) {
+        skipped_mb_data.mb.macroblock_type = mb.macroblock_type & (macroblock_motion_forward_bit | macroblock_motion_backward_bit);
+        skipped_mb_data.mb.prediction_type = mb.prediction_type;
+        skipped_mb_data.mb.motion_vector_count = mb.motion_vector_count;
     }
-    for (int i = 0; i < cur_mb_data.mb.macroblock_address_increment; i++, mb_col++) {
+    for (int i = 0; i < mb.macroblock_address_increment; i++, mb_col++) {
         // prepare planes ptrs
-        yuv[0] = m_frame->m_planes[0] + mb_row * 16 * stride + mb_col * 16;
         switch (m_chroma_format) {
         case chroma_format_420:
-            yuv[1] = m_frame->m_planes[1] + mb_row * 8 * chroma_stride + mb_col * 8;
-            yuv[2] = m_frame->m_planes[2] + mb_row * 8 * chroma_stride + mb_col * 8;
+            make_macroblock_yuv_ptrs<chroma_format_420>(yuv, m_frame, mb_row, mb_col, stride, chroma_stride);
+            if (refs[0])
+                make_macroblock_yuv_ptrs<chroma_format_420>(ref0, refs[0], mb_row, mb_col, stride, chroma_stride);
+            if (refs[1])
+                make_macroblock_yuv_ptrs<chroma_format_420>(ref1, refs[1], mb_row, mb_col, stride, chroma_stride);
             break;
         case chroma_format_422:
-            yuv[1] = m_frame->m_planes[1] + mb_row * 16 * chroma_stride + mb_col * 8;
-            yuv[2] = m_frame->m_planes[2] + mb_row * 16 * chroma_stride + mb_col * 8;
+            make_macroblock_yuv_ptrs<chroma_format_422>(yuv, m_frame, mb_row, mb_col, stride, chroma_stride);
+            if (refs[0])
+                make_macroblock_yuv_ptrs<chroma_format_422>(ref0, refs[0], mb_row, mb_col, stride, chroma_stride);
+            if (refs[1])
+                make_macroblock_yuv_ptrs<chroma_format_422>(ref1, refs[1], mb_row, mb_col, stride, chroma_stride);
             break;
         case chroma_format_444:
-            yuv[1] = m_frame->m_planes[1] + mb_row * 16 * chroma_stride + mb_col * 16;
-            yuv[2] = m_frame->m_planes[2] + mb_row * 16 * chroma_stride + mb_col * 16;
+            make_macroblock_yuv_ptrs<chroma_format_444>(yuv, m_frame, mb_row, mb_col, stride, chroma_stride);
+            if (refs[0])
+                make_macroblock_yuv_ptrs<chroma_format_444>(ref0, refs[0], mb_row, mb_col, stride, chroma_stride);
+            if (refs[1])
+                make_macroblock_yuv_ptrs<chroma_format_444>(ref1, refs[1], mb_row, mb_col, stride, chroma_stride);
             break;
         }
 
-        if (i == (cur_mb_data.mb.macroblock_address_increment - 1)) break;
+        if (i == (mb.macroblock_address_increment - 1)) break;
 
         //update motion vectors predictors
         if (m_picture_coding_type == picture_coding_type_pred) {
+            skipped_mb_data.mb.prediction_type = Frame_based;
             memset(m_MVs, 0, sizeof(m_MVs));
             memset(m_PMV, 0, sizeof(m_PMV));
         }
@@ -293,8 +328,8 @@ bool mp2v_slice_c::decode_macroblock() {
         if (m_picture_coding_type == picture_coding_type_bidir)
             memcpy(skipped_mb_data.MVs, m_MVs, sizeof(m_MVs));
 
-        decode_mb_func(yuv, stride, chroma_stride, skipped_mb_data, pic->quantiser_matrices, pcext.intra_dc_precision, cur_quantiser_scale_code, refs);
-        m_macroblocks.push_back(cur_mb_data);
+        decode_mb_func(yuv, stride, chroma_stride, skipped_mb_data, pic->quantiser_matrices, pcext.intra_dc_precision, cur_quantiser_scale_code, ref0, ref1);
+        m_macroblocks.push_back(m_cur_mb_data);
     }
 
     // Update motion vectors predictors conditions (Table 7-9 – Updating of motion vector predictors in frame pictures)
@@ -355,15 +390,16 @@ bool mp2v_slice_c::decode_macroblock() {
     bool m_use_dct_one_table = (m_intra_vlc_format == 1) && (mb.macroblock_type & macroblock_intra_bit);
     if (m_use_dct_one_table)
         for (int i = 0; i < m_block_count; i++)
-            parse_block<true>(m_bs, cur_mb_data, i, m_dct_dc_pred);
+            parse_block<true>(m_bs, m_cur_mb_data, i, m_dct_dc_pred);
     else
         for (int i = 0; i < m_block_count; i++)
-            parse_block<false>(m_bs, cur_mb_data, i, m_dct_dc_pred);
+            parse_block<false>(m_bs, m_cur_mb_data, i, m_dct_dc_pred);
 
-    decode_mb_func(yuv, stride, chroma_stride, cur_mb_data, pic->quantiser_matrices, pcext.intra_dc_precision, cur_quantiser_scale_code, refs);
+    memcpy(m_cur_mb_data.MVs, m_MVs, sizeof(m_MVs));
+    decode_mb_func(yuv, stride, chroma_stride, m_cur_mb_data, pic->quantiser_matrices, pcext.intra_dc_precision, cur_quantiser_scale_code, ref0, ref1);
     mb_col++;
 
-    m_macroblocks.push_back(cur_mb_data);
+    m_macroblocks.push_back(m_cur_mb_data);
     return true;
 }
 
@@ -373,7 +409,7 @@ bool mp2v_slice_c::decode_slice() {
         pred = m_dct_dc_pred_reset_value;
 
     // reset motion vectors predictors
-    memset(&cur_mb_data, 0, sizeof(cur_mb_data));
+    memset(&m_cur_mb_data, 0, sizeof(m_cur_mb_data));
     memset(m_PMV, 0, sizeof(m_PMV));
 
     // decode slice header
@@ -523,7 +559,7 @@ bool mp2v_decoder_c::decode() {
                 }
                 decode_picture_data();
                 pic_num++;
-                //if (pic_num > 2)
+                if (pic_num > 3)
                     return true; // remove it after test complete
             } while ((local_next_start_code(m_bs) == picture_start_code) || (local_next_start_code(m_bs) == group_start_code));
             if (local_next_start_code(m_bs) != sequence_end_code) {
@@ -539,7 +575,8 @@ bool mp2v_decoder_c::decode() {
 }
 
 bool mp2v_decoder_c::decode_picture_data() {
-    frame_c* frame = m_frames_pool.back();
+    frame_c* frame = m_frames_pool.front();
+    m_frames_pool.pop_front();
 
     /* Decode sequence parameters*/
     mp2v_picture_c pic(m_bs, this, frame);
@@ -548,6 +585,12 @@ bool mp2v_decoder_c::decode_picture_data() {
     parse_picture_header(m_bs, pic.m_picture_header);
     parse_picture_coding_extension(m_bs, pic.m_picture_coding_extension);
     decode_extension_and_user_data(after_picture_coding_extension, &pic);
+
+    if (pic.m_picture_header.picture_coding_type == picture_coding_type_intra || pic.m_picture_header.picture_coding_type == picture_coding_type_pred) {
+        ref_frames[0] = ref_frames[1];
+        ref_frames[1] = frame;
+    }
+
     pic.decode_picture();
 
     m_frames_pool.push_back(frame);

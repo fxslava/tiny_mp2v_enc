@@ -5,11 +5,15 @@
 #include "quant.h"
 #include "idct.h"
 #include "mc.h"
+#include <cstddef>
 
-enum cache_type_e { CACHE_TYPE_PUT, CACHE8_TYPE_ADD, CACHE16_TYPE_ADD };
+enum mc_template_e {
+    mc_templ_field,
+    mc_templ_frame
+};
 
-template<typename pixel_t, typename cache_t, cache_type_e cache_type, bool alt_scan, bool intra>
-void decode_block_template(pixel_t* plane, cache_t* cache, uint32_t stride, int16_t QFS[64], uint16_t W_i[64], uint16_t W[64], uint8_t quantizer_scale, int intra_dc_prec) {
+template<typename pixel_t, bool alt_scan, bool intra, bool add>
+void decode_block_template(pixel_t* plane, uint32_t stride, int16_t QFS[64], uint16_t W_i[64], uint16_t W[64], uint8_t quantizer_scale, int intra_dc_prec) {
     int16_t QF[64];
     int16_t F[64];
 
@@ -26,55 +30,242 @@ void decode_block_template(pixel_t* plane, cache_t* cache, uint32_t stride, int1
         inverse_quant_intra_c(F, QF, W_i, quantizer_scale, intra_dc_prec);
 
     //idct
-    switch (cache_type) {
-    case CACHE_TYPE_PUT: 
-        inverse_dct(plane, F, stride); 
-        break;
-    case CACHE16_TYPE_ADD: 
-        add_cache16_inverse_dct(plane, cache, F, stride); 
-        break;
-    case CACHE8_TYPE_ADD: 
-        add_cache8_inverse_dct(plane, cache, F, stride); 
-        break;
-    }
+    if (add)
+        add_inverse_dct(plane, F, stride); 
+    else
+        inverse_dct(plane, F, stride);
 }
 
-template<typename pixel_t, typename cache_t, int chroma_format, bool alt_scan, bool intra>
-void decode_transform_template(pixel_t* yuv_planes[3], cache_t* cache[3], int stride, int chroma_stride, uint16_t W[4][64], int16_t QFS[12][64], bool pattern_code[12], uint8_t quantizer_scale, uint8_t intra_dc_prec) {
+template<typename pixel_t, int chroma_format, bool alt_scan, bool intra, bool add>
+void decode_transform_template(pixel_t* yuv_planes[3], int stride, int chroma_stride, uint16_t W[4][64], int16_t QFS[12][64], bool pattern_code[12], uint8_t quantizer_scale, uint8_t intra_dc_prec) {
     // Luma
     if (pattern_code[0])
-        decode_block_template<pixel_t, cache_t, intra ? CACHE_TYPE_PUT : CACHE16_TYPE_ADD, alt_scan, intra>(yuv_planes[0], cache[0], stride, QFS[0], W[0], W[1], quantizer_scale, intra_dc_prec);
+        decode_block_template<pixel_t, alt_scan, intra, add>(yuv_planes[0], stride, QFS[0], W[0], W[1], quantizer_scale, intra_dc_prec);
     if (pattern_code[1])
-        decode_block_template<pixel_t, cache_t, intra ? CACHE_TYPE_PUT : CACHE16_TYPE_ADD, alt_scan, intra>(yuv_planes[0] + 8, cache[0], stride, QFS[1], W[0], W[1], quantizer_scale, intra_dc_prec);
+        decode_block_template<pixel_t, alt_scan, intra, add>(yuv_planes[0] + 8, stride, QFS[1], W[0], W[1], quantizer_scale, intra_dc_prec);
     if (pattern_code[2])
-        decode_block_template<pixel_t, cache_t, intra ? CACHE_TYPE_PUT : CACHE16_TYPE_ADD, alt_scan, intra>(yuv_planes[0] + 8 * stride, cache[0], stride, QFS[2], W[0], W[1], quantizer_scale, intra_dc_prec);
+        decode_block_template<pixel_t, alt_scan, intra, add>(yuv_planes[0] + 8 * stride, stride, QFS[2], W[0], W[1], quantizer_scale, intra_dc_prec);
     if (pattern_code[3])
-        decode_block_template<pixel_t, cache_t, intra ? CACHE_TYPE_PUT : CACHE16_TYPE_ADD, alt_scan, intra>(yuv_planes[0] + 8 * (stride + 1), cache[0], stride, QFS[3], W[0], W[1], quantizer_scale, intra_dc_prec);
+        decode_block_template<pixel_t, alt_scan, intra, add>(yuv_planes[0] + 8 * (stride + 1), stride, QFS[3], W[0], W[1], quantizer_scale, intra_dc_prec);
 
     // Chroma format 4:2:0
     if (chroma_format >= 1) {
         if (pattern_code[4])
-            decode_block_template<pixel_t, cache_t, intra ? CACHE_TYPE_PUT : CACHE8_TYPE_ADD, alt_scan, intra>(yuv_planes[1], cache[1], chroma_stride, QFS[4], W[0], W[1], quantizer_scale, intra_dc_prec);
+            decode_block_template<pixel_t, alt_scan, intra, add>(yuv_planes[1], chroma_stride, QFS[4], W[0], W[1], quantizer_scale, intra_dc_prec);
         if (pattern_code[5])
-            decode_block_template<pixel_t, cache_t, intra ? CACHE_TYPE_PUT : CACHE8_TYPE_ADD, alt_scan, intra>(yuv_planes[2], cache[2], chroma_stride, QFS[5], W[0], W[1], quantizer_scale, intra_dc_prec);
+            decode_block_template<pixel_t, alt_scan, intra, add>(yuv_planes[2], chroma_stride, QFS[5], W[0], W[1], quantizer_scale, intra_dc_prec);
     }
     // Chroma format 4:2:2
     if (chroma_format >= 2) {
         if (pattern_code[6])
-            decode_block_template<pixel_t, cache_t, intra ? CACHE_TYPE_PUT : CACHE8_TYPE_ADD, alt_scan, intra>(yuv_planes[1] + 8 * chroma_stride, cache[1], chroma_stride, QFS[6], W[2], W[3], quantizer_scale, intra_dc_prec);
+            decode_block_template<pixel_t, alt_scan, intra, add>(yuv_planes[1] + 8 * chroma_stride, chroma_stride, QFS[6], W[2], W[3], quantizer_scale, intra_dc_prec);
         if (pattern_code[7])
-            decode_block_template<pixel_t, cache_t, intra ? CACHE_TYPE_PUT : CACHE8_TYPE_ADD, alt_scan, intra>(yuv_planes[2] + 8 * chroma_stride, cache[2], chroma_stride, QFS[7], W[2], W[3], quantizer_scale, intra_dc_prec);
+            decode_block_template<pixel_t, alt_scan, intra, add>(yuv_planes[2] + 8 * chroma_stride, chroma_stride, QFS[7], W[2], W[3], quantizer_scale, intra_dc_prec);
     }
     // Chroma format 4:4:4
     if (chroma_format == 3) {
         if (pattern_code[8])
-            decode_block_template<pixel_t, cache_t, intra ? CACHE_TYPE_PUT : CACHE16_TYPE_ADD, alt_scan, intra>(yuv_planes[1] + 8, cache[1], stride, QFS[8], W[2], W[3], quantizer_scale, intra_dc_prec);
+            decode_block_template<pixel_t, alt_scan, intra, add>(yuv_planes[1] + 8, stride, QFS[8], W[2], W[3], quantizer_scale, intra_dc_prec);
         if (pattern_code[9])
-            decode_block_template<pixel_t, cache_t, intra ? CACHE_TYPE_PUT : CACHE16_TYPE_ADD, alt_scan, intra>(yuv_planes[2] + 8, cache[2], stride, QFS[9], W[2], W[3], quantizer_scale, intra_dc_prec);
+            decode_block_template<pixel_t, alt_scan, intra, add>(yuv_planes[2] + 8, stride, QFS[9], W[2], W[3], quantizer_scale, intra_dc_prec);
         if (pattern_code[10])
-            decode_block_template<pixel_t, cache_t, intra ? CACHE_TYPE_PUT : CACHE16_TYPE_ADD, alt_scan, intra>(yuv_planes[1] + 8 * (stride + 1), cache[1], stride, QFS[10], W[2], W[3], quantizer_scale, intra_dc_prec);
+            decode_block_template<pixel_t, alt_scan, intra, add>(yuv_planes[1] + 8 * (stride + 1), stride, QFS[10], W[2], W[3], quantizer_scale, intra_dc_prec);
         if (pattern_code[11])
-            decode_block_template<pixel_t, cache_t, intra ? CACHE_TYPE_PUT : CACHE16_TYPE_ADD, alt_scan, intra>(yuv_planes[2] + 8 * (stride + 1), cache[2], stride, QFS[11], W[2], W[3], quantizer_scale, intra_dc_prec);
+            decode_block_template<pixel_t, alt_scan, intra, add>(yuv_planes[2] + 8 * (stride + 1), stride, QFS[11], W[2], W[3], quantizer_scale, intra_dc_prec);
+    }
+}
+
+template<int chroma_format, int plane_idx>
+void apply_chroma_scale(int16_t& mvx, int16_t& mvy) {
+    if (plane_idx > 0) {
+        if (chroma_format < 3)
+            mvx >>= 1;
+        if (chroma_format < 2)
+            mvy >>= 1;
+    }
+}
+
+int mc_bidir_idx(int16_t mvfx, int16_t mvfy, int16_t mvbx, int16_t mvby) {
+    return mvfx & 0x01 + ((mvfy & 0x01) << 1) + ((mvbx & 0x01) << 2) + ((mvby & 0x01) << 3);
+}
+
+template<int chroma_format, int plane_idx, int vect_idx, mc_template_e mc_templ>
+void mc_bidir_template(uint8_t* dst, uint8_t* ref0, uint8_t* ref1, mb_data_t mb_data, uint32_t stride, uint32_t chroma_stride) {
+    uint8_t* fref = ref1;
+    uint8_t* bref = ref0;
+    auto  mvfx = mb_data.MVs[vect_idx][0][0];
+    auto  mvfy = mb_data.MVs[vect_idx][0][1];
+    auto  mvbx = mb_data.MVs[vect_idx][1][0];
+    auto  mvby = mb_data.MVs[vect_idx][1][1];
+    apply_chroma_scale<chroma_format, plane_idx>(mvfx, mvfy);
+    apply_chroma_scale<chroma_format, plane_idx>(mvbx, mvby);
+    int mvs_ridx = mc_bidir_idx(mvfx, mvfy, mvbx, mvby);
+    fref += static_cast<ptrdiff_t>(mvfx / 2) + static_cast<ptrdiff_t>(mvfy / 2) * (plane_idx ? stride : chroma_stride);
+    bref += static_cast<ptrdiff_t>(mvbx / 2) + static_cast<ptrdiff_t>(mvby / 2) * (plane_idx ? stride : chroma_stride);
+
+    if (plane_idx == 0) {
+        if (mb_data.mb.motion_vertical_field_select[vect_idx][0])
+            fref += 8 * stride;
+        if (mb_data.mb.motion_vertical_field_select[vect_idx][1])
+            bref += 8 * stride;
+        if (vect_idx == 1)
+            dst += 8 * stride;
+    }
+    else {
+        switch (chroma_format) {
+        case chroma_format_420:
+            if (mb_data.mb.motion_vertical_field_select[vect_idx][0])
+                fref += 4 * chroma_stride;
+            if (mb_data.mb.motion_vertical_field_select[vect_idx][1])
+                bref += 4 * chroma_stride;
+            if (vect_idx == 1)
+                dst += 4 * chroma_stride;
+            break;
+        case chroma_format_422:
+        case chroma_format_444:
+            if (mb_data.mb.motion_vertical_field_select[vect_idx][0])
+                fref += 8 * chroma_stride;
+            if (mb_data.mb.motion_vertical_field_select[vect_idx][1])
+                bref += 8 * chroma_stride;
+            if (vect_idx == 1)
+                dst += 8 * chroma_stride;
+            break;
+        }
+    }
+
+    if (plane_idx == 0) {
+        switch (mc_templ) {
+        case mc_templ_field: mc_bidir_16xh[mvs_ridx](dst, fref, bref, stride, 8); break;
+        case mc_templ_frame: mc_bidir_16xh[mvs_ridx](dst, fref, bref, stride, 16); break;
+        }
+    }
+    else {
+        switch (mc_templ) {
+        case mc_templ_field:
+            switch (chroma_format) {
+            case chroma_format_420: mc_bidir_8xh[mvs_ridx](dst, fref, bref, chroma_stride, 4); break;
+            case chroma_format_422: mc_bidir_8xh[mvs_ridx](dst, fref, bref, chroma_stride, 8); break;
+            case chroma_format_444: mc_bidir_16xh[mvs_ridx](dst, fref, bref, chroma_stride, 8); break;
+            }
+            break;
+        case mc_templ_frame:
+            switch (chroma_format) {
+            case chroma_format_420: mc_bidir_8xh[mvs_ridx](dst, fref, bref, chroma_stride, 8); break;
+            case chroma_format_422: mc_bidir_8xh[mvs_ridx](dst, fref, bref, chroma_stride, 16); break;
+            case chroma_format_444: mc_bidir_16xh[mvs_ridx](dst, fref, bref, chroma_stride, 16); break;
+            }
+            break;
+        }
+    }
+}
+
+int mc_unidir_idx(int16_t mvx, int16_t mvy) {
+    return mvx & 0x01 + ((mvy & 0x01) << 1);
+}
+
+template<int chroma_format, int plane_idx, int vect_idx, mc_template_e mc_templ, bool forward>
+void mc_unidir_template(uint8_t* dst, uint8_t* ref, mb_data_t mb_data, uint32_t stride, uint32_t chroma_stride) {
+    auto  mvx = mb_data.MVs[vect_idx][forward ? 0 : 1][0];
+    auto  mvy = mb_data.MVs[vect_idx][forward ? 0 : 1][1];
+    apply_chroma_scale<chroma_format, plane_idx>(mvx, mvy);
+    int mvs_ridx = mc_unidir_idx(mvx, mvy);
+    ref += static_cast<ptrdiff_t>(mvx / 2) + static_cast<ptrdiff_t>(mvy / 2) * (plane_idx ? stride : chroma_stride);
+
+    if (plane_idx == 0) {
+        if (mb_data.mb.motion_vertical_field_select[vect_idx][forward ? 0 : 1])
+            ref += 8 * stride;
+        if (vect_idx == 1)
+            dst += 8 * stride;
+    }
+    else {
+        switch (chroma_format) {
+        case chroma_format_420:
+            if (mb_data.mb.motion_vertical_field_select[vect_idx][forward ? 0 : 1])
+                ref += 4 * chroma_stride;
+            if (vect_idx == 1)
+                dst += 4 * chroma_stride;
+            break;
+        case chroma_format_422:
+        case chroma_format_444:
+            if (mb_data.mb.motion_vertical_field_select[vect_idx][forward ? 0 : 1])
+                ref += 8 * chroma_stride;
+            if (vect_idx == 1)
+                dst += 8 * chroma_stride;
+            break;
+        }
+    }
+
+    if (plane_idx == 0) {
+        switch (mc_templ) {
+        case mc_templ_field: mc_pred_16xh[mvs_ridx](dst, ref, stride, 8); break;
+        case mc_templ_frame: mc_pred_16xh[mvs_ridx](dst, ref, stride, 16);  break;
+        }
+    }
+    else {
+        switch (mc_templ) {
+        case mc_templ_field:
+            switch (chroma_format) {
+            case chroma_format_420: mc_pred_8xh[mvs_ridx](dst, ref, chroma_stride, 4); break;
+            case chroma_format_422: mc_pred_8xh[mvs_ridx](dst, ref, chroma_stride, 8); break;
+            case chroma_format_444: mc_pred_16xh[mvs_ridx](dst, ref, chroma_stride, 8); break;
+            }
+            break;
+        case mc_templ_frame:
+            switch (chroma_format) {
+            case chroma_format_420: mc_pred_8xh[mvs_ridx](dst, ref, chroma_stride, 8); break;
+            case chroma_format_422: mc_pred_8xh[mvs_ridx](dst, ref, chroma_stride, 16); break;
+            case chroma_format_444: mc_pred_16xh[mvs_ridx](dst, ref, chroma_stride, 16); break;
+            }
+            break;
+        }
+    }
+}
+
+template<int chroma_format, mc_template_e mc_templ, bool two_vect>
+void base_motion_compensation(uint8_t* dst[3], uint8_t* ref0[3], uint8_t* ref1[3], mb_data_t mb_data, uint32_t stride, uint32_t chroma_stride) {
+    auto mb = mb_data.mb;
+    if ((mb.macroblock_type & macroblock_motion_forward_bit) && (mb.macroblock_type & macroblock_motion_backward_bit)) {
+        mc_bidir_template<chroma_format, 0, 0, mc_templ>(dst[0], ref0[0], ref1[0], mb_data, stride, chroma_stride);
+        if (two_vect)
+            mc_bidir_template<chroma_format, 0, 1, mc_templ>(dst[0], ref0[0], ref1[0], mb_data, stride, chroma_stride);
+        mc_bidir_template<chroma_format, 1, 0, mc_templ>(dst[1], ref0[1], ref1[1], mb_data, stride, chroma_stride);
+        if (two_vect)
+            mc_bidir_template<chroma_format, 1, 1, mc_templ>(dst[1], ref0[1], ref1[1], mb_data, stride, chroma_stride);
+        mc_bidir_template<chroma_format, 2, 0, mc_templ>(dst[2], ref0[2], ref1[2], mb_data, stride, chroma_stride);
+        if (two_vect)
+            mc_bidir_template<chroma_format, 2, 1, mc_templ>(dst[2], ref0[2], ref1[2], mb_data, stride, chroma_stride);
+    } else
+    if ((mb.macroblock_type & macroblock_motion_forward_bit) && !(mb.macroblock_type & macroblock_motion_backward_bit)) {
+        mc_unidir_template<chroma_format, 0, 0, mc_templ, true>(dst[0], ref0[0], mb_data, stride, chroma_stride);
+        if (two_vect)
+            mc_unidir_template<chroma_format, 0, 1, mc_templ, true>(dst[0], ref0[0], mb_data, stride, chroma_stride);
+        mc_unidir_template<chroma_format, 1, 0, mc_templ, true>(dst[1], ref0[1], mb_data, stride, chroma_stride);
+        if (two_vect)
+            mc_unidir_template<chroma_format, 1, 1, mc_templ, true>(dst[1], ref0[1], mb_data, stride, chroma_stride);
+        mc_unidir_template<chroma_format, 2, 0, mc_templ, true>(dst[2], ref0[2], mb_data, stride, chroma_stride);
+        if (two_vect)
+            mc_unidir_template<chroma_format, 2, 1, mc_templ, true>(dst[2], ref0[2], mb_data, stride, chroma_stride);
+    } else
+    if (!(mb.macroblock_type & macroblock_motion_forward_bit) && (mb.macroblock_type & macroblock_motion_backward_bit)) {
+        mc_unidir_template<chroma_format, 0, 0, mc_templ, false>(dst[0], ref1[0], mb_data, stride, chroma_stride);
+        if (two_vect)
+            mc_unidir_template<chroma_format, 0, 1, mc_templ, false>(dst[0], ref1[0], mb_data, stride, chroma_stride);
+        mc_unidir_template<chroma_format, 1, 0, mc_templ, false>(dst[1], ref1[1], mb_data, stride, chroma_stride);
+        if (two_vect)
+            mc_unidir_template<chroma_format, 1, 1, mc_templ, false>(dst[1], ref1[1], mb_data, stride, chroma_stride);
+        mc_unidir_template<chroma_format, 2, 0, mc_templ, false>(dst[2], ref1[2], mb_data, stride, chroma_stride);
+        if (two_vect)
+            mc_unidir_template<chroma_format, 2, 1, mc_templ, false>(dst[2], ref1[2], mb_data, stride, chroma_stride);
+    } else {
+        mc_unidir_template<chroma_format, 0, 0, mc_templ, true>(dst[0], ref0[0], mb_data, stride, chroma_stride);
+        if (two_vect)
+            mc_unidir_template<chroma_format, 0, 1, mc_templ, true>(dst[0], ref0[0], mb_data, stride, chroma_stride);
+        mc_unidir_template<chroma_format, 1, 0, mc_templ, true>(dst[1], ref0[1], mb_data, stride, chroma_stride);
+        if (two_vect)
+            mc_unidir_template<chroma_format, 1, 1, mc_templ, true>(dst[1], ref0[1], mb_data, stride, chroma_stride);
+        mc_unidir_template<chroma_format, 2, 0, mc_templ, true>(dst[2], ref0[2], mb_data, stride, chroma_stride);
+        if (two_vect)
+            mc_unidir_template<chroma_format, 2, 1, mc_templ, true>(dst[2], ref0[2], mb_data, stride, chroma_stride);
     }
 }
 
@@ -90,7 +281,7 @@ void decode_macroblock_template(
     uint16_t W[4][64],
     uint8_t intra_dc_prec,
     int &quant_scale_code,
-    frame_c* refs[2]) {
+    uint8_t* ref0[3], uint8_t* ref1[3]) {
 
     uint8_t quantiser_scale_code = (mb_data.mb.macroblock_type & macroblock_quant_bit) ? mb_data.mb.quantiser_scale_code : quant_scale_code;
     quant_scale_code = quantiser_scale_code;
@@ -111,63 +302,67 @@ void decode_macroblock_template(
 
     bool mb_intra = mb_data.mb.macroblock_type & macroblock_intra_bit;
 
-    if (mb_intra) {
-        uint8_t* cache[3] = { nullptr, nullptr, nullptr };
-        decode_transform_template<uint8_t, uint8_t, chroma_format, alt_scan, true>(yuv_planes, cache, stride, chroma_stride, W, mb_data.QFS, mb_data.pattern_code, quantizer_scale, intra_dc_prec);
-    }
+    if (mb_intra)
+        decode_transform_template<uint8_t, chroma_format, alt_scan, true, false>(yuv_planes, stride, chroma_stride, W, mb_data.QFS, mb_data.pattern_code, quantizer_scale, intra_dc_prec);
     else {
-        uint8_t mc_pred[3][256];
-
         // Motion compensation
         switch (mb_data.mb.prediction_type) {
         case Field_based:
+            if (mb_data.mb.motion_vector_count == 2)
+                base_motion_compensation<chroma_format, mc_templ_field, true>(yuv_planes, ref0, ref1, mb_data, stride, chroma_stride);
+            else
+                base_motion_compensation<chroma_format, mc_templ_field, false>(yuv_planes, ref0, ref1, mb_data, stride, chroma_stride);
             break;
         case Frame_based:
+            if (mb_data.mb.motion_vector_count == 2)
+                base_motion_compensation<chroma_format, mc_templ_frame, true>(yuv_planes, ref0, ref1, mb_data, stride, chroma_stride);
+            else
+                base_motion_compensation<chroma_format, mc_templ_frame, false>(yuv_planes, ref0, ref1, mb_data, stride, chroma_stride);
             break;
         case Dual_Prime:
+        case MC16x8:
             // Not supported
             break;
-        case MC16x8:
-            break;
         }
+        //decode_transform_template<uint8_t, chroma_format, alt_scan, false, true>(yuv_planes, stride, chroma_stride, W, mb_data.QFS, mb_data.pattern_code, quantizer_scale, intra_dc_prec);
     }
 }
 
-void decode_420_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, frame_c* refs[2]) {
-    decode_macroblock_template<chroma_format_420, false, false>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, refs);
+void decode_420_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, uint8_t* ref0[3], uint8_t* ref1[3]) {
+    decode_macroblock_template<chroma_format_420, false, false>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, ref0, ref1);
 }
-void decode_420_alts_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, frame_c* refs[2]) {
-    decode_macroblock_template<chroma_format_420, false, true>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, refs);
+void decode_420_alts_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, uint8_t* ref0[3], uint8_t* ref1[3]) {
+    decode_macroblock_template<chroma_format_420, false, true>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, ref0, ref1);
 }
-void decode_420_qst_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, frame_c* refs[2]) {
-    decode_macroblock_template<chroma_format_420, true, false>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, refs);
+void decode_420_qst_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, uint8_t* ref0[3], uint8_t* ref1[3]) {
+    decode_macroblock_template<chroma_format_420, true, false>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, ref0, ref1);
 }
-void decode_420_qst_alts_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, frame_c* refs[2]) {
-    decode_macroblock_template<chroma_format_420, true, true>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, refs);
+void decode_420_qst_alts_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, uint8_t* ref0[3], uint8_t* ref1[3]) {
+    decode_macroblock_template<chroma_format_420, true, true>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, ref0, ref1);
 }
-void decode_422_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, frame_c* refs[2]) {
-    decode_macroblock_template<chroma_format_422, false, false>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, refs);
+void decode_422_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, uint8_t* ref0[3], uint8_t* ref1[3]) {
+    decode_macroblock_template<chroma_format_422, false, false>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, ref0, ref1);
 }
-void decode_422_alts_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, frame_c* refs[2]) {
-    decode_macroblock_template<chroma_format_422, false, true>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, refs);
+void decode_422_alts_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, uint8_t* ref0[3], uint8_t* ref1[3]) {
+    decode_macroblock_template<chroma_format_422, false, true>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, ref0, ref1);
 }
-void decode_422_qst_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, frame_c* refs[2]) {
-    decode_macroblock_template<chroma_format_422, true, false>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, refs);
+void decode_422_qst_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, uint8_t* ref0[3], uint8_t* ref1[3]) {
+    decode_macroblock_template<chroma_format_422, true, false>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, ref0, ref1);
 }
-void decode_422_qst_alts_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, frame_c* refs[2]) {
-    decode_macroblock_template<chroma_format_422, true, true>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, refs);
+void decode_422_qst_alts_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, uint8_t* ref0[3], uint8_t* ref1[3]) {
+    decode_macroblock_template<chroma_format_422, true, true>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, ref0, ref1);
 }
-void decode_444_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, frame_c* refs[2]) {
-    decode_macroblock_template<chroma_format_444, false, false>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, refs);
+void decode_444_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, uint8_t* ref0[3], uint8_t* ref1[3]) {
+    decode_macroblock_template<chroma_format_444, false, false>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, ref0, ref1);
 }
-void decode_444_alts_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, frame_c* refs[2]) {
-    decode_macroblock_template<chroma_format_444, false, true>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, refs);
+void decode_444_alts_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, uint8_t* ref0[3], uint8_t* ref1[3]) {
+    decode_macroblock_template<chroma_format_444, false, true>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, ref0, ref1);
 }
-void decode_444_qst_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, frame_c* refs[2]) {
-    decode_macroblock_template<chroma_format_444, true, false>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, refs);
+void decode_444_qst_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, uint8_t* ref0[3], uint8_t* ref1[3]) {
+    decode_macroblock_template<chroma_format_444, true, false>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, ref0, ref1);
 }
-void decode_444_qst_alts_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, frame_c* refs[2]) {
-    decode_macroblock_template<chroma_format_444, true, true>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, refs);
+void decode_444_qst_alts_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, uint8_t* ref0[3], uint8_t* ref1[3]) {
+    decode_macroblock_template<chroma_format_444, true, true>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, ref0, ref1);
 }
 
 decode_macroblock_func_t select_decode_macroblock(int chroma_format, bool q_scale_type, bool alt_scan) {

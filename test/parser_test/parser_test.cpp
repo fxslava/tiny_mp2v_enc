@@ -81,7 +81,7 @@ private:
 };
 
 void write_frame(frame_c* frame, char* fname) {
-    FILE* fp = fopen(fname, "wb");
+    FILE* fp = fopen(fname, "ab");
     for (int i = 0; i < 3; i++) {
         uint8_t* plane = frame->get_planes(i);
         for (int y = 0; y < frame->get_height(i); y++, plane += frame->get_strides(i))
@@ -110,9 +110,10 @@ int main(int argc, char* argv[])
 
         mp2v_decoder.decoder_init(&config);
         mp2v_decoder.decode();
-        mp2v_decoder.get_decoded_frame(frame);
-        write_frame(frame, "first_decoded_frame.yuv");
-        mp2v_decoder.get_decoded_frame(frame);
-        write_frame(frame, "second_decoded_frame.yuv");
+
+        for (int i = 0; i < 4; i++) {
+            mp2v_decoder.get_decoded_frame(frame);
+            write_frame(frame, "test.yuv");
+        }
     }
 }

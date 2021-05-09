@@ -1,6 +1,7 @@
 // Copyright © 2021 Vladislav Ovchinnikov. All rights reserved.
 #pragma once
 #include <vector>
+#include <deque>
 #include <concurrent_queue.h>
 #include "mp2v_hdr.h"
 #include "api/bitstream.h"
@@ -53,8 +54,8 @@ private:
     uint32_t m_vertical_size_value = 0;
     uint32_t m_chroma_format = 0;
     uint32_t m_f_code[2][2] = { { 0 } };
-    int32_t  m_PMV[2][2][2] = { { 0 } };
-    int32_t  m_MVs[2][2][2] = { { 0 } };
+    int16_t  m_PMV[2][2][2] = { { 0 } };
+    int16_t  m_MVs[2][2][2] = { { 0 } };
     uint32_t m_intra_vlc_format = 0;
     uint32_t m_picture_structure = 0;
     uint32_t m_picture_coding_type = 0;
@@ -65,11 +66,11 @@ private:
     parse_macroblock_func_t m_parse_macroblock_func = nullptr;
     bitstream_reader_i* m_bs = nullptr;
     mp2v_picture_c* m_pic = nullptr;
+    mb_data_t m_cur_mb_data = { 0 };
     std::vector<mb_data_t>  m_macroblocks;
 
     decode_macroblock_func_t decode_mb_func;
     frame_c* m_frame;
-    mb_data_t cur_mb_data = { 0 };
     int cur_quantiser_scale_code = 0;
     int mb_row = 0;
     int mb_col = 0;
@@ -122,8 +123,8 @@ protected:
     bitstream_reader_i* m_bs;
 
     // stream data
-    frame_c* ref_frames[2];
-    std::vector<frame_c*> m_frames_pool;
+    frame_c* ref_frames[2] = { 0 };
+    std::deque<frame_c*> m_frames_pool;
     concurrent_queue<frame_c*> m_output_frames;
 
 public:
