@@ -80,12 +80,15 @@ private:
     uint32_t buffer_idx = 64;
 };
 
-void write_frame(frame_c* frame, char* fname) {
-    FILE* fp = fopen(fname, "ab");
-    for (int i = 0; i < 3; i++) {
-        uint8_t* plane = frame->get_planes(i);
-        for (int y = 0; y < frame->get_height(i); y++, plane += frame->get_strides(i))
-            fwrite(plane, 1, frame->get_width(i), fp);
+void write_frame(frame_c* (&frames)[7], char* fname) {
+    FILE* fp = fopen(fname, "wb");
+    for (int i = 0; i < 7; i++) {
+        auto frame = frames[i];
+        for (int i = 0; i < 3; i++) {
+            uint8_t* plane = frame->get_planes(i);
+            for (int y = 0; y < frame->get_height(i); y++, plane += frame->get_strides(i))
+                fwrite(plane, 1, frame->get_width(i), fp);
+        }
     }
     fclose(fp);
 }
@@ -106,14 +109,14 @@ int main(int argc, char* argv[])
     if (bitstream_file) {
         bitstream_file_reader stream_reader(*bitstream_file);
         mp2v_decoder_c mp2v_decoder(&stream_reader);
-        frame_c* frame = nullptr;
+        frame_c* frames[7] = { 0 };
 
         mp2v_decoder.decoder_init(&config);
         mp2v_decoder.decode();
 
-        for (int i = 0; i < 4; i++) {
-            mp2v_decoder.get_decoded_frame(frame);
-            write_frame(frame, "test.yuv");
-        }
+        for (int i = 0; i < 7; i++)
+            mp2v_decoder.get_decoded_frame(frames[i]);
+
+        write_frame(frames, "test.yuv");
     }
 }

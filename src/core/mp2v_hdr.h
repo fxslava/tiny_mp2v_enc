@@ -306,7 +306,7 @@ struct macroblock_t {
     //     | Syntax element                               | No. of bits | Mnemonic
     uint32_t motion_vertical_field_select[2][2];       // | 1           | uimsbf
     // ISO/IEC 13818-2 : 2000 (E) 6.2.5.2.1
-    uint32_t motion_code[2][2][2];                     // | 1 - 11      | vlclbf
+    int32_t motion_code[2][2][2];                      // | 1 - 11      | vlclbf
     uint32_t motion_residual[2][2][2];                 // | 1 - 8       | uimsbf
     uint32_t dmvector[2];                              // | 1 - 2       | vlclbf
     // ISO/IEC 13818-2 : 2000 (E) 6.2.5 Coded Block Pattern ----------------------

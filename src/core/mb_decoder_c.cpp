@@ -91,6 +91,8 @@ int mc_bidir_idx(int16_t mvfx, int16_t mvfy, int16_t mvbx, int16_t mvby) {
 
 template<int chroma_format, int plane_idx, int vect_idx, mc_template_e mc_templ>
 void mc_bidir_template(uint8_t* dst, uint8_t* ref0, uint8_t* ref1, mb_data_t mb_data, uint32_t stride, uint32_t chroma_stride) {
+    auto  _stride = (mc_templ == mc_templ_field) ? stride << 1 : stride;
+    auto  _chroma_stride = (mc_templ == mc_templ_field) ? chroma_stride << 1 : chroma_stride;
     uint8_t* fref = ref1;
     uint8_t* bref = ref0;
     auto  mvfx = mb_data.MVs[vect_idx][0][0];
@@ -100,123 +102,106 @@ void mc_bidir_template(uint8_t* dst, uint8_t* ref0, uint8_t* ref1, mb_data_t mb_
     apply_chroma_scale<chroma_format, plane_idx>(mvfx, mvfy);
     apply_chroma_scale<chroma_format, plane_idx>(mvbx, mvby);
     int mvs_ridx = mc_bidir_idx(mvfx, mvfy, mvbx, mvby);
-    fref += static_cast<ptrdiff_t>(mvfx / 2) + static_cast<ptrdiff_t>(mvfy / 2) * (plane_idx ? stride : chroma_stride);
-    bref += static_cast<ptrdiff_t>(mvbx / 2) + static_cast<ptrdiff_t>(mvby / 2) * (plane_idx ? stride : chroma_stride);
+    fref += static_cast<ptrdiff_t>(mvfx >> 2) + static_cast<ptrdiff_t>(mvfy >> 2) * (plane_idx ? _chroma_stride : _stride);
+    bref += static_cast<ptrdiff_t>(mvbx >> 2) + static_cast<ptrdiff_t>(mvby >> 2) * (plane_idx ? _chroma_stride : _stride);
 
     if (plane_idx == 0) {
         if (mb_data.mb.motion_vertical_field_select[vect_idx][0])
-            fref += 8 * stride;
+            fref += stride;
         if (mb_data.mb.motion_vertical_field_select[vect_idx][1])
-            bref += 8 * stride;
-        if (vect_idx == 1)
-            dst += 8 * stride;
+            bref += stride;
+        if (vect_idx)
+            dst += stride;
     }
     else {
         switch (chroma_format) {
         case chroma_format_420:
             if (mb_data.mb.motion_vertical_field_select[vect_idx][0])
-                fref += 4 * chroma_stride;
+                fref += chroma_stride;
             if (mb_data.mb.motion_vertical_field_select[vect_idx][1])
-                bref += 4 * chroma_stride;
-            if (vect_idx == 1)
-                dst += 4 * chroma_stride;
+                bref += chroma_stride;
+            if (vect_idx)
+                dst += chroma_stride;
             break;
         case chroma_format_422:
         case chroma_format_444:
             if (mb_data.mb.motion_vertical_field_select[vect_idx][0])
-                fref += 8 * chroma_stride;
+                fref += chroma_stride;
             if (mb_data.mb.motion_vertical_field_select[vect_idx][1])
-                bref += 8 * chroma_stride;
-            if (vect_idx == 1)
-                dst += 8 * chroma_stride;
+                bref += chroma_stride;
+            if (vect_idx)
+                dst += chroma_stride;
             break;
         }
     }
 
     if (plane_idx == 0) {
         switch (mc_templ) {
-        case mc_templ_field: mc_bidir_16xh[mvs_ridx](dst, fref, bref, stride, 8); break;
-        case mc_templ_frame: mc_bidir_16xh[mvs_ridx](dst, fref, bref, stride, 16); break;
+        case mc_templ_field: mc_bidir_16xh[mvs_ridx](dst, fref, bref, _stride,  8); break;
+        case mc_templ_frame: mc_bidir_16xh[mvs_ridx](dst, fref, bref, _stride, 16); break;
         }
     }
     else {
-        switch (mc_templ) {
-        case mc_templ_field:
-            switch (chroma_format) {
-            case chroma_format_420: mc_bidir_8xh[mvs_ridx](dst, fref, bref, chroma_stride, 4); break;
-            case chroma_format_422: mc_bidir_8xh[mvs_ridx](dst, fref, bref, chroma_stride, 8); break;
-            case chroma_format_444: mc_bidir_16xh[mvs_ridx](dst, fref, bref, chroma_stride, 8); break;
-            }
-            break;
-        case mc_templ_frame:
-            switch (chroma_format) {
-            case chroma_format_420: mc_bidir_8xh[mvs_ridx](dst, fref, bref, chroma_stride, 8); break;
-            case chroma_format_422: mc_bidir_8xh[mvs_ridx](dst, fref, bref, chroma_stride, 16); break;
-            case chroma_format_444: mc_bidir_16xh[mvs_ridx](dst, fref, bref, chroma_stride, 16); break;
-            }
-            break;
+        switch (chroma_format) {
+        case chroma_format_420: mc_bidir_8xh [mvs_ridx](dst, fref, bref, _chroma_stride, (mc_templ == mc_templ_field) ? 4 :  8); break;
+        case chroma_format_422: mc_bidir_8xh [mvs_ridx](dst, fref, bref, _chroma_stride, (mc_templ == mc_templ_field) ? 8 : 16); break;
+        case chroma_format_444: mc_bidir_16xh[mvs_ridx](dst, fref, bref, _chroma_stride, (mc_templ == mc_templ_field) ? 8 : 16); break;
         }
     }
 }
 
 int mc_unidir_idx(int16_t mvx, int16_t mvy) {
-    return mvx & 0x01 + ((mvy & 0x01) << 1);
+    return (mvx & 0x01) | ((mvy & 0x01) << 1);
 }
 
 template<int chroma_format, int plane_idx, int vect_idx, mc_template_e mc_templ, bool forward>
 void mc_unidir_template(uint8_t* dst, uint8_t* ref, mb_data_t mb_data, uint32_t stride, uint32_t chroma_stride) {
+    auto  _stride = (mc_templ == mc_templ_field) ? stride << 1 : stride;
+    auto  _chroma_stride = (mc_templ == mc_templ_field) ? chroma_stride << 1 : chroma_stride;
     auto  mvx = mb_data.MVs[vect_idx][forward ? 0 : 1][0];
     auto  mvy = mb_data.MVs[vect_idx][forward ? 0 : 1][1];
     apply_chroma_scale<chroma_format, plane_idx>(mvx, mvy);
     int mvs_ridx = mc_unidir_idx(mvx, mvy);
-    ref += static_cast<ptrdiff_t>(mvx / 2) + static_cast<ptrdiff_t>(mvy / 2) * (plane_idx ? stride : chroma_stride);
+    int offset = (mvx >> 1) + (mvy >> 1) * (plane_idx ? _chroma_stride : _stride);
+    ref += static_cast<ptrdiff_t>(offset);
+
+    if (mc_templ == mc_templ_field) {
+        if (plane_idx == 0) {
+            if (mb_data.mb.motion_vertical_field_select[vect_idx][forward ? 0 : 1])
+                ref += stride;
+            if (vect_idx)
+                dst += stride;
+        }
+        else {
+            switch (chroma_format) {
+            case chroma_format_420:
+                if (mb_data.mb.motion_vertical_field_select[vect_idx][forward ? 0 : 1])
+                    ref += chroma_stride;
+                if (vect_idx)
+                    dst += chroma_stride;
+                break;
+            case chroma_format_422:
+            case chroma_format_444:
+                if (mb_data.mb.motion_vertical_field_select[vect_idx][forward ? 0 : 1])
+                    ref += chroma_stride;
+                if (vect_idx)
+                    dst += chroma_stride;
+                break;
+            }
+        }
+    }
 
     if (plane_idx == 0) {
-        if (mb_data.mb.motion_vertical_field_select[vect_idx][forward ? 0 : 1])
-            ref += 8 * stride;
-        if (vect_idx == 1)
-            dst += 8 * stride;
+        switch (mc_templ) {
+        case mc_templ_field: mc_pred_16xh[mvs_ridx](dst, ref, _stride,  8); break;
+        case mc_templ_frame: mc_pred_16xh[mvs_ridx](dst, ref, _stride, 16); break;
+        }
     }
     else {
         switch (chroma_format) {
-        case chroma_format_420:
-            if (mb_data.mb.motion_vertical_field_select[vect_idx][forward ? 0 : 1])
-                ref += 4 * chroma_stride;
-            if (vect_idx == 1)
-                dst += 4 * chroma_stride;
-            break;
-        case chroma_format_422:
-        case chroma_format_444:
-            if (mb_data.mb.motion_vertical_field_select[vect_idx][forward ? 0 : 1])
-                ref += 8 * chroma_stride;
-            if (vect_idx == 1)
-                dst += 8 * chroma_stride;
-            break;
-        }
-    }
-
-    if (plane_idx == 0) {
-        switch (mc_templ) {
-        case mc_templ_field: mc_pred_16xh[mvs_ridx](dst, ref, stride, 8); break;
-        case mc_templ_frame: mc_pred_16xh[mvs_ridx](dst, ref, stride, 16);  break;
-        }
-    }
-    else {
-        switch (mc_templ) {
-        case mc_templ_field:
-            switch (chroma_format) {
-            case chroma_format_420: mc_pred_8xh[mvs_ridx](dst, ref, chroma_stride, 4); break;
-            case chroma_format_422: mc_pred_8xh[mvs_ridx](dst, ref, chroma_stride, 8); break;
-            case chroma_format_444: mc_pred_16xh[mvs_ridx](dst, ref, chroma_stride, 8); break;
-            }
-            break;
-        case mc_templ_frame:
-            switch (chroma_format) {
-            case chroma_format_420: mc_pred_8xh[mvs_ridx](dst, ref, chroma_stride, 8); break;
-            case chroma_format_422: mc_pred_8xh[mvs_ridx](dst, ref, chroma_stride, 16); break;
-            case chroma_format_444: mc_pred_16xh[mvs_ridx](dst, ref, chroma_stride, 16); break;
-            }
-            break;
+        case chroma_format_420: mc_pred_8xh [mvs_ridx](dst, ref, _chroma_stride, (mc_templ == mc_templ_field) ? 4 :  8); break;
+        case chroma_format_422: mc_pred_8xh [mvs_ridx](dst, ref, _chroma_stride, (mc_templ == mc_templ_field) ? 8 : 16); break;
+        case chroma_format_444: mc_pred_16xh[mvs_ridx](dst, ref, _chroma_stride, (mc_templ == mc_templ_field) ? 8 : 16); break;
         }
     }
 }
@@ -308,10 +293,11 @@ void decode_macroblock_template(
         // Motion compensation
         switch (mb_data.mb.prediction_type) {
         case Field_based:
-            if (mb_data.mb.motion_vector_count == 2)
+            //base_motion_compensation<chroma_format, mc_templ_frame, false>(yuv_planes, ref0, ref1, mb_data, stride, chroma_stride);
+            //if (mb_data.mb.motion_vector_count == 2)
                 base_motion_compensation<chroma_format, mc_templ_field, true>(yuv_planes, ref0, ref1, mb_data, stride, chroma_stride);
-            else
-                base_motion_compensation<chroma_format, mc_templ_field, false>(yuv_planes, ref0, ref1, mb_data, stride, chroma_stride);
+            /*else
+                base_motion_compensation<chroma_format, mc_templ_field, false>(yuv_planes, ref0, ref1, mb_data, stride, chroma_stride);*/
             break;
         case Frame_based:
             if (mb_data.mb.motion_vector_count == 2)

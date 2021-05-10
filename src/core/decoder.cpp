@@ -267,6 +267,7 @@ static void make_macroblock_yuv_ptrs(uint8_t* (&yuv)[3], frame_c* frame, int mb_
 
 bool mp2v_slice_c::decode_macroblock() {
     if (m_picture_coding_type == picture_coding_type_pred) {
+        m_cur_mb_data = { 0 };
         m_cur_mb_data.mb.prediction_type = Frame_based;
         m_cur_mb_data.mb.motion_vector_count = 1;
     }
@@ -286,8 +287,8 @@ bool mp2v_slice_c::decode_macroblock() {
     mb_data_t skipped_mb_data = { 0 };
     if ((mb.macroblock_address_increment > 1) && (m_picture_coding_type == picture_coding_type_bidir)) {
         skipped_mb_data.mb.macroblock_type = mb.macroblock_type & (macroblock_motion_forward_bit | macroblock_motion_backward_bit);
-        skipped_mb_data.mb.prediction_type = mb.prediction_type;
-        skipped_mb_data.mb.motion_vector_count = mb.motion_vector_count;
+        skipped_mb_data.mb.prediction_type = Frame_based;
+        skipped_mb_data.mb.motion_vector_count = 1;
     }
     for (int i = 0; i < mb.macroblock_address_increment; i++, mb_col++) {
         // prepare planes ptrs
@@ -355,7 +356,7 @@ bool mp2v_slice_c::decode_macroblock() {
         for (auto& pred : m_dct_dc_pred)
             pred = m_dct_dc_pred_reset_value;
     if (((mb.macroblock_type & macroblock_intra_bit) && !m_concealment_motion_vectors) ||
-        ((m_picture_structure == picture_coding_type_pred) && !(mb.macroblock_type & macroblock_intra_bit) && !(mb.macroblock_type & macroblock_motion_forward_bit)))
+        ((m_picture_coding_type == picture_coding_type_pred) && !(mb.macroblock_type & macroblock_intra_bit) && !(mb.macroblock_type & macroblock_motion_forward_bit)))
         memset(m_PMV, 0, sizeof(m_PMV));
 
     // Decode motion vectors. TODO: Think about branching reduction
@@ -395,7 +396,7 @@ bool mp2v_slice_c::decode_macroblock() {
         for (int i = 0; i < m_block_count; i++)
             parse_block<false>(m_bs, m_cur_mb_data, i, m_dct_dc_pred);
 
-    memcpy(m_cur_mb_data.MVs, m_MVs, sizeof(m_MVs));
+    //memcpy(m_cur_mb_data.MVs, m_MVs, sizeof(m_MVs));
     decode_mb_func(yuv, stride, chroma_stride, m_cur_mb_data, pic->quantiser_matrices, pcext.intra_dc_precision, cur_quantiser_scale_code, ref0, ref1);
     mb_col++;
 
@@ -559,7 +560,7 @@ bool mp2v_decoder_c::decode() {
                 }
                 decode_picture_data();
                 pic_num++;
-                if (pic_num > 3)
+                if (pic_num > 7)
                     return true; // remove it after test complete
             } while ((local_next_start_code(m_bs) == picture_start_code) || (local_next_start_code(m_bs) == group_start_code));
             if (local_next_start_code(m_bs) != sequence_end_code) {
@@ -586,12 +587,17 @@ bool mp2v_decoder_c::decode_picture_data() {
     parse_picture_coding_extension(m_bs, pic.m_picture_coding_extension);
     decode_extension_and_user_data(after_picture_coding_extension, &pic);
 
-    if (pic.m_picture_header.picture_coding_type == picture_coding_type_intra || pic.m_picture_header.picture_coding_type == picture_coding_type_pred) {
-        ref_frames[0] = ref_frames[1];
+    if (pic.m_picture_header.picture_coding_type == picture_coding_type_intra) {
         ref_frames[1] = frame;
     }
 
+    if (pic.m_picture_header.picture_coding_type == picture_coding_type_pred)
+        ref_frames[0] = ref_frames[1];
+
     pic.decode_picture();
+
+    if (pic.m_picture_header.picture_coding_type == picture_coding_type_pred)
+        ref_frames[1] = frame;
 
     m_frames_pool.push_back(frame);
     m_output_frames.push(frame);
