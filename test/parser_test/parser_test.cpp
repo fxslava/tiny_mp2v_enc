@@ -80,9 +80,9 @@ private:
     uint32_t buffer_idx = 64;
 };
 
-void write_frame(frame_c* (&frames)[7], char* fname) {
+void write_frame(frame_c* (&frames)[8], char* fname) {
     FILE* fp = fopen(fname, "wb");
-    for (int i = 0; i < 7; i++) {
+    for (int i = 0; i < 8; i++) {
         auto frame = frames[i];
         for (int i = 0; i < 3; i++) {
             uint8_t* plane = frame->get_planes(i);
@@ -109,12 +109,12 @@ int main(int argc, char* argv[])
     if (bitstream_file) {
         bitstream_file_reader stream_reader(*bitstream_file);
         mp2v_decoder_c mp2v_decoder(&stream_reader);
-        frame_c* frames[7] = { 0 };
+        frame_c* frames[8] = { 0 };
 
         mp2v_decoder.decoder_init(&config);
         mp2v_decoder.decode();
 
-        for (int i = 0; i < 7; i++)
+        for (int i = 0; i < 8; i++)
             mp2v_decoder.get_decoded_frame(frames[i]);
 
         write_frame(frames, "test.yuv");

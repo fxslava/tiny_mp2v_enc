@@ -67,7 +67,6 @@ private:
     bitstream_reader_i* m_bs = nullptr;
     mp2v_picture_c* m_pic = nullptr;
     mb_data_t m_cur_mb_data = { 0 };
-    std::vector<mb_data_t>  m_macroblocks;
 
     decode_macroblock_func_t decode_mb_func;
     frame_c* m_frame;
@@ -77,6 +76,7 @@ private:
 
 public:
     slice_t m_slice = { 0 };
+    std::vector<mb_data_t>  m_macroblocks;
 };
 
 class mp2v_picture_c {
@@ -92,7 +92,6 @@ private:
     uint16_t quantiser_matrices[4][64];
     decode_macroblock_func_t decode_macroblock_func;
     frame_c* m_frame;
-
 public:
     // headers
     picture_header_t m_picture_header = { 0 }; //mandatory
@@ -103,6 +102,10 @@ public:
     picture_spatial_scalable_extension_t* m_picture_spatial_scalable_extension = nullptr;
     picture_temporal_scalable_extension_t* m_picture_temporal_scalable_extension = nullptr;
     int block_count = 0;
+
+#ifdef _DEBUG
+    void dump_mvs(const char* dump_filename);
+#endif
 };
 
 class mp2v_decoder_c {

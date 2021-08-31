@@ -271,6 +271,10 @@ bool mp2v_slice_c::decode_macroblock() {
         m_cur_mb_data.mb.prediction_type = Frame_based;
         m_cur_mb_data.mb.motion_vector_count = 1;
     }
+    else
+    {
+        m_cur_mb_data.mb = { 0 };
+    }
 
     auto refs = m_pic->m_dec->ref_frames;
     mp2v_picture_c* pic = reinterpret_cast<mp2v_picture_c*>(m_pic);
@@ -333,24 +337,6 @@ bool mp2v_slice_c::decode_macroblock() {
         m_macroblocks.push_back(m_cur_mb_data);
     }
 
-    // Update motion vectors predictors conditions (Table 7-9 – Updating of motion vector predictors in frame pictures)
-    if (mb.prediction_type == Field_based) {
-        if (mb.macroblock_type & macroblock_intra_bit)
-            for (int t : { 0, 1 }) m_PMV[1][0][t] = m_PMV[0][0][t];
-        if ((mb.macroblock_type & macroblock_motion_forward_bit) && (mb.macroblock_type & macroblock_motion_backward_bit) && !(mb.macroblock_type & macroblock_intra_bit))
-            for (int t : { 0, 1 }) {
-                m_PMV[1][0][t] = m_PMV[0][0][t];
-                m_PMV[1][1][t] = m_PMV[0][1][t];
-            }
-        if ((mb.macroblock_type & macroblock_motion_forward_bit) && !(mb.macroblock_type & macroblock_motion_backward_bit) && !(mb.macroblock_type & macroblock_intra_bit))
-            for (int t : { 0, 1 }) m_PMV[1][0][t] = m_PMV[0][0][t];
-        if (!(mb.macroblock_type & macroblock_motion_forward_bit) && (mb.macroblock_type & macroblock_motion_backward_bit) && !(mb.macroblock_type & macroblock_intra_bit))
-            for (int t : { 0, 1 }) m_PMV[1][1][t] = m_PMV[0][1][t];
-    }
-    if (mb.prediction_type == Dual_Prime)
-        if ((mb.macroblock_type & macroblock_motion_forward_bit) && !(mb.macroblock_type & macroblock_motion_backward_bit) && !(mb.macroblock_type & macroblock_intra_bit))
-            for (int t : { 0, 1 }) m_PMV[1][0][t] = m_PMV[0][0][t];
-
     // Reset motion vectors predictors conditions
     if (!(mb.macroblock_type & macroblock_intra_bit) || mb.macroblock_address_increment > 1)
         for (auto& pred : m_dct_dc_pred)
@@ -377,7 +363,7 @@ bool mp2v_slice_c::decode_macroblock() {
         }
         int prediction = m_PMV[r][s][t];
         if ((mb.mv_format == Field) && (t == 1) && (m_picture_structure == picture_structure_framepic))
-            prediction = m_PMV[r][s][t] / 2;
+            prediction = m_PMV[r][s][t] >> 1;
         m_MVs[r][s][t] = prediction + delta;
         if (m_MVs[r][s][t] < low)  m_MVs[r][s][t] += range;
         if (m_MVs[r][s][t] > high) m_MVs[r][s][t] -= range;
@@ -386,6 +372,24 @@ bool mp2v_slice_c::decode_macroblock() {
         else
             m_PMV[r][s][t] = m_MVs[r][s][t];
     }
+
+    // Update motion vectors predictors conditions (Table 7-9 – Updating of motion vector predictors in frame pictures)
+    if (mb.prediction_type == Field_based) {
+        if (mb.macroblock_type & macroblock_intra_bit)
+            for (int t : { 0, 1 }) m_PMV[1][0][t] = m_PMV[0][0][t];
+        if ((mb.macroblock_type & macroblock_motion_forward_bit) && (mb.macroblock_type & macroblock_motion_backward_bit) && !(mb.macroblock_type & macroblock_intra_bit))
+            for (int t : { 0, 1 }) {
+                m_PMV[1][0][t] = m_PMV[0][0][t];
+                m_PMV[1][1][t] = m_PMV[0][1][t];
+            }
+        if ((mb.macroblock_type & macroblock_motion_forward_bit) && !(mb.macroblock_type & macroblock_motion_backward_bit) && !(mb.macroblock_type & macroblock_intra_bit))
+            for (int t : { 0, 1 }) m_PMV[1][0][t] = m_PMV[0][0][t];
+        if (!(mb.macroblock_type & macroblock_motion_forward_bit) && (mb.macroblock_type & macroblock_motion_backward_bit) && !(mb.macroblock_type & macroblock_intra_bit))
+            for (int t : { 0, 1 }) m_PMV[1][1][t] = m_PMV[0][1][t];
+    }
+    if (mb.prediction_type == Dual_Prime)
+        if ((mb.macroblock_type & macroblock_motion_forward_bit) && !(mb.macroblock_type & macroblock_motion_backward_bit) && !(mb.macroblock_type & macroblock_intra_bit))
+            for (int t : { 0, 1 }) m_PMV[1][0][t] = m_PMV[0][0][t];
 
     // Decode coefficients
     bool m_use_dct_one_table = (m_intra_vlc_format == 1) && (mb.macroblock_type & macroblock_intra_bit);
@@ -396,7 +400,10 @@ bool mp2v_slice_c::decode_macroblock() {
         for (int i = 0; i < m_block_count; i++)
             parse_block<false>(m_bs, m_cur_mb_data, i, m_dct_dc_pred);
 
-    //memcpy(m_cur_mb_data.MVs, m_MVs, sizeof(m_MVs));
+    memcpy(m_cur_mb_data.MVs, m_MVs, sizeof(m_MVs));
+#ifdef _DEBUG
+    memcpy(m_cur_mb_data.PMVs, m_PMV, sizeof(m_PMV));
+#endif
     decode_mb_func(yuv, stride, chroma_stride, m_cur_mb_data, pic->quantiser_matrices, pcext.intra_dc_precision, cur_quantiser_scale_code, ref0, ref1);
     mb_col++;
 
@@ -473,6 +480,28 @@ bool mp2v_picture_c::decode_picture() {
     return true;
 }
 
+#ifdef _DEBUG
+void mp2v_picture_c::dump_mvs(const char* dump_filename) {
+    FILE* fp = fopen(dump_filename, "w");
+    int y0 = 0;
+    for (auto slice : m_slices) {
+        y0 += 16;
+        int x0 = 0;
+        for (auto mb : slice.m_macroblocks) {
+            x0 += 16 * mb.mb.macroblock_address_increment;
+            if (mb.mb.macroblock_type & macroblock_motion_forward_bit) {
+                int x1 = x0 + mb.PMVs[0][0][0];
+                int y1 = y0 + mb.PMVs[0][0][1];
+                fprintf(fp, "%d\t%d\n", x0, y0);
+                fprintf(fp, "%d\t%d\tx:%d y:%d\n", x1, y1, mb.PMVs[0][0][0], mb.PMVs[0][0][1]);
+                fprintf(fp, "\n");
+            }
+        }
+    }
+    fclose(fp);
+}
+#endif
+
 bool mp2v_decoder_c::decode_extension_and_user_data(extension_after_code_e after_code, mp2v_picture_c* pic) {
     while ((local_next_start_code(m_bs) == extension_start_code) || (local_next_start_code(m_bs) == user_data_start_code)) {
         if ((after_code != after_group_of_picture_header) && (local_next_start_code(m_bs) == extension_start_code))
@@ -548,7 +577,6 @@ bool mp2v_decoder_c::decode() {
     CHECK(local_next_start_code(m_bs) == sequence_header_code);
     CHECK(parse_sequence_header(m_bs, m_sequence_header));
 
-    int pic_num = 0;
     if (local_next_start_code(m_bs) == extension_start_code) {
         parse_sequence_extension(m_bs, m_sequence_extension);
         do {
@@ -559,9 +587,12 @@ bool mp2v_decoder_c::decode() {
                     decode_extension_and_user_data(after_group_of_picture_header, nullptr);
                 }
                 decode_picture_data();
+#ifdef _DEBUG
+                static int pic_num = 0;
                 pic_num++;
-                if (pic_num > 7)
+                if (pic_num > 8)
                     return true; // remove it after test complete
+#endif
             } while ((local_next_start_code(m_bs) == picture_start_code) || (local_next_start_code(m_bs) == group_start_code));
             if (local_next_start_code(m_bs) != sequence_end_code) {
                 parse_sequence_header(m_bs, m_sequence_header);
@@ -595,6 +626,13 @@ bool mp2v_decoder_c::decode_picture_data() {
         ref_frames[0] = ref_frames[1];
 
     pic.decode_picture();
+
+#ifdef _DEBUG
+    static int pic_num = 0;
+    if (pic_num == 7)
+        pic.dump_mvs("dump_mvs.txt");
+    pic_num++;
+#endif
 
     if (pic.m_picture_header.picture_coding_type == picture_coding_type_pred)
         ref_frames[1] = frame;
