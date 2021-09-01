@@ -591,14 +591,15 @@ bool mp2v_decoder_c::decode() {
                     decode_extension_and_user_data(after_group_of_picture_header, nullptr);
                 }
                 decode_picture_data();
-/*#ifdef _DEBUG
+#ifdef _DEBUG
+                // remove this when end of stream issue was resolved
                 static int pic_num = 0;
                 pic_num++;
-                if (pic_num > 80) {
+                if (pic_num > 98) {
                     m_output_frames.push(nullptr);
-                    return true; // remove it after test complete
+                    return true;
                 }
-#endif*/
+#endif
             } while ((local_next_start_code(m_bs) == picture_start_code) || (local_next_start_code(m_bs) == group_start_code));
             if (local_next_start_code(m_bs) != sequence_end_code) {
                 parse_sequence_header(m_bs, m_sequence_header);

@@ -81,19 +81,6 @@ private:
     uint32_t buffer_idx = 64;
 };
 
-void write_frame(frame_c* (&frames)[8], char* fname) {
-    FILE* fp = fopen(fname, "wb");
-    for (int i = 0; i < 8; i++) {
-        auto frame = frames[i];
-        for (int i = 0; i < 3; i++) {
-            uint8_t* plane = frame->get_planes(i);
-            for (int y = 0; y < frame->get_height(i); y++, plane += frame->get_strides(i))
-                fwrite(plane, 1, frame->get_width(i), fp);
-        }
-    }
-    fclose(fp);
-}
-
 void stream_writer_func(mp2v_decoder_c* mp2v_decoder) {
     FILE* fp = fopen("test.yuv", "wb");
 
@@ -109,7 +96,6 @@ void stream_writer_func(mp2v_decoder_c* mp2v_decoder) {
         }
 
         mp2v_decoder->release_frame(frame);
-
         while (!mp2v_decoder->get_decoded_frame(frame));
     }
 
@@ -134,16 +120,8 @@ int main(int argc, char* argv[])
         mp2v_decoder_c mp2v_decoder(&stream_reader);
 
         std::thread stream_writer(stream_writer_func, &mp2v_decoder);
-        //frame_c* frames[8] = { 0 };
-
         mp2v_decoder.decoder_init(&config);
         mp2v_decoder.decode();
-
         stream_writer.join();
-
-        /*for (int i = 0; i < 8; i++)
-            mp2v_decoder.get_decoded_frame(frames[i]);
-
-        write_frame(frames, "test.yuv");*/
     }
 }
