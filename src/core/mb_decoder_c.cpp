@@ -93,8 +93,8 @@ template<int chroma_format, int plane_idx, int vect_idx, mc_template_e mc_templ>
 void mc_bidir_template(uint8_t* dst, uint8_t* ref0, uint8_t* ref1, mb_data_t mb_data, uint32_t stride, uint32_t chroma_stride) {
     auto  _stride = (mc_templ == mc_templ_field) ? stride << 1 : stride;
     auto  _chroma_stride = (mc_templ == mc_templ_field) ? chroma_stride << 1 : chroma_stride;
-    uint8_t* fref = ref1;
-    uint8_t* bref = ref0;
+    uint8_t* fref = ref0;
+    uint8_t* bref = ref1;
     auto  mvfx = mb_data.MVs[vect_idx][0][0];
     auto  mvfy = mb_data.MVs[vect_idx][0][1];
     auto  mvbx = mb_data.MVs[vect_idx][1][0];
@@ -102,8 +102,8 @@ void mc_bidir_template(uint8_t* dst, uint8_t* ref0, uint8_t* ref1, mb_data_t mb_
     apply_chroma_scale<chroma_format, plane_idx>(mvfx, mvfy);
     apply_chroma_scale<chroma_format, plane_idx>(mvbx, mvby);
     int mvs_ridx = mc_bidir_idx(mvfx, mvfy, mvbx, mvby);
-    fref += static_cast<ptrdiff_t>(mvfx >> 2) + static_cast<ptrdiff_t>(mvfy >> 2) * (plane_idx ? _chroma_stride : _stride);
-    bref += static_cast<ptrdiff_t>(mvbx >> 2) + static_cast<ptrdiff_t>(mvby >> 2) * (plane_idx ? _chroma_stride : _stride);
+    fref += static_cast<ptrdiff_t>(mvfx >> 1) + static_cast<ptrdiff_t>(mvfy >> 1) * (plane_idx ? _chroma_stride : _stride);
+    bref += static_cast<ptrdiff_t>(mvbx >> 1) + static_cast<ptrdiff_t>(mvby >> 1) * (plane_idx ? _chroma_stride : _stride);
 
     if (plane_idx == 0) {
         if (mb_data.mb.motion_vertical_field_select[vect_idx][0])
@@ -137,15 +137,15 @@ void mc_bidir_template(uint8_t* dst, uint8_t* ref0, uint8_t* ref1, mb_data_t mb_
 
     if (plane_idx == 0) {
         switch (mc_templ) {
-        case mc_templ_field: mc_bidir_16xh[mvs_ridx](dst, fref, bref, _stride,  8); break;
-        case mc_templ_frame: mc_bidir_16xh[mvs_ridx](dst, fref, bref, _stride, 16); break;
+        case mc_templ_field: mc_bidir_16xh[mvs_ridx](dst, bref, fref, _stride,  8); break;
+        case mc_templ_frame: mc_bidir_16xh[mvs_ridx](dst, bref, fref, _stride, 16); break;
         }
     }
     else {
         switch (chroma_format) {
-        case chroma_format_420: mc_bidir_8xh [mvs_ridx](dst, fref, bref, _chroma_stride, (mc_templ == mc_templ_field) ? 4 :  8); break;
-        case chroma_format_422: mc_bidir_8xh [mvs_ridx](dst, fref, bref, _chroma_stride, (mc_templ == mc_templ_field) ? 8 : 16); break;
-        case chroma_format_444: mc_bidir_16xh[mvs_ridx](dst, fref, bref, _chroma_stride, (mc_templ == mc_templ_field) ? 8 : 16); break;
+        case chroma_format_420: mc_bidir_8xh [mvs_ridx](dst, bref, fref, _chroma_stride, (mc_templ == mc_templ_field) ? 4 :  8); break;
+        case chroma_format_422: mc_bidir_8xh [mvs_ridx](dst, bref, fref, _chroma_stride, (mc_templ == mc_templ_field) ? 8 : 16); break;
+        case chroma_format_444: mc_bidir_16xh[mvs_ridx](dst, bref, fref, _chroma_stride, (mc_templ == mc_templ_field) ? 8 : 16); break;
         }
     }
 }
@@ -293,11 +293,10 @@ void decode_macroblock_template(
         // Motion compensation
         switch (mb_data.mb.prediction_type) {
         case Field_based:
-            //base_motion_compensation<chroma_format, mc_templ_frame, false>(yuv_planes, ref0, ref1, mb_data, stride, chroma_stride);
-            //if (mb_data.mb.motion_vector_count == 2)
+            if (mb_data.mb.motion_vector_count == 2)
                 base_motion_compensation<chroma_format, mc_templ_field, true>(yuv_planes, ref0, ref1, mb_data, stride, chroma_stride);
-            /*else
-                base_motion_compensation<chroma_format, mc_templ_field, false>(yuv_planes, ref0, ref1, mb_data, stride, chroma_stride);*/
+            else
+                base_motion_compensation<chroma_format, mc_templ_field, false>(yuv_planes, ref0, ref1, mb_data, stride, chroma_stride);
             break;
         case Frame_based:
             if (mb_data.mb.motion_vector_count == 2)
@@ -310,7 +309,7 @@ void decode_macroblock_template(
             // Not supported
             break;
         }
-        //decode_transform_template<uint8_t, chroma_format, alt_scan, false, true>(yuv_planes, stride, chroma_stride, W, mb_data.QFS, mb_data.pattern_code, quantizer_scale, intra_dc_prec);
+        decode_transform_template<uint8_t, chroma_format, alt_scan, false, true>(yuv_planes, stride, chroma_stride, W, mb_data.QFS, mb_data.pattern_code, quantizer_scale, intra_dc_prec);
     }
 }
 

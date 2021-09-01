@@ -122,12 +122,15 @@ public:
     bool get_decoded_frame(frame_c*& frame) {
         return m_output_frames.try_pop(frame);
     }
+    void release_frame(frame_c* frame) {
+        m_frames_pool.push(frame);
+    }
 protected:
     bitstream_reader_i* m_bs;
 
     // stream data
     frame_c* ref_frames[2] = { 0 };
-    std::deque<frame_c*> m_frames_pool;
+    concurrent_queue<frame_c*> m_frames_pool;
     concurrent_queue<frame_c*> m_output_frames;
 
 public:

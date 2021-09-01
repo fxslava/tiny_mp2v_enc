@@ -1,6 +1,7 @@
 // Copyright © 2021 Vladislav Ovchinnikov. All rights reserved.
 
 #include <iostream>
+#include <thread>
 #include "sample_args.h"
 #include "bitstream.h"
 #include "core/decoder.h"
@@ -93,6 +94,28 @@ void write_frame(frame_c* (&frames)[8], char* fname) {
     fclose(fp);
 }
 
+void stream_writer_func(mp2v_decoder_c* mp2v_decoder) {
+    FILE* fp = fopen("test.yuv", "wb");
+
+    frame_c* frame = nullptr;
+    while (!mp2v_decoder->get_decoded_frame(frame));
+
+    while (frame) {
+
+        for (int i = 0; i < 3; i++) {
+            uint8_t* plane = frame->get_planes(i);
+            for (int y = 0; y < frame->get_height(i); y++, plane += frame->get_strides(i))
+                fwrite(plane, 1, frame->get_width(i), fp);
+        }
+
+        mp2v_decoder->release_frame(frame);
+
+        while (!mp2v_decoder->get_decoded_frame(frame));
+    }
+
+    fclose(fp);
+}
+
 int main(int argc, char* argv[])
 {
     decoder_config_t config;
@@ -109,14 +132,18 @@ int main(int argc, char* argv[])
     if (bitstream_file) {
         bitstream_file_reader stream_reader(*bitstream_file);
         mp2v_decoder_c mp2v_decoder(&stream_reader);
-        frame_c* frames[8] = { 0 };
+
+        std::thread stream_writer(stream_writer_func, &mp2v_decoder);
+        //frame_c* frames[8] = { 0 };
 
         mp2v_decoder.decoder_init(&config);
         mp2v_decoder.decode();
 
-        for (int i = 0; i < 8; i++)
+        stream_writer.join();
+
+        /*for (int i = 0; i < 8; i++)
             mp2v_decoder.get_decoded_frame(frames[i]);
 
-        write_frame(frames, "test.yuv");
+        write_frame(frames, "test.yuv");*/
     }
 }

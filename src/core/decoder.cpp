@@ -345,34 +345,6 @@ bool mp2v_slice_c::decode_macroblock() {
         ((m_picture_coding_type == picture_coding_type_pred) && !(mb.macroblock_type & macroblock_intra_bit) && !(mb.macroblock_type & macroblock_motion_forward_bit)))
         memset(m_PMV, 0, sizeof(m_PMV));
 
-    // Decode motion vectors. TODO: Think about branching reduction
-    for (int r : { 0, 1 }) for (int s : { 0, 1 }) for (int t : { 0, 1 })
-    {
-        int r_size = m_f_code[s][t] - 1;
-        int f = 1 << r_size;
-        int high = (16 * f) - 1;
-        int low = ((-16) * f);
-        int range = (32 * f);
-        int delta;
-        if ((f == 1) || (mb.motion_code[r][s][t] == 0))
-            delta = mb.motion_code[r][s][t];
-        else {
-            delta = ((labs(mb.motion_code[r][s][t]) - 1) * f) + mb.motion_residual[r][s][t] + 1;
-            if (mb.motion_code[r][s][t] < 0)
-                delta = -delta;
-        }
-        int prediction = m_PMV[r][s][t];
-        if ((mb.mv_format == Field) && (t == 1) && (m_picture_structure == picture_structure_framepic))
-            prediction = m_PMV[r][s][t] >> 1;
-        m_MVs[r][s][t] = prediction + delta;
-        if (m_MVs[r][s][t] < low)  m_MVs[r][s][t] += range;
-        if (m_MVs[r][s][t] > high) m_MVs[r][s][t] -= range;
-        if ((mb.mv_format == Field) && (t == 1) && (m_picture_structure == picture_structure_framepic))
-            m_PMV[r][s][t] = m_MVs[r][s][t] * 2;
-        else
-            m_PMV[r][s][t] = m_MVs[r][s][t];
-    }
-
     // Update motion vectors predictors conditions (Table 7-9 – Updating of motion vector predictors in frame pictures)
     if (mb.prediction_type == Field_based) {
         if (mb.macroblock_type & macroblock_intra_bit)
@@ -390,6 +362,38 @@ bool mp2v_slice_c::decode_macroblock() {
     if (mb.prediction_type == Dual_Prime)
         if ((mb.macroblock_type & macroblock_motion_forward_bit) && !(mb.macroblock_type & macroblock_motion_backward_bit) && !(mb.macroblock_type & macroblock_intra_bit))
             for (int t : { 0, 1 }) m_PMV[1][0][t] = m_PMV[0][0][t];
+
+    // Decode motion vectors. TODO: Think about branching reduction
+    for (int r : { 0, 1 }) for (int s : { 0, 1 }) for (int t : { 0, 1 })
+    {
+        int r_size = m_f_code[s][t] - 1;
+        int f = 1 << r_size;
+        int high = (16 * f) - 1;
+        int low = ((-16) * f);
+        int range = (32 * f);
+        int delta;
+        if ((f == 1) || (mb.motion_code[r][s][t] == 0))
+            delta = mb.motion_code[r][s][t];
+        else {
+            delta = ((labs(mb.motion_code[r][s][t]) - 1) * f) + mb.motion_residual[r][s][t] + 1;
+            if (mb.motion_code[r][s][t] < 0)
+                delta = -delta;
+        }
+        int prediction = m_PMV[r][s][t];
+        if (delta != 0) { // fix
+            if ((mb.mv_format == Field) && (t == 1) && (m_picture_structure == picture_structure_framepic))
+                prediction = m_PMV[r][s][t] >> 1;
+
+            m_MVs[r][s][t] = prediction + delta;
+            if (m_MVs[r][s][t] < low)  m_MVs[r][s][t] += range;
+            if (m_MVs[r][s][t] > high) m_MVs[r][s][t] -= range;
+
+            if ((mb.mv_format == Field) && (t == 1) && (m_picture_structure == picture_structure_framepic))
+                m_PMV[r][s][t] = m_MVs[r][s][t] * 2;
+            else
+                m_PMV[r][s][t] = m_MVs[r][s][t];
+        }
+    }
 
     // Decode coefficients
     bool m_use_dct_one_table = (m_intra_vlc_format == 1) && (mb.macroblock_type & macroblock_intra_bit);
@@ -587,59 +591,67 @@ bool mp2v_decoder_c::decode() {
                     decode_extension_and_user_data(after_group_of_picture_header, nullptr);
                 }
                 decode_picture_data();
-#ifdef _DEBUG
+/*#ifdef _DEBUG
                 static int pic_num = 0;
                 pic_num++;
-                if (pic_num > 8)
+                if (pic_num > 80) {
+                    m_output_frames.push(nullptr);
                     return true; // remove it after test complete
-#endif
+                }
+#endif*/
             } while ((local_next_start_code(m_bs) == picture_start_code) || (local_next_start_code(m_bs) == group_start_code));
             if (local_next_start_code(m_bs) != sequence_end_code) {
                 parse_sequence_header(m_bs, m_sequence_header);
                 parse_sequence_extension(m_bs, m_sequence_extension);
             }
         } while (local_next_start_code(m_bs) != sequence_end_code);
+        m_output_frames.push(nullptr);
     }
-    else
+    else {
+        m_output_frames.push(nullptr);
         return false; // MPEG1 not support
+    }
 
+    m_output_frames.push(nullptr);
     return true;
 }
 
 bool mp2v_decoder_c::decode_picture_data() {
-    frame_c* frame = m_frames_pool.front();
-    m_frames_pool.pop_front();
+    frame_c* frame = nullptr;
+    if (m_frames_pool.try_pop(frame)) {
 
-    /* Decode sequence parameters*/
-    mp2v_picture_c pic(m_bs, this, frame);
-    pic.block_count = block_count_tbl[m_sequence_extension.chroma_format];
+        /* Decode sequence parameters*/
+        mp2v_picture_c pic(m_bs, this, frame);
+        pic.block_count = block_count_tbl[m_sequence_extension.chroma_format];
 
-    parse_picture_header(m_bs, pic.m_picture_header);
-    parse_picture_coding_extension(m_bs, pic.m_picture_coding_extension);
-    decode_extension_and_user_data(after_picture_coding_extension, &pic);
+        parse_picture_header(m_bs, pic.m_picture_header);
+        parse_picture_coding_extension(m_bs, pic.m_picture_coding_extension);
+        decode_extension_and_user_data(after_picture_coding_extension, &pic);
 
-    if (pic.m_picture_header.picture_coding_type == picture_coding_type_intra) {
-        ref_frames[1] = frame;
-    }
+        if (pic.m_picture_header.picture_coding_type == picture_coding_type_intra) {
+            ref_frames[1] = frame;
+        }
 
-    if (pic.m_picture_header.picture_coding_type == picture_coding_type_pred)
-        ref_frames[0] = ref_frames[1];
+        if (pic.m_picture_header.picture_coding_type == picture_coding_type_pred)
+            ref_frames[0] = ref_frames[1];
 
-    pic.decode_picture();
+        pic.decode_picture();
 
 #ifdef _DEBUG
-    static int pic_num = 0;
-    if (pic_num == 7)
-        pic.dump_mvs("dump_mvs.txt");
-    pic_num++;
+        static int pic_num = 0;
+        if (pic_num == 13)
+            pic.dump_mvs("dump_mvs.txt");
+        pic_num++;
 #endif
 
-    if (pic.m_picture_header.picture_coding_type == picture_coding_type_pred)
-        ref_frames[1] = frame;
+        if (pic.m_picture_header.picture_coding_type == picture_coding_type_pred)
+            ref_frames[1] = frame;
 
-    m_frames_pool.push_back(frame);
-    m_output_frames.push(frame);
-    return true;
+        m_output_frames.push(frame);
+        return true;
+    }
+    else
+        return false;
 }
 
 bool mp2v_decoder_c::decoder_init(decoder_config_t* config) {
@@ -649,7 +661,7 @@ bool mp2v_decoder_c::decoder_init(decoder_config_t* config) {
     int chroma_format = config->chroma_format;
 
     for (int i = 0; i < pool_size; i++)
-        m_frames_pool.push_back(new frame_c(width, height, chroma_format));
+        m_frames_pool.push(new frame_c(width, height, chroma_format));
 
     return true;
 }
