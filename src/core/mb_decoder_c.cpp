@@ -313,71 +313,34 @@ void decode_macroblock_template(
     }
 }
 
-void decode_420_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, uint8_t* ref0[3], uint8_t* ref1[3]) {
-    decode_macroblock_template<chroma_format_420, false, false>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, ref0, ref1);
-}
-void decode_420_alts_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, uint8_t* ref0[3], uint8_t* ref1[3]) {
-    decode_macroblock_template<chroma_format_420, false, true>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, ref0, ref1);
-}
-void decode_420_qst_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, uint8_t* ref0[3], uint8_t* ref1[3]) {
-    decode_macroblock_template<chroma_format_420, true, false>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, ref0, ref1);
-}
-void decode_420_qst_alts_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, uint8_t* ref0[3], uint8_t* ref1[3]) {
-    decode_macroblock_template<chroma_format_420, true, true>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, ref0, ref1);
-}
-void decode_422_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, uint8_t* ref0[3], uint8_t* ref1[3]) {
-    decode_macroblock_template<chroma_format_422, false, false>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, ref0, ref1);
-}
-void decode_422_alts_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, uint8_t* ref0[3], uint8_t* ref1[3]) {
-    decode_macroblock_template<chroma_format_422, false, true>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, ref0, ref1);
-}
-void decode_422_qst_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, uint8_t* ref0[3], uint8_t* ref1[3]) {
-    decode_macroblock_template<chroma_format_422, true, false>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, ref0, ref1);
-}
-void decode_422_qst_alts_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, uint8_t* ref0[3], uint8_t* ref1[3]) {
-    decode_macroblock_template<chroma_format_422, true, true>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, ref0, ref1);
-}
-void decode_444_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, uint8_t* ref0[3], uint8_t* ref1[3]) {
-    decode_macroblock_template<chroma_format_444, false, false>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, ref0, ref1);
-}
-void decode_444_alts_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, uint8_t* ref0[3], uint8_t* ref1[3]) {
-    decode_macroblock_template<chroma_format_444, false, true>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, ref0, ref1);
-}
-void decode_444_qst_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, uint8_t* ref0[3], uint8_t* ref1[3]) {
-    decode_macroblock_template<chroma_format_444, true, false>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, ref0, ref1);
-}
-void decode_444_qst_alts_macroblock(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quantiser_scale_code, uint8_t* ref0[3], uint8_t* ref1[3]) {
-    decode_macroblock_template<chroma_format_444, true, true>(yuv_planes, stride, chroma_stride, mb_data, W, intra_dc_prec, quantiser_scale_code, ref0, ref1);
-}
-
 decode_macroblock_func_t select_decode_macroblock(int chroma_format, bool q_scale_type, bool alt_scan) {
     switch (chroma_format) {
     case chroma_format_420:
         if (!q_scale_type) {
-            if (!alt_scan) return decode_420_macroblock;
-            else           return decode_420_alts_macroblock;
+            if (!alt_scan) return decode_macroblock_template<chroma_format_420, false, false>;
+            else           return decode_macroblock_template<chroma_format_420, false, true>;
         }
         else {
-            if (!alt_scan) return decode_420_qst_macroblock;
-            else           return decode_420_qst_alts_macroblock;
+            if (!alt_scan) return decode_macroblock_template<chroma_format_420, true, false>;
+            else           return decode_macroblock_template<chroma_format_420, true, true>;
         }
     case chroma_format_422:
         if (!q_scale_type) {
-            if (!alt_scan) return decode_422_macroblock;
-            else           return decode_422_alts_macroblock;
+            if (!alt_scan) return decode_macroblock_template<chroma_format_422, false, false>;
+            else           return decode_macroblock_template<chroma_format_422, false, true>;
         }
         else {
-            if (!alt_scan) return decode_422_qst_macroblock;
-            else           return decode_422_qst_alts_macroblock;
+            if (!alt_scan) return decode_macroblock_template<chroma_format_422, true, false>;
+            else           return decode_macroblock_template<chroma_format_422, true, true>;
         }
     case chroma_format_444:
         if (!q_scale_type) {
-            if (!alt_scan) return decode_444_macroblock;
-            else           return decode_444_alts_macroblock;
+            if (!alt_scan) return decode_macroblock_template<chroma_format_444, false, false>;
+            else           return decode_macroblock_template<chroma_format_444, false, true>;
         }
         else {
-            if (!alt_scan) return decode_444_qst_macroblock;
-            else           return decode_444_qst_alts_macroblock;
+            if (!alt_scan) return decode_macroblock_template<chroma_format_444, true, false>;
+            else           return decode_macroblock_template<chroma_format_444, true, true>;
         }
     }
 }

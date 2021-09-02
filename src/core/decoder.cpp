@@ -199,8 +199,9 @@ static bool parse_block(bitstream_reader_i* bs, mb_data_t& mb_data, int i, uint1
             uint32_t run;
             int32_t level;
             read_first_coefficient<use_dct_one_table>(bs, run, level);
-            mb_data.QFS[i][0] = level;
             n += run;
+            mb_data.QFS[i][n] = level;
+            n++;
         }
         read_block_coefficients<use_dct_one_table>(bs, n, mb_data.QFS[i]);
     }
@@ -341,9 +342,6 @@ bool mp2v_slice_c::decode_macroblock() {
     if (!(mb.macroblock_type & macroblock_intra_bit) || mb.macroblock_address_increment > 1)
         for (auto& pred : m_dct_dc_pred)
             pred = m_dct_dc_pred_reset_value;
-    if (((mb.macroblock_type & macroblock_intra_bit) && !m_concealment_motion_vectors) ||
-        ((m_picture_coding_type == picture_coding_type_pred) && !(mb.macroblock_type & macroblock_intra_bit) && !(mb.macroblock_type & macroblock_motion_forward_bit)))
-        memset(m_PMV, 0, sizeof(m_PMV));
 
     // Update motion vectors predictors conditions (Table 7-9 – Updating of motion vector predictors in frame pictures)
     if (mb.prediction_type == Field_based) {
@@ -362,6 +360,13 @@ bool mp2v_slice_c::decode_macroblock() {
     if (mb.prediction_type == Dual_Prime)
         if ((mb.macroblock_type & macroblock_motion_forward_bit) && !(mb.macroblock_type & macroblock_motion_backward_bit) && !(mb.macroblock_type & macroblock_intra_bit))
             for (int t : { 0, 1 }) m_PMV[1][0][t] = m_PMV[0][0][t];
+
+    if (((mb.macroblock_type & macroblock_intra_bit) && !m_concealment_motion_vectors) ||
+        ((m_picture_coding_type == picture_coding_type_pred) && !(mb.macroblock_type & macroblock_intra_bit) && !(mb.macroblock_type & macroblock_motion_forward_bit)))
+    {
+        memset(m_PMV, 0, sizeof(m_PMV));
+        memset(m_MVs, 0, sizeof(m_MVs));
+    }
 
     // Decode motion vectors. TODO: Think about branching reduction
     for (int r : { 0, 1 }) for (int s : { 0, 1 }) for (int t : { 0, 1 })
@@ -640,7 +645,7 @@ bool mp2v_decoder_c::decode_picture_data() {
 
 #ifdef _DEBUG
         static int pic_num = 0;
-        if (pic_num == 13)
+        if (pic_num == 6)
             pic.dump_mvs("dump_mvs.txt");
         pic_num++;
 #endif
