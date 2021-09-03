@@ -199,7 +199,10 @@ static bool parse_block(bitstream_reader_i* bs, mb_data_t& mb_data, int i, uint1
             uint32_t run;
             int32_t level;
             read_first_coefficient<use_dct_one_table>(bs, run, level);
-            n += run;
+            for (int m = 0; m < run; m++) {
+                mb_data.QFS[i][n] = 0;
+                n++;
+            }
             mb_data.QFS[i][n] = level;
             n++;
         }
@@ -596,7 +599,7 @@ bool mp2v_decoder_c::decode() {
                     decode_extension_and_user_data(after_group_of_picture_header, nullptr);
                 }
                 decode_picture_data();
-#ifdef _DEBUG
+//#ifdef _DEBUG
                 // remove this when end of stream issue was resolved
                 static int pic_num = 0;
                 pic_num++;
@@ -604,7 +607,7 @@ bool mp2v_decoder_c::decode() {
                     m_output_frames.push(nullptr);
                     return true;
                 }
-#endif
+//#endif
             } while ((local_next_start_code(m_bs) == picture_start_code) || (local_next_start_code(m_bs) == group_start_code));
             if (local_next_start_code(m_bs) != sequence_end_code) {
                 parse_sequence_header(m_bs, m_sequence_header);
