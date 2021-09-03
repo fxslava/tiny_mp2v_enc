@@ -637,12 +637,10 @@ bool mp2v_decoder_c::decode_picture_data() {
         parse_picture_coding_extension(m_bs, pic.m_picture_coding_extension);
         decode_extension_and_user_data(after_picture_coding_extension, &pic);
 
-        if (pic.m_picture_header.picture_coding_type == picture_coding_type_intra) {
+        if (pic.m_picture_header.picture_coding_type == picture_coding_type_pred || pic.m_picture_header.picture_coding_type == picture_coding_type_intra) {
+            ref_frames[0] = ref_frames[1];
             ref_frames[1] = frame;
         }
-
-        if (pic.m_picture_header.picture_coding_type == picture_coding_type_pred)
-            ref_frames[0] = ref_frames[1];
 
         pic.decode_picture();
 
@@ -652,9 +650,6 @@ bool mp2v_decoder_c::decode_picture_data() {
             pic.dump_mvs("dump_mvs.txt");
         pic_num++;
 #endif
-
-        if (pic.m_picture_header.picture_coding_type == picture_coding_type_pred)
-            ref_frames[1] = frame;
 
         m_output_frames.push(frame);
         return true;
