@@ -346,31 +346,6 @@ bool mp2v_slice_c::decode_macroblock() {
         for (auto& pred : m_dct_dc_pred)
             pred = m_dct_dc_pred_reset_value;
 
-    // Update motion vectors predictors conditions (Table 7-9 – Updating of motion vector predictors in frame pictures)
-    if (mb.prediction_type == Field_based) {
-        if (mb.macroblock_type & macroblock_intra_bit)
-            for (int t : { 0, 1 }) m_PMV[1][0][t] = m_PMV[0][0][t];
-        if ((mb.macroblock_type & macroblock_motion_forward_bit) && (mb.macroblock_type & macroblock_motion_backward_bit) && !(mb.macroblock_type & macroblock_intra_bit))
-            for (int t : { 0, 1 }) {
-                m_PMV[1][0][t] = m_PMV[0][0][t];
-                m_PMV[1][1][t] = m_PMV[0][1][t];
-            }
-        if ((mb.macroblock_type & macroblock_motion_forward_bit) && !(mb.macroblock_type & macroblock_motion_backward_bit) && !(mb.macroblock_type & macroblock_intra_bit))
-            for (int t : { 0, 1 }) m_PMV[1][0][t] = m_PMV[0][0][t];
-        if (!(mb.macroblock_type & macroblock_motion_forward_bit) && (mb.macroblock_type & macroblock_motion_backward_bit) && !(mb.macroblock_type & macroblock_intra_bit))
-            for (int t : { 0, 1 }) m_PMV[1][1][t] = m_PMV[0][1][t];
-    }
-    if (mb.prediction_type == Dual_Prime)
-        if ((mb.macroblock_type & macroblock_motion_forward_bit) && !(mb.macroblock_type & macroblock_motion_backward_bit) && !(mb.macroblock_type & macroblock_intra_bit))
-            for (int t : { 0, 1 }) m_PMV[1][0][t] = m_PMV[0][0][t];
-
-    if (((mb.macroblock_type & macroblock_intra_bit) && !m_concealment_motion_vectors) ||
-        ((m_picture_coding_type == picture_coding_type_pred) && !(mb.macroblock_type & macroblock_intra_bit) && !(mb.macroblock_type & macroblock_motion_forward_bit)))
-    {
-        memset(m_PMV, 0, sizeof(m_PMV));
-        memset(m_MVs, 0, sizeof(m_MVs));
-    }
-
     // Decode motion vectors. TODO: Think about branching reduction
     for (int r : { 0, 1 }) for (int s : { 0, 1 }) for (int t : { 0, 1 })
     {
@@ -402,6 +377,31 @@ bool mp2v_slice_c::decode_macroblock() {
             else
                 m_PMV[r][s][t] = m_MVs[r][s][t];
         }
+    }
+
+    // Update motion vectors predictors conditions (Table 7-9 – Updating of motion vector predictors in frame pictures)
+    if (mb.prediction_type == Frame_based) {
+        if (mb.macroblock_type & macroblock_intra_bit)
+            for (int t : { 0, 1 }) m_PMV[1][0][t] = m_PMV[0][0][t];
+        if ((mb.macroblock_type & macroblock_motion_forward_bit) && (mb.macroblock_type & macroblock_motion_backward_bit) && !(mb.macroblock_type & macroblock_intra_bit))
+            for (int t : { 0, 1 }) {
+                m_PMV[1][0][t] = m_PMV[0][0][t];
+                m_PMV[1][1][t] = m_PMV[0][1][t];
+            }
+        if ((mb.macroblock_type & macroblock_motion_forward_bit) && !(mb.macroblock_type & macroblock_motion_backward_bit) && !(mb.macroblock_type & macroblock_intra_bit))
+            for (int t : { 0, 1 }) m_PMV[1][0][t] = m_PMV[0][0][t];
+        if (!(mb.macroblock_type & macroblock_motion_forward_bit) && (mb.macroblock_type & macroblock_motion_backward_bit) && !(mb.macroblock_type & macroblock_intra_bit))
+            for (int t : { 0, 1 }) m_PMV[1][1][t] = m_PMV[0][1][t];
+    }
+    if (mb.prediction_type == Dual_Prime)
+        if ((mb.macroblock_type & macroblock_motion_forward_bit) && !(mb.macroblock_type & macroblock_motion_backward_bit) && !(mb.macroblock_type & macroblock_intra_bit))
+            for (int t : { 0, 1 }) m_PMV[1][0][t] = m_PMV[0][0][t];
+
+    if (((mb.macroblock_type & macroblock_intra_bit) && !m_concealment_motion_vectors) ||
+        ((m_picture_coding_type == picture_coding_type_pred) && !(mb.macroblock_type & macroblock_intra_bit) && !(mb.macroblock_type & macroblock_motion_forward_bit)))
+    {
+        memset(m_PMV, 0, sizeof(m_PMV));
+        memset(m_MVs, 0, sizeof(m_MVs));
     }
 
     // Decode coefficients

@@ -245,10 +245,12 @@ static bool parse_modes(bitstream_reader_i* m_bs, macroblock_t& mb, int spatial_
     }
     if ((mb.macroblock_type & macroblock_motion_forward_bit) || (mb.macroblock_type & macroblock_motion_backward_bit)) {
         if (picture_structure == picture_structure_framepic) {
+            mb.frame_motion_type = 2; // Frame-based
             if (frame_pred_frame_dct == 0)
                 mb.frame_motion_type = m_bs->read_next_bits(2);
         }
         else {
+            mb.frame_motion_type = 1; // Field-based
             mb.field_motion_type = m_bs->read_next_bits(2);
         }
     }
