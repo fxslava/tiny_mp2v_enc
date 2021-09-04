@@ -388,11 +388,12 @@ bool mp2v_slice_c::decode_macroblock() {
                 delta = -delta;
         }
         int prediction = m_PMV[r][s][t];
-        if (delta != 0) { // fix
-            if ((mb.mv_format == Field) && (t == 1) && (m_picture_structure == picture_structure_framepic))
-                prediction = m_PMV[r][s][t] >> 1;
+        if ((mb.mv_format == Field) && (t == 1) && (m_picture_structure == picture_structure_framepic))
+            prediction = m_PMV[r][s][t] >> 1;
 
-            m_MVs[r][s][t] = prediction + delta;
+        m_MVs[r][s][t] = prediction + delta;
+
+        if (delta != 0) { // fix
             if (m_MVs[r][s][t] < low)  m_MVs[r][s][t] += range;
             if (m_MVs[r][s][t] > high) m_MVs[r][s][t] -= range;
 
