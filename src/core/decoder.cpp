@@ -605,7 +605,7 @@ bool mp2v_decoder_c::decode() {
                 static int pic_num = 0;
                 pic_num++;
                 if (pic_num > 98) {
-                    m_output_frames.push(nullptr);
+                    push_frame(nullptr);
                     return true;
                 }
 //#endif
@@ -615,14 +615,14 @@ bool mp2v_decoder_c::decode() {
                 parse_sequence_extension(m_bs, m_sequence_extension);
             }
         } while (local_next_start_code(m_bs) != sequence_end_code);
-        m_output_frames.push(nullptr);
+        push_frame(nullptr);
     }
     else {
-        m_output_frames.push(nullptr);
+        push_frame(nullptr);
         return false; // MPEG1 not support
     }
 
-    m_output_frames.push(nullptr);
+    push_frame(nullptr);
     return true;
 }
 
@@ -652,7 +652,7 @@ bool mp2v_decoder_c::decode_picture_data() {
         pic_num++;
 #endif
 
-        m_output_frames.push(frame);
+        push_frame(frame);
         return true;
     }
     else

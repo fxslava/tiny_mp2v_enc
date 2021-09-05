@@ -85,7 +85,8 @@ void stream_writer_func(mp2v_decoder_c* mp2v_decoder) {
     FILE* fp = fopen("test.yuv", "wb");
 
     frame_c* frame = nullptr;
-    while (!mp2v_decoder->get_decoded_frame(frame));
+    while (!mp2v_decoder->get_decoded_frame(frame))
+        mp2v_decoder->wait_for_frame();
 
     while (frame) {
 
@@ -96,7 +97,9 @@ void stream_writer_func(mp2v_decoder_c* mp2v_decoder) {
         }
 
         mp2v_decoder->release_frame(frame);
-        while (!mp2v_decoder->get_decoded_frame(frame));
+
+        while (!mp2v_decoder->get_decoded_frame(frame))
+            mp2v_decoder->wait_for_frame();
     }
 
     fclose(fp);

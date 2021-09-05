@@ -2,7 +2,10 @@
 #pragma once
 #include <vector>
 #include <deque>
+#include <mutex>
 #include <concurrent_queue.h>
+#include <condition_variable>
+
 #include "mp2v_hdr.h"
 #include "api/bitstream.h"
 #include "mb_decoder.h"
@@ -125,11 +128,22 @@ public:
     void release_frame(frame_c* frame) {
         m_frames_pool.push(frame);
     }
+    void wait_for_frame() {
+        std::unique_lock<std::mutex> new_frame_lock(new_frame_mutex);
+        new_frame_condition.wait(new_frame_lock);
+    }
+    void push_frame(frame_c* frame) {
+        std::unique_lock<std::mutex> new_frame_lock(new_frame_mutex);
+        m_output_frames.push(frame);
+        new_frame_condition.notify_one();
+    }
 protected:
     bitstream_reader_i* m_bs;
 
     // stream data
     frame_c* ref_frames[2] = { 0 };
+    std::mutex new_frame_mutex;
+    std::condition_variable new_frame_condition;
     concurrent_queue<frame_c*> m_frames_pool;
     concurrent_queue<frame_c*> m_output_frames;
 
