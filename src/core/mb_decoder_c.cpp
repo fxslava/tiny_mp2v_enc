@@ -90,7 +90,7 @@ int mc_bidir_idx(int16_t mvfx, int16_t mvfy, int16_t mvbx, int16_t mvby) {
 }
 
 template<int chroma_format, int plane_idx, int vect_idx, mc_template_e mc_templ>
-void mc_bidir_template(uint8_t* dst, uint8_t* ref0, uint8_t* ref1, mb_data_t mb_data, uint32_t stride, uint32_t chroma_stride) {
+void mc_bidir_template(uint8_t* dst, uint8_t* ref0, uint8_t* ref1, mb_data_t &mb_data, uint32_t stride, uint32_t chroma_stride) {
     auto  _stride = (mc_templ == mc_templ_field) ? stride << 1 : stride;
     auto  _chroma_stride = (mc_templ == mc_templ_field) ? chroma_stride << 1 : chroma_stride;
     uint8_t* fref = ref0;
@@ -155,7 +155,7 @@ int mc_unidir_idx(int16_t mvx, int16_t mvy) {
 }
 
 template<int chroma_format, int plane_idx, int vect_idx, mc_template_e mc_templ, bool forward>
-void mc_unidir_template(uint8_t* dst, uint8_t* ref, mb_data_t mb_data, uint32_t stride, uint32_t chroma_stride) {
+void mc_unidir_template(uint8_t* dst, uint8_t* ref, mb_data_t &mb_data, uint32_t stride, uint32_t chroma_stride) {
     auto  _stride = (mc_templ == mc_templ_field) ? stride << 1 : stride;
     auto  _chroma_stride = (mc_templ == mc_templ_field) ? chroma_stride << 1 : chroma_stride;
     auto  mvx = mb_data.MVs[vect_idx][forward ? 0 : 1][0];
@@ -207,7 +207,7 @@ void mc_unidir_template(uint8_t* dst, uint8_t* ref, mb_data_t mb_data, uint32_t 
 }
 
 template<int chroma_format, mc_template_e mc_templ, bool two_vect>
-void base_motion_compensation(uint8_t* dst[3], uint8_t* ref0[3], uint8_t* ref1[3], mb_data_t mb_data, uint32_t stride, uint32_t chroma_stride) {
+void base_motion_compensation(uint8_t* dst[3], uint8_t* ref0[3], uint8_t* ref1[3], mb_data_t &mb_data, uint32_t stride, uint32_t chroma_stride) {
     auto mb = mb_data.mb;
     if ((mb.macroblock_type & macroblock_motion_forward_bit) && (mb.macroblock_type & macroblock_motion_backward_bit)) {
         mc_bidir_template<chroma_format, 0, 0, mc_templ>(dst[0], ref0[0], ref1[0], mb_data, stride, chroma_stride);
@@ -262,7 +262,7 @@ void decode_macroblock_template(
     uint8_t* yuv_planes[3], 
     int stride,
     int chroma_stride,
-    mb_data_t mb_data, 
+    mb_data_t &mb_data, 
     uint16_t W[4][64],
     uint8_t intra_dc_prec,
     int &quant_scale_code,

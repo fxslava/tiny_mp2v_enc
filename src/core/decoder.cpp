@@ -329,13 +329,13 @@ bool mp2v_slice_c::decode_macroblock() {
         //update motion vectors predictors
         if (m_picture_coding_type == picture_coding_type_pred) {
             skipped_mb_data.mb.prediction_type = Frame_based;
-            memset(m_MVs, 0, sizeof(m_MVs));
+            memset(skipped_mb_data.MVs, 0, sizeof(skipped_mb_data.MVs));
             memset(m_PMV, 0, sizeof(m_PMV));
         }
 
         //copy motion vectors for skipped macroblocks
         if (m_picture_coding_type == picture_coding_type_bidir)
-            memcpy(skipped_mb_data.MVs, m_MVs, sizeof(m_MVs));
+            memcpy(skipped_mb_data.MVs, m_cur_mb_data.MVs, sizeof(m_cur_mb_data.MVs));
 
         decode_mb_func(yuv, stride, chroma_stride, skipped_mb_data, pic->quantiser_matrices, pcext.intra_dc_precision, cur_quantiser_scale_code, ref0, ref1);
     }
@@ -365,16 +365,16 @@ bool mp2v_slice_c::decode_macroblock() {
         if ((mb.mv_format == Field) && (t == 1) && (m_picture_structure == picture_structure_framepic))
             prediction = m_PMV[r][s][t] >> 1;
 
-        m_MVs[r][s][t] = prediction + delta;
+        m_cur_mb_data.MVs[r][s][t] = prediction + delta;
 
         if (delta != 0) { // fix
-            if (m_MVs[r][s][t] < low)  m_MVs[r][s][t] += range;
-            if (m_MVs[r][s][t] > high) m_MVs[r][s][t] -= range;
+            if (m_cur_mb_data.MVs[r][s][t] < low)  m_cur_mb_data.MVs[r][s][t] += range;
+            if (m_cur_mb_data.MVs[r][s][t] > high) m_cur_mb_data.MVs[r][s][t] -= range;
 
             if ((mb.mv_format == Field) && (t == 1) && (m_picture_structure == picture_structure_framepic))
-                m_PMV[r][s][t] = m_MVs[r][s][t] * 2;
+                m_PMV[r][s][t] = m_cur_mb_data.MVs[r][s][t] * 2;
             else
-                m_PMV[r][s][t] = m_MVs[r][s][t];
+                m_PMV[r][s][t] = m_cur_mb_data.MVs[r][s][t];
         }
     }
 
@@ -400,7 +400,7 @@ bool mp2v_slice_c::decode_macroblock() {
         ((m_picture_coding_type == picture_coding_type_pred) && !(mb.macroblock_type & macroblock_intra_bit) && !(mb.macroblock_type & macroblock_motion_forward_bit)))
     {
         memset(m_PMV, 0, sizeof(m_PMV));
-        memset(m_MVs, 0, sizeof(m_MVs));
+        memset(m_cur_mb_data.MVs, 0, sizeof(m_cur_mb_data.MVs));
     }
 
     // Decode coefficients
@@ -412,7 +412,6 @@ bool mp2v_slice_c::decode_macroblock() {
         for (int i = 0; i < m_block_count; i++)
             parse_block<false>(m_bs, m_cur_mb_data, i, m_dct_dc_pred);
 
-    memcpy(m_cur_mb_data.MVs, m_MVs, sizeof(m_MVs));
     decode_mb_func(yuv, stride, chroma_stride, m_cur_mb_data, pic->quantiser_matrices, pcext.intra_dc_precision, cur_quantiser_scale_code, ref0, ref1);
     mb_col++;
     return true;

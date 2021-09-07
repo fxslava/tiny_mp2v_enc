@@ -58,7 +58,6 @@ private:
     uint32_t m_chroma_format = 0;
     uint32_t m_f_code[2][2] = { { 0 } };
     int16_t  m_PMV[2][2][2] = { { 0 } };
-    int16_t  m_MVs[2][2][2] = { { 0 } };
     uint32_t m_intra_vlc_format = 0;
     uint32_t m_picture_structure = 0;
     uint32_t m_picture_coding_type = 0;
