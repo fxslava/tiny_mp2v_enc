@@ -79,7 +79,6 @@ private:
 
 public:
     slice_t m_slice = { 0 };
-    std::vector<mb_data_t>  m_macroblocks;
 };
 
 class mp2v_picture_c {
@@ -90,7 +89,6 @@ public:
 
 private:
     bitstream_reader_i* m_bs;
-    std::vector<mp2v_slice_c> m_slices;
     mp2v_decoder_c* m_dec;
     uint16_t quantiser_matrices[4][64];
     decode_macroblock_func_t decode_macroblock_func;

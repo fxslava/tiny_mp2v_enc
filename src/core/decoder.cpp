@@ -338,7 +338,6 @@ bool mp2v_slice_c::decode_macroblock() {
             memcpy(skipped_mb_data.MVs, m_MVs, sizeof(m_MVs));
 
         decode_mb_func(yuv, stride, chroma_stride, skipped_mb_data, pic->quantiser_matrices, pcext.intra_dc_precision, cur_quantiser_scale_code, ref0, ref1);
-        m_macroblocks.push_back(m_cur_mb_data);
     }
 
     // Reset motion vectors predictors conditions
@@ -414,13 +413,8 @@ bool mp2v_slice_c::decode_macroblock() {
             parse_block<false>(m_bs, m_cur_mb_data, i, m_dct_dc_pred);
 
     memcpy(m_cur_mb_data.MVs, m_MVs, sizeof(m_MVs));
-#ifdef _DEBUG
-    memcpy(m_cur_mb_data.PMVs, m_PMV, sizeof(m_PMV));
-#endif
     decode_mb_func(yuv, stride, chroma_stride, m_cur_mb_data, pic->quantiser_matrices, pcext.intra_dc_precision, cur_quantiser_scale_code, ref0, ref1);
     mb_col++;
-
-    m_macroblocks.push_back(m_cur_mb_data);
     return true;
 }
 
@@ -487,33 +481,10 @@ bool mp2v_picture_c::decode_picture() {
     do {
         mp2v_slice_c slice(m_bs, this, decode_macroblock_func, m_frame);
         slice.decode_slice();
-        m_slices.push_back(slice);
     } while (local_next_start_code(m_bs) >= slice_start_code_min && local_next_start_code(m_bs) <= slice_start_code_max);
     local_find_start_code(m_bs);
     return true;
 }
-
-#ifdef _DEBUG
-void mp2v_picture_c::dump_mvs(const char* dump_filename) {
-    FILE* fp = fopen(dump_filename, "w");
-    int y0 = 0;
-    for (auto slice : m_slices) {
-        y0 += 16;
-        int x0 = 0;
-        for (auto mb : slice.m_macroblocks) {
-            x0 += 16 * mb.mb.macroblock_address_increment;
-            if (mb.mb.macroblock_type & macroblock_motion_forward_bit) {
-                int x1 = x0 + mb.PMVs[0][0][0];
-                int y1 = y0 + mb.PMVs[0][0][1];
-                fprintf(fp, "%d\t%d\n", x0, y0);
-                fprintf(fp, "%d\t%d\tx:%d y:%d\n", x1, y1, mb.PMVs[0][0][0], mb.PMVs[0][0][1]);
-                fprintf(fp, "\n");
-            }
-        }
-    }
-    fclose(fp);
-}
-#endif
 
 bool mp2v_decoder_c::decode_extension_and_user_data(extension_after_code_e after_code, mp2v_picture_c* pic) {
     while ((local_next_start_code(m_bs) == extension_start_code) || (local_next_start_code(m_bs) == user_data_start_code)) {
@@ -644,13 +615,6 @@ bool mp2v_decoder_c::decode_picture_data() {
         }
 
         pic.decode_picture();
-
-#ifdef _DEBUG
-        static int pic_num = 0;
-        if (pic_num == 6)
-            pic.dump_mvs("dump_mvs.txt");
-        pic_num++;
-#endif
 
         push_frame(frame);
         return true;
