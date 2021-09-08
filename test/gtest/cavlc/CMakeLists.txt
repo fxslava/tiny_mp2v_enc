@@ -7,7 +7,6 @@ include_directories(../../../src/api)
 file(
     GLOB SOURCES
         *.cpp
-        ../common/cavlc_utils.hpp
 )
 
 add_executable(

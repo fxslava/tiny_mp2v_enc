@@ -88,7 +88,7 @@ static void parse_mb_pattern(macroblock_t& mb, bool pattern_code[12], int chroma
 }
 
 template<bool use_dct_one_table>
-static void read_first_coefficient(bitstream_reader_i* bs, uint32_t& run, int32_t& level) {
+static void read_first_coefficient(bitstream_reader_c* bs, uint32_t& run, int32_t& level) {
     if (bs->get_next_bits(6) == 0b000001) {
         bs->skip_bits(6);
         run = bs->read_next_bits(6);
@@ -112,7 +112,7 @@ static void read_first_coefficient(bitstream_reader_i* bs, uint32_t& run, int32_
 }
 
 template<bool use_dct_one_table>
-static void read_block_coefficients(bitstream_reader_i* bs, int& n, int16_t QFS[64]) {
+static void read_block_coefficients(bitstream_reader_c* bs, int& n, int16_t QFS[64]) {
     bool eob_not_read = true;
     while (eob_not_read) {
         //<decode VLC, decode Escape coded coefficient if required>
@@ -159,7 +159,7 @@ static void read_block_coefficients(bitstream_reader_i* bs, int& n, int16_t QFS[
 }
 
 template<bool use_dct_one_table>
-static bool parse_block(bitstream_reader_i* bs, mb_data_t& mb_data, int i, uint16_t* dct_dc_pred) {
+static bool parse_block(bitstream_reader_c* bs, mb_data_t& mb_data, int i, uint16_t* dct_dc_pred) {
     auto& mb = mb_data.mb;
     int n = 0;
 
@@ -212,7 +212,7 @@ static bool parse_block(bitstream_reader_i* bs, mb_data_t& mb_data, int i, uint1
     return true;
 }
 
-mp2v_slice_c::mp2v_slice_c(bitstream_reader_i* bitstream, mp2v_picture_c* pic, decode_macroblock_func_t dec_mb_func, frame_c* frame) :
+mp2v_slice_c::mp2v_slice_c(bitstream_reader_c* bitstream, mp2v_picture_c* pic, decode_macroblock_func_t dec_mb_func, frame_c* frame) :
     m_bs(bitstream), m_pic(pic), decode_mb_func(dec_mb_func), m_frame(frame), m_slice{ 0 }
 {
     // headers

@@ -4,7 +4,7 @@
 #include "core/mp2v_vlc.h"
 #include <random>
 
-class random_vlc_code_bitstream_generator_c : public bitstream_reader_i {
+class random_vlc_code_bitstream_generator_c {
 private:
     void generate_vlc_code(uint32_t value, uint32_t len) {
         fullness = len;

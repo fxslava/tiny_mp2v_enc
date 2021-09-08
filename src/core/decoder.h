@@ -48,7 +48,7 @@ private:
 
 class mp2v_slice_c {
 public:
-    mp2v_slice_c(bitstream_reader_i* bitstream, mp2v_picture_c* pic, decode_macroblock_func_t dec_mb_func, frame_c* frame);
+    mp2v_slice_c(bitstream_reader_c* bitstream, mp2v_picture_c* pic, decode_macroblock_func_t dec_mb_func, frame_c* frame);
     bool decode_slice();
     bool decode_macroblock();
 
@@ -66,7 +66,7 @@ private:
     uint16_t m_dct_dc_pred[3] = { 0 };
     uint16_t m_block_count = 0;
     parse_macroblock_func_t m_parse_macroblock_func = nullptr;
-    bitstream_reader_i* m_bs = nullptr;
+    bitstream_reader_c* m_bs = nullptr;
     mp2v_picture_c* m_pic = nullptr;
     mb_data_t m_cur_mb_data = { 0 };
 
@@ -83,11 +83,11 @@ public:
 class mp2v_picture_c {
     friend class mp2v_slice_c;
 public:
-    mp2v_picture_c(bitstream_reader_i* bitstream, mp2v_decoder_c* decoder, frame_c* frame) : m_bs(bitstream), m_dec(decoder), m_frame(frame) {};
+    mp2v_picture_c(bitstream_reader_c* bitstream, mp2v_decoder_c* decoder, frame_c* frame) : m_bs(bitstream), m_dec(decoder), m_frame(frame) {};
     bool decode_picture();
 
 private:
-    bitstream_reader_i* m_bs;
+    bitstream_reader_c* m_bs;
     mp2v_decoder_c* m_dec;
     uint16_t quantiser_matrices[4][64];
     decode_macroblock_func_t decode_macroblock_func;
@@ -111,7 +111,7 @@ public:
 class mp2v_decoder_c {
     friend class mp2v_slice_c;
 public:
-    mp2v_decoder_c(bitstream_reader_i* bitstream) : m_bs(bitstream) {};
+    mp2v_decoder_c(bitstream_reader_c* bitstream) : m_bs(bitstream) {};
     bool decoder_init(decoder_config_t* config);
     bool decode();
     bool decode_user_data();
@@ -135,7 +135,7 @@ public:
         new_frame_condition.notify_one();
     }
 protected:
-    bitstream_reader_i* m_bs;
+    bitstream_reader_c* m_bs;
 
     // stream data
     frame_c* ref_frames[2] = { 0 };

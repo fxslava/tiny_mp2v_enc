@@ -1,7 +1,7 @@
 #include "mp2v_hdr.h"
 #include "misc.hpp"
 
-bool parse_sequence_header(bitstream_reader_i* m_bs, sequence_header_t &sh) {
+bool parse_sequence_header(bitstream_reader_c* m_bs, sequence_header_t &sh) {
     sh.sequence_header_code = m_bs->read_next_bits(32);
     sh.horizontal_size_value = m_bs->read_next_bits(12);
     sh.vertical_size_value = m_bs->read_next_bits(12);
@@ -21,7 +21,7 @@ bool parse_sequence_header(bitstream_reader_i* m_bs, sequence_header_t &sh) {
     return true;
 }
 
-bool parse_sequence_extension(bitstream_reader_i* m_bs, sequence_extension_t &sext) {
+bool parse_sequence_extension(bitstream_reader_c* m_bs, sequence_extension_t &sext) {
     sext.extension_start_code = m_bs->read_next_bits(32);
     sext.extension_start_code_identifier = m_bs->read_next_bits(4);
     sext.profile_and_level_indication = m_bs->read_next_bits(8);
@@ -39,7 +39,7 @@ bool parse_sequence_extension(bitstream_reader_i* m_bs, sequence_extension_t &se
     return true;
 }
 
-bool parse_sequence_display_extension(bitstream_reader_i* m_bs, sequence_display_extension_t & sdext) {
+bool parse_sequence_display_extension(bitstream_reader_c* m_bs, sequence_display_extension_t & sdext) {
     sdext.extension_start_code_identifier = m_bs->read_next_bits(4);
     sdext.video_format = m_bs->read_next_bits(3);
     sdext.colour_description = m_bs->read_next_bits(1);
@@ -55,7 +55,7 @@ bool parse_sequence_display_extension(bitstream_reader_i* m_bs, sequence_display
     return true;
 }
 
-bool parse_sequence_scalable_extension(bitstream_reader_i* m_bs, sequence_scalable_extension_t &ssext) {
+bool parse_sequence_scalable_extension(bitstream_reader_c* m_bs, sequence_scalable_extension_t &ssext) {
     ssext.extension_start_code_identifier = m_bs->read_next_bits(4);
     ssext.scalable_mode = m_bs->read_next_bits(2);
     ssext.layer_id = m_bs->read_next_bits(4);
@@ -79,7 +79,7 @@ bool parse_sequence_scalable_extension(bitstream_reader_i* m_bs, sequence_scalab
     return true;
 }
 
-bool parse_group_of_pictures_header(bitstream_reader_i* m_bs, group_of_pictures_header_t &gph) {
+bool parse_group_of_pictures_header(bitstream_reader_c* m_bs, group_of_pictures_header_t &gph) {
     gph.group_start_code = m_bs->read_next_bits(32);
     gph.time_code = m_bs->read_next_bits(25);
     gph.closed_gop = m_bs->read_next_bits(1);
@@ -88,7 +88,7 @@ bool parse_group_of_pictures_header(bitstream_reader_i* m_bs, group_of_pictures_
     return true;
 }
 
-bool parse_picture_header(bitstream_reader_i* m_bs, picture_header_t & ph) {
+bool parse_picture_header(bitstream_reader_c* m_bs, picture_header_t & ph) {
     ph.picture_start_code = m_bs->read_next_bits(32);
     ph.temporal_reference = m_bs->read_next_bits(10);
     ph.picture_coding_type = m_bs->read_next_bits(3);
@@ -110,7 +110,7 @@ bool parse_picture_header(bitstream_reader_i* m_bs, picture_header_t & ph) {
     return true;
 }
 
-bool parse_picture_coding_extension(bitstream_reader_i* m_bs, picture_coding_extension_t &pcext) {
+bool parse_picture_coding_extension(bitstream_reader_c* m_bs, picture_coding_extension_t &pcext) {
     pcext.extension_start_code = m_bs->read_next_bits(32);
     pcext.extension_start_code_identifier = m_bs->read_next_bits(4);
     pcext.f_code[0][0] = m_bs->read_next_bits(4);
@@ -140,7 +140,7 @@ bool parse_picture_coding_extension(bitstream_reader_i* m_bs, picture_coding_ext
     return true;
 }
 
-bool parse_quant_matrix_extension(bitstream_reader_i* m_bs, quant_matrix_extension_t &qmext) {
+bool parse_quant_matrix_extension(bitstream_reader_c* m_bs, quant_matrix_extension_t &qmext) {
     qmext.extension_start_code_identifier = m_bs->read_next_bits(4);
     qmext.load_intra_quantiser_matrix = m_bs->read_next_bits(1);
     if (qmext.load_intra_quantiser_matrix)
@@ -162,7 +162,7 @@ bool parse_quant_matrix_extension(bitstream_reader_i* m_bs, quant_matrix_extensi
     return true;
 }
 
-bool parse_picture_display_extension(bitstream_reader_i* m_bs, picture_display_extension_t &pdext, sequence_extension_t &sext, picture_coding_extension_t &pcext) {
+bool parse_picture_display_extension(bitstream_reader_c* m_bs, picture_display_extension_t &pdext, sequence_extension_t &sext, picture_coding_extension_t &pcext) {
     /* calculta number_of_frame_centre_offsets */
     int number_of_frame_centre_offsets;
     if (sext.progressive_sequence == 1) {
@@ -198,7 +198,7 @@ bool parse_picture_display_extension(bitstream_reader_i* m_bs, picture_display_e
     return true;
 }
 
-bool parse_picture_temporal_scalable_extension(bitstream_reader_i* m_bs, picture_temporal_scalable_extension_t& ptsext) {
+bool parse_picture_temporal_scalable_extension(bitstream_reader_c* m_bs, picture_temporal_scalable_extension_t& ptsext) {
     ptsext.extension_start_code_identifier = m_bs->read_next_bits(4);
     ptsext.reference_select_code = m_bs->read_next_bits(2);
     ptsext.forward_temporal_reference = m_bs->read_next_bits(10);
@@ -207,7 +207,7 @@ bool parse_picture_temporal_scalable_extension(bitstream_reader_i* m_bs, picture
     local_find_start_code(m_bs);
     return true;
 }
-bool parse_picture_spatial_scalable_extension(bitstream_reader_i* m_bs, picture_spatial_scalable_extension_t& pssext) {
+bool parse_picture_spatial_scalable_extension(bitstream_reader_c* m_bs, picture_spatial_scalable_extension_t& pssext) {
     pssext.extension_start_code_identifier = m_bs->read_next_bits(4);
     pssext.lower_layer_temporal_reference = m_bs->read_next_bits(10);
     m_bs->skip_bits(1);
@@ -221,7 +221,7 @@ bool parse_picture_spatial_scalable_extension(bitstream_reader_i* m_bs, picture_
     return true;
 }
 
-bool parse_copyright_extension(bitstream_reader_i* m_bs, copyright_extension_t& crext) {
+bool parse_copyright_extension(bitstream_reader_c* m_bs, copyright_extension_t& crext) {
     crext.extension_start_code_identifier = m_bs->read_next_bits(4);
     crext.copyright_flag = m_bs->read_next_bits(1);
     crext.copyright_identifier = m_bs->read_next_bits(8);
@@ -238,7 +238,7 @@ bool parse_copyright_extension(bitstream_reader_i* m_bs, copyright_extension_t& 
 }
 
 template<int picture_coding_type, int picture_structure, int frame_pred_frame_dct>
-static bool parse_modes(bitstream_reader_i* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index) {
+static bool parse_modes(bitstream_reader_c* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index) {
     mb.macroblock_type = get_macroblock_type(m_bs, picture_coding_type);
     if ((mb.macroblock_type & spatial_temporal_weight_code_flag_bit) && (spatial_temporal_weight_code_table_index != 0)) {
         mb.spatial_temporal_weight_code = m_bs->read_next_bits(2);
@@ -318,7 +318,7 @@ static bool parse_modes(bitstream_reader_i* m_bs, macroblock_t& mb, int spatial_
 }
 
 template<int chroma_format>
-bool parse_coded_block_pattern(bitstream_reader_i* m_bs, macroblock_t& mb) {
+bool parse_coded_block_pattern(bitstream_reader_c* m_bs, macroblock_t& mb) {
     mb.coded_block_pattern_420 = get_coded_block_pattern(m_bs);
     if (chroma_format == chroma_format_422)
         mb.coded_block_pattern_1 = m_bs->read_next_bits(2);
@@ -327,7 +327,7 @@ bool parse_coded_block_pattern(bitstream_reader_i* m_bs, macroblock_t& mb) {
     return false;
 }
 
-bool parse_motion_vector(bitstream_reader_i* m_bs, macroblock_t& mb, int r, int s, uint32_t f_code[2][2]) {
+bool parse_motion_vector(bitstream_reader_c* m_bs, macroblock_t& mb, int r, int s, uint32_t f_code[2][2]) {
     mb.motion_code[r][s][0] = get_motion_code(m_bs);
     if ((f_code[s][0] != 1) && (mb.motion_code[r][s][0] != 0))
         mb.motion_residual[r][s][0] = m_bs->read_next_bits(f_code[s][0] - 1);
@@ -342,7 +342,7 @@ bool parse_motion_vector(bitstream_reader_i* m_bs, macroblock_t& mb, int r, int 
 }
 
 template <int s>
-bool parse_motion_vectors(bitstream_reader_i* m_bs, macroblock_t& mb, uint32_t f_code[2][2]) {
+bool parse_motion_vectors(bitstream_reader_c* m_bs, macroblock_t& mb, uint32_t f_code[2][2]) {
     if (mb.motion_vector_count == 1) {
         if ((mb.mv_format == Field) && (mb.dmv != 1))
             mb.motion_vertical_field_select[0][s] = m_bs->read_next_bits(1);
@@ -362,7 +362,7 @@ template<uint8_t picture_coding_type,        //3 bit (I, P, B)
          uint8_t frame_pred_frame_dct,       //1 bit // only with picture_structure == frame
          uint8_t concealment_motion_vectors, //1 bit // only with picture_coding_type == I
          uint8_t chroma_format>              //2 bit (420, 422, 444)
-bool parse_macroblock_template(bitstream_reader_i* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index, uint32_t f_code[2][2]) {
+bool parse_macroblock_template(bitstream_reader_c* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index, uint32_t f_code[2][2]) {
     mb.macroblock_address_increment = 0;
     while (m_bs->get_next_bits(vlc_macroblock_escape_code.len) == vlc_macroblock_escape_code.value) {
         m_bs->skip_bits(vlc_macroblock_escape_code.len);
@@ -385,13 +385,13 @@ bool parse_macroblock_template(bitstream_reader_i* m_bs, macroblock_t& mb, int s
 }
 
 #define DEF_CHROMA_FROMATS_PARSE_MACROBLOCKS_ROUTINES(prefix, pct, ps, fpfdct, cmv) \
-static bool parse_##prefix##_420_macroblock(bitstream_reader_i* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index, uint32_t f_code[2][2]) { \
+static bool parse_##prefix##_420_macroblock(bitstream_reader_c* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index, uint32_t f_code[2][2]) { \
     return parse_macroblock_template<pct, ps, fpfdct, cmv, chroma_format_420>(m_bs, mb, spatial_temporal_weight_code_table_index, f_code); \
 } \
-static bool parse_##prefix##_422_macroblock(bitstream_reader_i* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index, uint32_t f_code[2][2]) { \
+static bool parse_##prefix##_422_macroblock(bitstream_reader_c* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index, uint32_t f_code[2][2]) { \
     return parse_macroblock_template<pct, ps, fpfdct, cmv, chroma_format_422>(m_bs, mb, spatial_temporal_weight_code_table_index, f_code); \
 } \
-static bool parse_##prefix##_444_macroblock(bitstream_reader_i* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index, uint32_t f_code[2][2]) { \
+static bool parse_##prefix##_444_macroblock(bitstream_reader_c* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index, uint32_t f_code[2][2]) { \
     return parse_macroblock_template<pct, ps, fpfdct, cmv, chroma_format_444>(m_bs, mb, spatial_temporal_weight_code_table_index, f_code); \
 }
 

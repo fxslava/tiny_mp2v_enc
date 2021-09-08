@@ -1,3 +1,5 @@
+#include "mp2v_vlc.h"
+
 struct vlc_value_t {
     int8_t vlc_len;
     int8_t value;

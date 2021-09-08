@@ -3,12 +3,14 @@
 #include <gtest/gtest.h>
 #include <iostream>
 
-// Tiny MPEG2 headers
-#include "bitstream.h"
-#include "core/mp2v_hdr.h"
-
 // unit test common
 #include "cavlc_utils.hpp"
+
+// Tiny MPEG2 headers
+#include "core/mp2v_hdr.h"
+#include "core/mp2v_vlc_dec.hpp"
+
+DEFINE_CAVLC_METHODS(random_vlc_code_bitstream_generator_c)
 
 #define ERROR_PRINTF(...)  \
     do { testing::internal::ColoredPrintf(testing::internal::COLOR_RED, "[  FAILED  ] "); \
@@ -38,7 +40,7 @@ std::ostream& operator<<(std::ostream& os, const coeff_t val)
 }
 
 template<typename T>
-static bool test_vlc(random_vlc_code_bitstream_generator_c& gen_vlc, vlc_t vlc, T val, T(func)(bitstream_reader_i*)) {
+static bool test_vlc(random_vlc_code_bitstream_generator_c& gen_vlc, vlc_t vlc, T val, T(func)(random_vlc_code_bitstream_generator_c*)) {
     bool test = true;
     for (int i = 0; i < TEST_NUM_ITERATIONS; i++) {
         gen_vlc.generate_vlc_code(vlc);
@@ -77,12 +79,12 @@ TEST(cavlc_test, fn) { \
 }
 
 // wrappers
-uint8_t get_i_macroblock_type(bitstream_reader_i* bs) { return get_macroblock_type(bs, picture_coding_type_intra); }
-uint8_t get_p_macroblock_type(bitstream_reader_i* bs) { return get_macroblock_type(bs, picture_coding_type_pred); }
-uint8_t get_b_macroblock_type(bitstream_reader_i* bs) { return get_macroblock_type(bs, picture_coding_type_bidir); }
-uint8_t get_i_spatial_scalability_macroblock_type(bitstream_reader_i* bs) { return get_spatial_scalability_macroblock_type(bs, picture_coding_type_intra); }
-uint8_t get_p_spatial_scalability_macroblock_type(bitstream_reader_i* bs) { return get_spatial_scalability_macroblock_type(bs, picture_coding_type_pred); }
-uint8_t get_b_spatial_scalability_macroblock_type(bitstream_reader_i* bs) { return get_spatial_scalability_macroblock_type(bs, picture_coding_type_bidir); }
+uint8_t get_i_macroblock_type(random_vlc_code_bitstream_generator_c* bs) { return get_macroblock_type(bs, picture_coding_type_intra); }
+uint8_t get_p_macroblock_type(random_vlc_code_bitstream_generator_c* bs) { return get_macroblock_type(bs, picture_coding_type_pred); }
+uint8_t get_b_macroblock_type(random_vlc_code_bitstream_generator_c* bs) { return get_macroblock_type(bs, picture_coding_type_bidir); }
+uint8_t get_i_spatial_scalability_macroblock_type(random_vlc_code_bitstream_generator_c* bs) { return get_spatial_scalability_macroblock_type(bs, picture_coding_type_intra); }
+uint8_t get_p_spatial_scalability_macroblock_type(random_vlc_code_bitstream_generator_c* bs) { return get_spatial_scalability_macroblock_type(bs, picture_coding_type_pred); }
+uint8_t get_b_spatial_scalability_macroblock_type(random_vlc_code_bitstream_generator_c* bs) { return get_spatial_scalability_macroblock_type(bs, picture_coding_type_bidir); }
 
 /* Conformance tests */
 TEST_GET_VLC_FUNC(macroblock_address_increment_to_vlc, 0, get_macroblock_address_increment, ARRAY_SIZE(macroblock_address_increment_to_vlc) - 1, 1);

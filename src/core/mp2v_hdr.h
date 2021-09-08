@@ -325,20 +325,20 @@ struct macroblock_t {
 // ISO/IEC 13818-2 : 2000 (E) 6.2.2
 // video_sequence()
 
-bool parse_sequence_header(bitstream_reader_i* m_bs, sequence_header_t& sh);
-bool parse_sequence_extension(bitstream_reader_i* m_bs, sequence_extension_t& sext);
-bool parse_sequence_display_extension(bitstream_reader_i* m_bs, sequence_display_extension_t& sdext);
-bool parse_sequence_scalable_extension(bitstream_reader_i* m_bs, sequence_scalable_extension_t& ssext);
-bool parse_group_of_pictures_header(bitstream_reader_i* m_bs, group_of_pictures_header_t& gph);
-bool parse_picture_header(bitstream_reader_i* m_bs, picture_header_t& ph);
-bool parse_picture_coding_extension(bitstream_reader_i* m_bs, picture_coding_extension_t& pcext);
-bool parse_quant_matrix_extension(bitstream_reader_i* m_bs, quant_matrix_extension_t& qmext);
-bool parse_picture_display_extension(bitstream_reader_i* m_bs, picture_display_extension_t& pdext, sequence_extension_t& sext, picture_coding_extension_t& pcext);
-bool parse_picture_temporal_scalable_extension(bitstream_reader_i* m_bs, picture_temporal_scalable_extension_t& ptsext);
-bool parse_picture_spatial_scalable_extension(bitstream_reader_i* m_bs, picture_spatial_scalable_extension_t& pssext);
-bool parse_copyright_extension(bitstream_reader_i* m_bs, copyright_extension_t& crext);
+bool parse_sequence_header(bitstream_reader_c* m_bs, sequence_header_t& sh);
+bool parse_sequence_extension(bitstream_reader_c* m_bs, sequence_extension_t& sext);
+bool parse_sequence_display_extension(bitstream_reader_c* m_bs, sequence_display_extension_t& sdext);
+bool parse_sequence_scalable_extension(bitstream_reader_c* m_bs, sequence_scalable_extension_t& ssext);
+bool parse_group_of_pictures_header(bitstream_reader_c* m_bs, group_of_pictures_header_t& gph);
+bool parse_picture_header(bitstream_reader_c* m_bs, picture_header_t& ph);
+bool parse_picture_coding_extension(bitstream_reader_c* m_bs, picture_coding_extension_t& pcext);
+bool parse_quant_matrix_extension(bitstream_reader_c* m_bs, quant_matrix_extension_t& qmext);
+bool parse_picture_display_extension(bitstream_reader_c* m_bs, picture_display_extension_t& pdext, sequence_extension_t& sext, picture_coding_extension_t& pcext);
+bool parse_picture_temporal_scalable_extension(bitstream_reader_c* m_bs, picture_temporal_scalable_extension_t& ptsext);
+bool parse_picture_spatial_scalable_extension(bitstream_reader_c* m_bs, picture_spatial_scalable_extension_t& pssext);
+bool parse_copyright_extension(bitstream_reader_c* m_bs, copyright_extension_t& crext);
 
-typedef bool (*parse_macroblock_func_t)(bitstream_reader_i* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index, uint32_t f_code[2][2]);
+typedef bool (*parse_macroblock_func_t)(bitstream_reader_c* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index, uint32_t f_code[2][2]);
 parse_macroblock_func_t select_parse_macroblock_func(
     uint8_t picture_coding_type, 
     uint8_t picture_structure, 
