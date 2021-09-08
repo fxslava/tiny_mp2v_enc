@@ -1,7 +1,7 @@
 // Copyright © 2021 Vladislav Ovchinnikov. All rights reserved.
 #include "mp2v_vlc.h"
 #include "mp2v_luts.hpp"
-#include "common/cpu.h"
+#include "common/cpu.hpp"
 #include <algorithm>
 
 //ISO/IEC 13818-2 : 2000 (E) Annex B - Variable length code tables. B.1 Macroblock addressing

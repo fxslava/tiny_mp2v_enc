@@ -1,6 +1,7 @@
 // Copyright © 2021 Vladislav Ovchinnikov. All rights reserved.
 
-#include <iostream>
+#include <fstream>
+//#include <iostream>
 #include <thread>
 #include "sample_args.h"
 #include "bitstream.h"
@@ -10,34 +11,39 @@ class bitstream_file_reader: public bitstream_reader_i {
 private:
     void read32() {
         buffer <<= 32;
-        uint32_t tmp;
-        fread(&tmp, sizeof(uint32_t), 1, bitstream);
+        uint32_t tmp = *buffer_ptr;
+        buffer_ptr++;
         buffer |= (uint64_t)_byteswap_ulong(tmp);
         buffer_idx -= 32;
     }
-    void read64() {
-        uint64_t tmp;
-        fread(&tmp, sizeof(uint64_t), 1, bitstream);
-        buffer = _byteswap_uint64(tmp);
-        buffer_idx = 0;
-    }
+
     void update_buffer() {
-        if (buffer_idx == 64)
-            read64();
-        else if (buffer_idx >= 32)
+        if (buffer_idx >= 32)
             read32();
     }
 public:
     bitstream_file_reader(std::string filename) : 
-        bitstream(nullptr),
         buffer(0),
         buffer_idx(64)
     {
-        bitstream = fopen(filename.c_str(), "rb");
+        std::ifstream fp(filename, std::ios::binary);
+
+        // Calculate size of buffer
+        fp.seekg(0, std::ios_base::end);
+        std::size_t size = fp.tellg();
+        fp.seekg(0, std::ios_base::beg);
+
+        // Allocate buffer
+        buffer_pool.resize(size / sizeof(uint32_t));
+        buffer_ptr = &buffer_pool[0];
+        buffer_end = &buffer_pool[buffer_pool.size() - 1];
+
+        // read file
+        fp.read((char*)buffer_ptr, size);
+        fp.close();
     }
-    ~bitstream_file_reader() {
-        fclose(bitstream);
-    }
+
+    ~bitstream_file_reader() {}
 
     uint32_t get_next_bits(int len) {
         update_buffer();
@@ -67,7 +73,7 @@ public:
                 tmp <<= 1;
             }
             buffer_idx += range;
-        } while (!feof(bitstream));
+        } while (buffer_ptr < buffer_end);
         return false;
     }
 
@@ -76,9 +82,12 @@ public:
     }
 
 private:
-    FILE* bitstream = nullptr;
-    uint64_t buffer = 0;
-    uint32_t buffer_idx = 64;
+    //FILE* bitstream = nullptr;
+    std::vector<uint32_t> buffer_pool;
+    uint32_t* buffer_ptr = nullptr;
+    uint32_t* buffer_end = nullptr;
+    uint64_t  buffer = 0;
+    uint32_t  buffer_idx = 64;
 };
 
 void stream_writer_func(mp2v_decoder_c* mp2v_decoder) {
