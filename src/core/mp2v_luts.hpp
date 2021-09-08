@@ -1,15 +1,5 @@
 #include "mp2v_vlc.h"
 
-struct vlc_value_t {
-    int8_t vlc_len;
-    int8_t value;
-};
-
-struct vlc_lut_coeff_t {
-    int16_t len;
-    coeff_t coeff;
-};
-
 vlc_t macroblock_address_increment_to_vlc[35] = {
     { 0b0, 0 },           // 0 , val: none
     // nlz 0

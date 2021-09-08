@@ -22,6 +22,17 @@ struct vlc_coeff_t {
     coeff_t coeff;
 };
 
+// Internal types
+struct vlc_value_t {
+    int8_t vlc_len;
+    int8_t value;
+};
+
+struct vlc_lut_coeff_t {
+    int16_t len;
+    coeff_t coeff;
+};
+
 constexpr vlc_t    vlc_start_code = { 0x000001, 24 };
 constexpr uint32_t macroblock_escape_code = 34;
 constexpr vlc_t    vlc_macroblock_escape_code = { 0b00000001000, 11 };;
