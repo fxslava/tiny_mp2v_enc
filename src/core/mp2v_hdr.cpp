@@ -377,7 +377,7 @@ bool parse_macroblock_template(bitstream_reader_c* m_bs, macroblock_t& mb, int s
         parse_motion_vectors<0>(m_bs, mb, f_code);
     if ((mb.macroblock_type & macroblock_motion_backward_bit) != 0)
         parse_motion_vectors<1>(m_bs, mb, f_code);
-    if ((mb.macroblock_type & macroblock_intra_bit != 0) && concealment_motion_vectors)
+    if (((mb.macroblock_type & macroblock_intra_bit) != 0) && concealment_motion_vectors)
         m_bs->skip_bits(1);
     if (mb.macroblock_type & macroblock_pattern_bit)
         parse_coded_block_pattern<chroma_format>(m_bs, mb);
@@ -435,5 +435,7 @@ parse_macroblock_func_t select_parse_macroblock_func(uint8_t picture_coding_type
         SEL_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(p, picture_coding_type_pred, 0)
     case picture_coding_type_bidir:
         SEL_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(b, picture_coding_type_bidir, 0)
+    default:
+        return 0;
     };
 };

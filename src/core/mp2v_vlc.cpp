@@ -1,6 +1,5 @@
 // Copyright © 2021 Vladislav Ovchinnikov. All rights reserved.
 #include "mp2v_luts.hpp"
-#include "mp2v_vlc_dec.hpp"
 
 macroblock_type_vlc_t snr_macroblock_type[3] = {
     { { 0b1,   1 }, 0b000100 }, //0x80
@@ -13,5 +12,3 @@ vlc_t dmvector_to_vlc[3] = {
     { 0b0,  1}, //  0
     { 0b10, 2}, //  1
 };
-
-DEFINE_CAVLC_METHODS(bitstream_reader_c)

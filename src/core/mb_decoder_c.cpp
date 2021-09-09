@@ -1,8 +1,9 @@
 // Copyright © 2021 Vladislav Ovchinnikov. All rights reserved.
+#include "common/cpu.hpp"
 #include "mb_decoder.h"
 #include "decoder.h"
 #include "scan.h"
-#include "quant.h"
+#include "quant_c.hpp"
 #include "idct.h"
 #include "mc.h"
 #include <cstddef>
@@ -37,7 +38,7 @@ void decode_block_template(pixel_t* plane, uint32_t stride, int16_t QFS[64], uin
 }
 
 template<typename pixel_t, int chroma_format, bool alt_scan, bool intra, bool add>
-void decode_transform_template(pixel_t* yuv_planes[3], int stride, int chroma_stride, uint16_t W[4][64], int16_t QFS[12][64], bool pattern_code[12], uint8_t quantizer_scale, uint8_t intra_dc_prec) {
+MP2V_INLINE void decode_transform_template(pixel_t* yuv_planes[3], int stride, int chroma_stride, uint16_t W[4][64], int16_t QFS[12][64], bool pattern_code[12], uint8_t quantizer_scale, uint8_t intra_dc_prec) {
     // Luma
     if (pattern_code[0])
         decode_block_template<pixel_t, alt_scan, intra, add>(yuv_planes[0], stride, QFS[0], W[0], W[1], quantizer_scale, intra_dc_prec);
@@ -76,7 +77,7 @@ void decode_transform_template(pixel_t* yuv_planes[3], int stride, int chroma_st
 }
 
 template<int chroma_format, int plane_idx>
-void apply_chroma_scale(int16_t& mvx, int16_t& mvy) {
+MP2V_INLINE void apply_chroma_scale(int16_t& mvx, int16_t& mvy) {
     if (plane_idx > 0) {
         if (chroma_format < 3)
             mvx >>= 1;
@@ -85,12 +86,12 @@ void apply_chroma_scale(int16_t& mvx, int16_t& mvy) {
     }
 }
 
-int mc_bidir_idx(int16_t mvfx, int16_t mvfy, int16_t mvbx, int16_t mvby) {
+MP2V_INLINE int mc_bidir_idx(int16_t mvfx, int16_t mvfy, int16_t mvbx, int16_t mvby) {
     return mvfx & 0x01 + ((mvfy & 0x01) << 1) + ((mvbx & 0x01) << 2) + ((mvby & 0x01) << 3);
 }
 
 template<int chroma_format, int plane_idx, int vect_idx, mc_template_e mc_templ>
-void mc_bidir_template(uint8_t* dst, uint8_t* ref0, uint8_t* ref1, mb_data_t &mb_data, uint32_t stride, uint32_t chroma_stride) {
+MP2V_INLINE void mc_bidir_template(uint8_t* dst, uint8_t* ref0, uint8_t* ref1, mb_data_t &mb_data, uint32_t stride, uint32_t chroma_stride) {
     auto  _stride = (mc_templ == mc_templ_field) ? stride << 1 : stride;
     auto  _chroma_stride = (mc_templ == mc_templ_field) ? chroma_stride << 1 : chroma_stride;
     uint8_t* fref = ref0;
@@ -150,12 +151,12 @@ void mc_bidir_template(uint8_t* dst, uint8_t* ref0, uint8_t* ref1, mb_data_t &mb
     }
 }
 
-int mc_unidir_idx(int16_t mvx, int16_t mvy) {
+MP2V_INLINE int mc_unidir_idx(int16_t mvx, int16_t mvy) {
     return (mvx & 0x01) | ((mvy & 0x01) << 1);
 }
 
 template<int chroma_format, int plane_idx, int vect_idx, mc_template_e mc_templ, bool forward>
-void mc_unidir_template(uint8_t* dst, uint8_t* ref, mb_data_t &mb_data, uint32_t stride, uint32_t chroma_stride) {
+MP2V_INLINE void mc_unidir_template(uint8_t* dst, uint8_t* ref, mb_data_t &mb_data, uint32_t stride, uint32_t chroma_stride) {
     auto  _stride = (mc_templ == mc_templ_field) ? stride << 1 : stride;
     auto  _chroma_stride = (mc_templ == mc_templ_field) ? chroma_stride << 1 : chroma_stride;
     auto  mvx = mb_data.MVs[vect_idx][forward ? 0 : 1][0];
@@ -207,7 +208,7 @@ void mc_unidir_template(uint8_t* dst, uint8_t* ref, mb_data_t &mb_data, uint32_t
 }
 
 template<int chroma_format, mc_template_e mc_templ, bool two_vect>
-void base_motion_compensation(uint8_t* dst[3], uint8_t* ref0[3], uint8_t* ref1[3], mb_data_t &mb_data, uint32_t stride, uint32_t chroma_stride) {
+MP2V_INLINE void base_motion_compensation(uint8_t* dst[3], uint8_t* ref0[3], uint8_t* ref1[3], mb_data_t &mb_data, uint32_t stride, uint32_t chroma_stride) {
     auto mb = mb_data.mb;
     if ((mb.macroblock_type & macroblock_motion_forward_bit) && (mb.macroblock_type & macroblock_motion_backward_bit)) {
         mc_bidir_template<chroma_format, 0, 0, mc_templ>(dst[0], ref0[0], ref1[0], mb_data, stride, chroma_stride);

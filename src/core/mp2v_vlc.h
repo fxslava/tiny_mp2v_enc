@@ -1,6 +1,7 @@
 // Copyright © 2021 Vladislav Ovchinnikov. All rights reserved.
 #pragma once
 #include <stdint.h>
+#include "common/cpu.hpp"
 #include "api/bitstream.h"
 
 struct vlc_t {
@@ -70,18 +71,5 @@ extern vlc_coeff_t coeff_zero_vlc[111];
 //ISO/IEC 13818-2 : 2000 (E) Annex B - B.5 DCT coefficients. B.15 Table.
 extern vlc_coeff_t coeff_one_vlc[111];
 
-#define DECLARE_CAVLC_METHODS(STREAM_READER) \
-int32_t get_macroblock_address_increment_lut(STREAM_READER* bs); \
-int32_t get_macroblock_address_increment(STREAM_READER* bs); \
-uint8_t get_macroblock_type(STREAM_READER* bs, int picture_coding_type); \
-uint8_t get_spatial_scalability_macroblock_type(STREAM_READER* bs, int picture_coding_type); \
-uint8_t get_snr_scalability_macroblock_type(STREAM_READER* bs); \
-int32_t get_coded_block_pattern(STREAM_READER* bs); \
-int32_t get_motion_code(STREAM_READER* bs); \
-int32_t get_dmvector(STREAM_READER* bs); \
-int32_t get_dct_size_luminance(STREAM_READER* bs); \
-int32_t get_dct_size_chrominance(STREAM_READER* bs); \
-coeff_t get_coeff_zero(STREAM_READER* bs); \
-coeff_t get_coeff_one(STREAM_READER* bs);
-
-DECLARE_CAVLC_METHODS(bitstream_reader_c)
+#include "mp2v_vlc_dec.hpp"
+DEFINE_CAVLC_METHODS(bitstream_reader_c)
