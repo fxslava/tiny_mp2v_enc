@@ -1,12 +1,14 @@
 // Copyright © 2021 Vladislav Ovchinnikov. All rights reserved.
 
 #include <thread>
+#include <chrono>
+#include <iostream>
 #include "sample_args.h"
 #include "bitstream.h"
 #include "core/decoder.h"
 
-void stream_writer_func(mp2v_decoder_c* mp2v_decoder) {
-    FILE* fp = fopen("test.yuv", "wb");
+void stream_writer_func(mp2v_decoder_c* mp2v_decoder, std::string output_file) {
+    FILE* fp = fopen(output_file.c_str(), "wb");
 
     frame_c* frame = nullptr;
     while (!mp2v_decoder->get_decoded_frame(frame))
@@ -37,8 +39,11 @@ int main(int argc, char* argv[])
     config.chroma_format = 2;
     config.frames_pool_size = 16;
 
-    std::string *bitstream_file;
-    std::vector<arg_desc_t> args_desc{{ "-v", "Input MPEG2 elementary bitsream file", ARG_TYPE_TEXT, &bitstream_file }};
+    std::string *bitstream_file, *output_file;
+    std::vector<arg_desc_t> args_desc{
+        { "-v", "Input MPEG2 elementary bitsream file", ARG_TYPE_TEXT, &bitstream_file },
+        { "-o", "Output YUV stream", ARG_TYPE_TEXT, &output_file }
+    };
     args_parser cmd_parser(args_desc);
     cmd_parser.parse(argc, argv);
 
@@ -46,9 +51,15 @@ int main(int argc, char* argv[])
         bitstream_reader_c stream_reader(*bitstream_file);
         mp2v_decoder_c mp2v_decoder(&stream_reader);
 
-        std::thread stream_writer(stream_writer_func, &mp2v_decoder);
+        std::thread stream_writer(stream_writer_func, &mp2v_decoder, *output_file);
         mp2v_decoder.decoder_init(&config);
+
+        const auto start = std::chrono::system_clock::now();
         mp2v_decoder.decode();
+        const auto end = std::chrono::system_clock::now();
+        auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        printf("Time = %.2f ms\n", static_cast<double>(elapsed_ms.count()));
+
         stream_writer.join();
     }
 }
