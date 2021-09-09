@@ -112,7 +112,7 @@ static void read_first_coefficient(bitstream_reader_c* bs, uint32_t& run, int32_
 }
 
 template<bool use_dct_one_table>
-static void read_block_coefficients(bitstream_reader_c* bs, int& n, int16_t QFS[64]) {
+static void read_block_coefficients(bitstream_reader_c* bs, uint32_t& n, int16_t QFS[64]) {
     bool eob_not_read = true;
     while (eob_not_read) {
         //<decode VLC, decode Escape coded coefficient if required>
@@ -136,10 +136,7 @@ static void read_block_coefficients(bitstream_reader_c* bs, int& n, int16_t QFS[
                 signed_level = s ? -coeff.level : coeff.level;
             }
 
-            for (int m = 0; m < run; m++) {
-                QFS[n] = 0;
-                n++;
-            }
+            n += run;
             QFS[n] = signed_level;
             n++;
         }
@@ -150,10 +147,6 @@ static void read_block_coefficients(bitstream_reader_c* bs, int& n, int16_t QFS[
                 bs->skip_bits(2);
 
             eob_not_read = 0;
-            while (n < 64) {
-                QFS[n] = 0;
-                n++;
-            }
         }
     }
 }
@@ -161,11 +154,13 @@ static void read_block_coefficients(bitstream_reader_c* bs, int& n, int16_t QFS[
 template<bool use_dct_one_table>
 static bool parse_block(bitstream_reader_c* bs, mb_data_t& mb_data, int i, uint16_t* dct_dc_pred) {
     auto& mb = mb_data.mb;
-    int n = 0;
+    uint32_t n = 0;
 
     int cc = color_component_index[i];
 
     if (mb_data.pattern_code[i]) {
+        memset(mb_data.QFS[i], 0, sizeof(int16_t) * 64);
+
         if (mb.macroblock_type & macroblock_intra_bit) {
             uint16_t dct_dc_differential;
             uint16_t dct_dc_size;
@@ -196,13 +191,8 @@ static bool parse_block(bitstream_reader_c* bs, mb_data_t& mb_data, int i, uint1
             dct_dc_pred[cc] = mb_data.QFS[i][0];
         }
         else {
-            uint32_t run;
             int32_t level;
-            read_first_coefficient<use_dct_one_table>(bs, run, level);
-            for (int m = 0; m < run; m++) {
-                mb_data.QFS[i][n] = 0;
-                n++;
-            }
+            read_first_coefficient<use_dct_one_table>(bs, n, level);
             mb_data.QFS[i][n] = level;
             n++;
         }
