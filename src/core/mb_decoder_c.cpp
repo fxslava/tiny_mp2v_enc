@@ -32,9 +32,9 @@ void decode_block_template(pixel_t* plane, uint32_t stride, int16_t QFS[64], uin
 
     //idct
     if (add)
-        add_inverse_dct(plane, F, stride); 
+        add_inverse_dct_sse2(plane, F, stride); 
     else
-        inverse_dct(plane, F, stride);
+        inverse_dct_sse2(plane, F, stride);
 }
 
 template<typename pixel_t, int chroma_format, bool alt_scan, bool intra, bool add>

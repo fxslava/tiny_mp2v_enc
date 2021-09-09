@@ -5,3 +5,5 @@
 
 void inverse_dct(uint8_t* plane, int16_t F[64], int stride);
 void add_inverse_dct(uint8_t* plane, int16_t F[64], int stride);
+void inverse_dct_sse2(uint8_t* plane, int16_t F[64], int stride);
+void add_inverse_dct_sse2(uint8_t* plane, int16_t F[64], int stride);

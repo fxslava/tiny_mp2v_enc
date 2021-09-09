@@ -4,6 +4,10 @@
 #include <math.h>
 #include "idct.h"
 
+#if defined(_M_X64) || defined(_M_IX86)
+#include "idct_sse2.hpp"
+#endif
+
 constexpr double s1[5] = {
     0.707106781186547524400844,
     0.541196100146196984399723,
