@@ -5,67 +5,64 @@
 #include "common/cpu.hpp"
 #include "idct.h"
 
-constexpr __m128i S0x32_M128[8] = {
-    { 0xB504B504B504B504, 0xB504B504B504B504 }, // = 16384.0 / 0.353553390593273762200422 = 46340
-    { 0xFB14FB14FB14FB14, 0xFB14FB14FB14FB14 }, // = 16384.0 / 0.254897789552079584470970 = 64276
-    { 0xEC83EC83EC83EC83, 0xEC83EC83EC83EC83 }, // = 16384.0 / 0.270598050073098492199862 = 60547
-    { 0xD4DBD4DBD4DBD4DB, 0xD4DBD4DBD4DBD4DB }, // = 16384.0 / 0.300672443467522640271861 = 54491
-    { 0xB504B504B504B504, 0xB504B504B504B504 }, // = 16384.0 / 0.353553390593273762200422 = 46340
-    { 0x8E398E398E398E39, 0x8E398E398E398E39 }, // = 16384.0 / 0.449988111568207852319255 = 36409
-    { 0x61F761F761F761F7, 0x61F761F761F761F7 }, // = 16384.0 / 0.653281482438188263928322 = 25079
-    { 0x31F131F131F131F1, 0x31F131F131F131F1 }  // = 16384.0 / 1.281457723870753089398043 = 12785
-};
+MP2V_INLINE __m128i _mm_tmp_op0_epi16(__m128i src) { // src / 0.707106781186547524400844 : S1[0], S[2]
+    return _mm_adds_epi16(src, _mm_mulhi_epi16(src, _mm_set1_epi16(27145)));
+}
 
-constexpr __m128i S1x128_M128[5] = {
-    { 0xB504B504B504B504, 0xB504B504B504B504 }, // = 32768.0 / 0.707106781186547524400844 = 46340
-    { 0x4545454545454545, 0x4545454545454545 }, // = 32768.0 * 0.541196100146196984399723 = 17733
-    { 0xB504B504B504B504, 0xB504B504B504B504 }, // = 32768.0 / 0.707106781186547524400844 = 46340
-    { 0xA73DA73DA73DA73D, 0xA73DA73DA73DA73D }, // = 32768.0 * 1.306562964876376527856643 = 42813
-    { 0x30FB30FB30FB30FB, 0x30FB30FB30FB30FB }  // = 32768.0 * 0.382683432365089771728460 = 12539
-};
+MP2V_INLINE __m128i _mm_tmp_op1_epi16(__m128i src) { // src * 0.541196100146196984399723 : S1[1]
+    return _mm_subs_epi16(src, _mm_mulhi_epi16(src, _mm_set1_epi16(30068)));
+}
+
+MP2V_INLINE __m128i _mm_tmp_op3_epi16(__m128i src) { // src * 1.306562964876376527856643 : S1[3]
+    return _mm_adds_epi16(src, _mm_mulhi_epi16(src, _mm_set1_epi16(20090)));
+}
+
+MP2V_INLINE __m128i _mm_tmp_op4_epi16(__m128i src) { // src * 0.382683432365089771728460 : S1[4]
+    return _mm_mulhi_epi16(src, _mm_set1_epi16(25079));
+}
 
 MP2V_INLINE void idct_1d_sse2(__m128i (&src)[8]) {
     // step 0
-    const __m128i v15 = _mm_mulhi_epi16(src[0], _mm_load_si128(&S0x32_M128[0]));
-    const __m128i v26 = _mm_mulhi_epi16(src[1], _mm_load_si128(&S0x32_M128[1]));
-    const __m128i v21 = _mm_mulhi_epi16(src[2], _mm_load_si128(&S0x32_M128[2]));
-    const __m128i v28 = _mm_mulhi_epi16(src[3], _mm_load_si128(&S0x32_M128[3]));
-    const __m128i v16 = _mm_mulhi_epi16(src[4], _mm_load_si128(&S0x32_M128[4]));
-    const __m128i v25 = _mm_mulhi_epi16(src[5], _mm_load_si128(&S0x32_M128[5]));
-    const __m128i v22 = _mm_mulhi_epi16(src[6], _mm_load_si128(&S0x32_M128[6]));
-    const __m128i v27 = _mm_mulhi_epi16(src[7], _mm_load_si128(&S0x32_M128[7]));
+    const __m128i v15 = _mm_adds_epi16(_mm_slli_epi16(_mm_mulhi_epi16(src[0], _mm_set1_epi16(27145)), 1), _mm_slli_epi16(src[0], 1));
+    const __m128i v26 = _mm_adds_epi16(_mm_mulhi_epi16(src[1], _mm_set1_epi16(-5037)), _mm_slli_epi16(src[1], 2));
+    const __m128i v21 = _mm_adds_epi16(_mm_mulhi_epi16(src[2], _mm_set1_epi16(-19954)), _mm_slli_epi16(src[2], 2));
+    const __m128i v28 = _mm_adds_epi16(_mm_slli_epi16(_mm_mulhi_epi16(src[3], _mm_set1_epi16(-22089)), 1), _mm_slli_epi16(src[3], 2));
+    const __m128i v16 = _mm_adds_epi16(_mm_slli_epi16(_mm_mulhi_epi16(src[4], _mm_set1_epi16(27145)), 1), _mm_slli_epi16(src[4], 1));
+    const __m128i v25 = _mm_adds_epi16(_mm_mulhi_epi16(src[5], _mm_set1_epi16(14567)), _mm_slli_epi16(src[5], 1));
+    const __m128i v22 = _mm_adds_epi16(_mm_slli_epi16(_mm_mulhi_epi16(src[6], _mm_set1_epi16(17391)), 1), src[6]);
+    const __m128i v27 = _mm_slli_epi16(_mm_mulhi_epi16(src[7], _mm_set1_epi16(25570)), 1);
     // step 1
-    const __m128i v19 = _mm_subs_epi16(v25, v28); // *2
-    const __m128i v20 = _mm_subs_epi16(v26, v27); // *2
-    const __m128i v23 = _mm_adds_epi16(v26, v27); // *2
-    const __m128i v24 = _mm_adds_epi16(v25, v28); // *2
-    const __m128i v7  = _mm_srli_epi16(_mm_adds_epi16(v23, v24), 1); // *2
-    const __m128i v11 = _mm_adds_epi16(v21, v22); // *2
-    const __m128i v13 = _mm_subs_epi16(v23, v24);
-    const __m128i v17 = _mm_subs_epi16(v21, v22); // *2
-    const __m128i v8  = _mm_srli_epi16(_mm_adds_epi16(v15, v16), 1); // *4
-    const __m128i v9  = _mm_srli_epi16(_mm_subs_epi16(v15, v16), 1); // *4
+    const __m128i v19 = _mm_srai_epi16(_mm_subs_epi16(v25, v28), 1);
+    const __m128i v20 = _mm_srai_epi16(_mm_subs_epi16(v26, v27), 1);
+    const __m128i v23 = _mm_srai_epi16(_mm_adds_epi16(v26, v27), 1);
+    const __m128i v24 = _mm_srai_epi16(_mm_adds_epi16(v25, v28), 1);
+    const __m128i v7  = _mm_srai_epi16(_mm_adds_epi16(v23, v24), 1);
+    const __m128i v11 = _mm_srai_epi16(_mm_adds_epi16(v21, v22), 1);
+    const __m128i v13 = _mm_srai_epi16(_mm_subs_epi16(v23, v24), 1);
+    const __m128i v17 = _mm_srai_epi16(_mm_subs_epi16(v21, v22), 1);
+    const __m128i v8  = _mm_srai_epi16(_mm_adds_epi16(v15, v16), 1);
+    const __m128i v9  = _mm_srai_epi16(_mm_subs_epi16(v15, v16), 1);
     // step 2
-    const __m128i v18 = _mm_mulhi_epi16(_mm_subs_epi16(v19, v20), S1x128_M128[4]);                         //(v19 - v20) * s1[4]; // *4
-    const __m128i v12 = _mm_subs_epi16(v18, _mm_mulhi_epi16(v19, _mm_load_si128(&S1x128_M128[3])));        // v18 - v19 * s1[3];  // *4
-    const __m128i v14 = _mm_subs_epi16(_mm_mulhi_epi16(v20, _mm_load_si128(&S1x128_M128[1])), v18);        // v20 * s1[1] - v18); // *4
-    const __m128i v6  = _mm_subs_epi16(_mm_adds_epi16(v14, v14), v7);                                      // v14 - v7            // *2
-    const __m128i v5  = _mm_subs_epi16(_mm_mulhi_epi16(v13, S1x128_M128[2]), v6);                          // v13 / s1[2] - v6;   // *2
-    const __m128i v4  = _mm_subs_epi16(_mm_setzero_si128(), _mm_adds_epi16(v5, _mm_adds_epi16(v12, v12))); //-v5 - v12;           // *2
-    const __m128i v10 = _mm_subs_epi16(_mm_mulhi_epi16(v17, S1x128_M128[0]), _mm_srli_epi16(v11, 1));      // v17 / s1[0] - v11;  // *4
-    const __m128i v0  = _mm_adds_epi16(v8, v11); // *2
-    const __m128i v1  = _mm_adds_epi16(v9, v10); // *2
-    const __m128i v2  = _mm_subs_epi16(v9, v10); // *2
-    const __m128i v3  = _mm_subs_epi16(v8, v11); // *2
+    const __m128i v18 = _mm_tmp_op4_epi16(_mm_subs_epi16(v19, v20));   //(v19 - v20) * s1[4];
+    const __m128i v12 = _mm_subs_epi16(v18, _mm_tmp_op3_epi16(v19));   // v18 - v19 * s1[3];
+    const __m128i v14 = _mm_subs_epi16(_mm_tmp_op1_epi16(v20), v18);   // v20 * s1[1] - v18);
+    const __m128i v6  = _mm_subs_epi16(v14, v7);                       // v14 - v7
+    const __m128i v5  = _mm_subs_epi16(_mm_tmp_op0_epi16(v13), v6 );   // v13 / s1[2] - v6;
+    const __m128i v4  = _mm_adds_epi16(v5, v12);                       // v5 + v12;
+    const __m128i v10 = _mm_subs_epi16(_mm_tmp_op0_epi16(v17), v11);   // v17 / s1[0] - v11;
+    const __m128i v0  = _mm_srai_epi16(_mm_adds_epi16(v8, v11), 1);
+    const __m128i v1  = _mm_srai_epi16(_mm_adds_epi16(v9, v10), 1);
+    const __m128i v2  = _mm_srai_epi16(_mm_subs_epi16(v9, v10), 1);
+    const __m128i v3  = _mm_srai_epi16(_mm_subs_epi16(v8, v11), 1);
     // step 3
-    src[0] = _mm_adds_epi16(v0, v7);
-    src[1] = _mm_adds_epi16(v1, v6);
-    src[2] = _mm_adds_epi16(v2, v5);
-    src[3] = _mm_adds_epi16(v3, v4);
-    src[4] = _mm_subs_epi16(v3, v4);
-    src[5] = _mm_subs_epi16(v2, v5);
-    src[6] = _mm_subs_epi16(v1, v6);
-    src[7] = _mm_subs_epi16(v0, v7);
+    src[0] = _mm_srai_epi16(_mm_adds_epi16(v0, v7), 1);
+    src[1] = _mm_srai_epi16(_mm_adds_epi16(v1, v6), 1);
+    src[2] = _mm_srai_epi16(_mm_adds_epi16(v2, v5), 1);
+    src[3] = _mm_srai_epi16(_mm_subs_epi16(v3, v4), 1);
+    src[4] = _mm_srai_epi16(_mm_adds_epi16(v3, v4), 1);
+    src[5] = _mm_srai_epi16(_mm_subs_epi16(v2, v5), 1);
+    src[6] = _mm_srai_epi16(_mm_subs_epi16(v1, v6), 1);
+    src[7] = _mm_srai_epi16(_mm_subs_epi16(v0, v7), 1);
 }
 
 MP2V_INLINE void transpose_8x8_sse2(__m128i (&src)[8]) {
