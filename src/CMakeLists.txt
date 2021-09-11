@@ -14,6 +14,7 @@ file(
         ./core/scan_c.cpp
         ./core/idct_c.cpp
         ./core/mc_c.cpp
+        ./core/mc_sse2.cpp
 )
 
 include_directories(

@@ -1,7 +1,8 @@
 #include "mc.h"
+#include "common/cpu.hpp"
 
 template<mc_type_e mc_type>
-inline uint8_t mc_func_template(uint8_t* src, uint32_t i, uint32_t stride) {
+MP2V_INLINE uint8_t mc_func_template(uint8_t* src, uint32_t i, uint32_t stride) {
     switch (mc_type)
     {
     case MC_00:
@@ -16,10 +17,9 @@ inline uint8_t mc_func_template(uint8_t* src, uint32_t i, uint32_t stride) {
 }
 
 template<mc_type_e mc_type, int width>
-void pred_mc_template(uint8_t* dst, uint8_t* src, uint32_t stride, int height)
+MP2V_INLINE void pred_mc_template(uint8_t* dst, uint8_t* src, uint32_t stride, int height)
 {
     for (int j = 0; j < height; j++) {
-#pragma unroll
         for (int i = 0; i < width; i++) {
             dst[i] = mc_func_template<mc_type>(src, i, stride);
         }
@@ -52,10 +52,9 @@ mc_pred_func_t mc_pred_8xh[4] = {
 };
 
 template<mc_type_e mc_type_src0, mc_type_e mc_type_src1, int width>
-void bidir_mc_template(uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, int height)
+MP2V_INLINE void bidir_mc_template(uint8_t* dst, uint8_t* src0, uint8_t* src1, uint32_t stride, int height)
 {
     for (int j = 0; j < height; j++) {
-#pragma unroll
         for (int i = 0; i < width; i++) {
             uint8_t tmp0 = mc_func_template<mc_type_src0>(src0, i, stride);
             uint8_t tmp1 = mc_func_template<mc_type_src1>(src1, i, stride);

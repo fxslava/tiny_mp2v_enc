@@ -3,6 +3,7 @@
 #include <thread>
 #include <chrono>
 #include <iostream>
+#include <ittnotify.h>
 #include "sample_args.h"
 #include "bitstream.h"
 #include "core/decoder.h"
@@ -55,7 +56,11 @@ int main(int argc, char* argv[])
         mp2v_decoder.decoder_init(&config);
 
         const auto start = std::chrono::system_clock::now();
+
+        __itt_resume();
         mp2v_decoder.decode();
+        __itt_pause();
+
         const auto end = std::chrono::system_clock::now();
         auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
         printf("Time = %.2f ms\n", static_cast<double>(elapsed_ms.count()));

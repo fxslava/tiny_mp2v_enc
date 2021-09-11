@@ -33,3 +33,6 @@
 
 # Build folders
 ./build
+
+# VTune
+./vtune
