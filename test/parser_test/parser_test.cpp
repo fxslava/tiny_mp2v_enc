@@ -16,7 +16,7 @@ void stream_writer_func(mp2v_decoder_c* mp2v_decoder, std::string output_file) {
         mp2v_decoder->wait_for_frame();
 
     while (frame) {
-
+        
         for (int i = 0; i < 3; i++) {
             uint8_t* plane = frame->get_planes(i);
             for (int y = 0; y < frame->get_height(i); y++, plane += frame->get_strides(i))

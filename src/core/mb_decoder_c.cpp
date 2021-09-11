@@ -139,15 +139,15 @@ MP2V_INLINE void mc_bidir_template(uint8_t* dst, uint8_t* ref0, uint8_t* ref1, m
 
     if (plane_idx == 0) {
         switch (mc_templ) {
-        case mc_templ_field: mc_bidir_16xh[mvs_ridx](dst, bref, fref, _stride,  8); break;
-        case mc_templ_frame: mc_bidir_16xh[mvs_ridx](dst, bref, fref, _stride, 16); break;
+        case mc_templ_field: mc_bidir_16xh_nsse2[mvs_ridx](dst, bref, fref, _stride,  8); break;
+        case mc_templ_frame: mc_bidir_16xh_nsse2[mvs_ridx](dst, bref, fref, _stride, 16); break;
         }
     }
     else {
         switch (chroma_format) {
-        case chroma_format_420: mc_bidir_8xh [mvs_ridx](dst, bref, fref, _chroma_stride, (mc_templ == mc_templ_field) ? 4 :  8); break;
-        case chroma_format_422: mc_bidir_8xh [mvs_ridx](dst, bref, fref, _chroma_stride, (mc_templ == mc_templ_field) ? 8 : 16); break;
-        case chroma_format_444: mc_bidir_16xh[mvs_ridx](dst, bref, fref, _chroma_stride, (mc_templ == mc_templ_field) ? 8 : 16); break;
+        case chroma_format_420: mc_bidir_8xh_nsse2[mvs_ridx](dst, bref, fref, _chroma_stride, (mc_templ == mc_templ_field) ? 4 :  8); break;
+        case chroma_format_422: mc_bidir_8xh_nsse2[mvs_ridx](dst, bref, fref, _chroma_stride, (mc_templ == mc_templ_field) ? 8 : 16); break;
+        case chroma_format_444: mc_bidir_16xh_nsse2[mvs_ridx](dst, bref, fref, _chroma_stride, (mc_templ == mc_templ_field) ? 8 : 16); break;
         }
     }
 }
@@ -195,15 +195,15 @@ MP2V_INLINE void mc_unidir_template(uint8_t* dst, uint8_t* ref, mb_data_t &mb_da
 
     if (plane_idx == 0) {
         switch (mc_templ) {
-        case mc_templ_field: mc_pred_16xh[mvs_ridx](dst, ref, _stride,  8); break;
-        case mc_templ_frame: mc_pred_16xh[mvs_ridx](dst, ref, _stride, 16); break;
+        case mc_templ_field: mc_pred_16xh_nsse2[mvs_ridx](dst, ref, _stride,  8); break;
+        case mc_templ_frame: mc_pred_16xh_nsse2[mvs_ridx](dst, ref, _stride, 16); break;
         }
     }
     else {
         switch (chroma_format) {
-        case chroma_format_420: mc_pred_8xh [mvs_ridx](dst, ref, _chroma_stride, (mc_templ == mc_templ_field) ? 4 :  8); break;
-        case chroma_format_422: mc_pred_8xh [mvs_ridx](dst, ref, _chroma_stride, (mc_templ == mc_templ_field) ? 8 : 16); break;
-        case chroma_format_444: mc_pred_16xh[mvs_ridx](dst, ref, _chroma_stride, (mc_templ == mc_templ_field) ? 8 : 16); break;
+        case chroma_format_420: mc_pred_8xh_nsse2[mvs_ridx](dst, ref, _chroma_stride, (mc_templ == mc_templ_field) ? 4 :  8); break;
+        case chroma_format_422: mc_pred_8xh_nsse2[mvs_ridx](dst, ref, _chroma_stride, (mc_templ == mc_templ_field) ? 8 : 16); break;
+        case chroma_format_444: mc_pred_16xh_nsse2[mvs_ridx](dst, ref, _chroma_stride, (mc_templ == mc_templ_field) ? 8 : 16); break;
         }
     }
 }

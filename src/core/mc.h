@@ -10,3 +10,8 @@ extern mc_pred_func_t  mc_pred_16xh[4];
 extern mc_pred_func_t  mc_pred_8xh[4];
 extern mc_bidir_func_t mc_bidir_16xh[16];
 extern mc_bidir_func_t mc_bidir_8xh[16];
+
+extern mc_pred_func_t  mc_pred_16xh_nsse2[4];
+extern mc_pred_func_t  mc_pred_8xh_nsse2[4];
+extern mc_bidir_func_t mc_bidir_16xh_nsse2[16];
+extern mc_bidir_func_t mc_bidir_8xh_nsse2[16];

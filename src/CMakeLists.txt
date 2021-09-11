@@ -15,6 +15,7 @@ file(
         ./core/idct_c.cpp
         ./core/mc_c.cpp
         ./core/mc_sse2.cpp
+        ./core/mc_naive_sse2.cpp
 )
 
 include_directories(
