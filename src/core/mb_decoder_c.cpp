@@ -4,6 +4,7 @@
 #include "decoder.h"
 #include "scan.h"
 #include "quant_c.hpp"
+#include "quant_sse2.hpp"
 #include "idct.h"
 #include "mc.h"
 #include <cstddef>
@@ -26,9 +27,9 @@ void decode_block_template(pixel_t* plane, uint32_t stride, int16_t QFS[64], uin
 
     // dequantization
     if (!intra)
-        inverse_quant_c(F, QF, W, quantizer_scale);
+        inverse_quant_sse2(F, QF, W, quantizer_scale);
     else
-        inverse_quant_intra_c(F, QF, W_i, quantizer_scale, intra_dc_prec);
+        inverse_quant_intra_sse2(F, QF, W_i, quantizer_scale, intra_dc_prec);
 
     //idct
     if (add)
