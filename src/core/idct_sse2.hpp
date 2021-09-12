@@ -3,7 +3,6 @@
 #include <stdint.h>
 #include <emmintrin.h>
 #include "common/cpu.hpp"
-#include "idct.h"
 
 MP2V_INLINE __m128i _mm_tmp_op0_epi16(__m128i src) { // src / 0.707106781186547524400844 : S1[0], S[2]
     return _mm_adds_epi16(src, _mm_mulhi_epi16(src, _mm_set1_epi16(27145)));
@@ -120,9 +119,10 @@ MP2V_INLINE void inverse_dct_template_sse2(uint8_t* plane, int16_t F[64], int st
     }
 }
 
+/*
 void inverse_dct_sse2(uint8_t* plane, int16_t F[64], int stride) {
     inverse_dct_template_sse2<false>(plane, F, stride);
 }
 void add_inverse_dct_sse2(uint8_t* plane, int16_t F[64], int stride) {
     inverse_dct_template_sse2<true>(plane, F, stride);
-}
+}*/

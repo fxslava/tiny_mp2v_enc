@@ -2,11 +2,12 @@
 #include "common/cpu.hpp"
 #include "mb_decoder.h"
 #include "decoder.h"
-#include "scan.h"
-#include "scan_sse4.hpp"
-#include "quant_c.hpp"
-#include "quant_sse2.hpp"
-#include "idct.h"
+//#include "scan.h"
+//#include "idct.h"
+//#include "quant_c.hpp"
+//#include "scan_sse4.hpp"
+//#include "quant_sse2.hpp"
+#include "scan_dequant_idct_sse2.hpp"
 #include "mc.h"
 #include <cstddef>
 #include <stdlib.h>
@@ -18,7 +19,7 @@ enum mc_template_e {
 
 template<typename pixel_t, bool alt_scan, bool intra, bool add>
 void decode_block_template(pixel_t* plane, uint32_t stride, int16_t QFS[64], uint16_t W_i[64], uint16_t W[64], uint8_t quantizer_scale, int intra_dc_prec) {
-    int16_t QF[64];
+    /*int16_t QF[64];
     int16_t F[64];
 
     // inverse scan
@@ -37,7 +38,9 @@ void decode_block_template(pixel_t* plane, uint32_t stride, int16_t QFS[64], uin
     if (add)
         add_inverse_dct_sse2(plane, F, stride); 
     else
-        inverse_dct_sse2(plane, F, stride);
+        inverse_dct_sse2(plane, F, stride);*/
+
+    scan_dequant_idct_template_sse2<pixel_t, intra, add>(plane, stride, QFS, intra ? W_i : W, quantizer_scale, intra_dc_prec);
 }
 
 template<typename pixel_t, int chroma_format, bool alt_scan, bool intra, bool add>

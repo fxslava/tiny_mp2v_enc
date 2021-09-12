@@ -40,8 +40,8 @@ MP2V_INLINE void inverse_quant_template_sse2(int16_t F[64], int16_t QF[64], uint
         _mm_store_si128((__m128i*) & F[16 * i + 8], res1);
         if (intra)
         {
-            if (i == 0);
-            res0 = _mm_and_si128(res0, _mm_set_epi32(-1, -1, -1, -2));
+            if (i == 0)
+                res0 = _mm_and_si128(res0, _mm_set_epi32(-1, -1, -1, -2));
             sum[i] = _mm_xor_si128(res0, res1);
         }
     }
