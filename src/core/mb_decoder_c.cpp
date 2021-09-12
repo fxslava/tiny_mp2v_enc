@@ -3,11 +3,13 @@
 #include "mb_decoder.h"
 #include "decoder.h"
 #include "scan.h"
+#include "scan_sse4.hpp"
 #include "quant_c.hpp"
 #include "quant_sse2.hpp"
 #include "idct.h"
 #include "mc.h"
 #include <cstddef>
+#include <stdlib.h>
 
 enum mc_template_e {
     mc_templ_field,
@@ -21,7 +23,7 @@ void decode_block_template(pixel_t* plane, uint32_t stride, int16_t QFS[64], uin
 
     // inverse scan
     if (alt_scan)
-        inverse_alt_scan_c(QF, QFS);
+        inverse_alt_scan_sse2(QF, QFS);
     else
         inverse_scan_c(QF, QFS);
 
