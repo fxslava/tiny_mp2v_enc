@@ -40,33 +40,6 @@ void inverse_alt_scan_sse2(int16_t QF[64], int16_t QFS[64]) {
 
     __m128i out7 = _mm_unpackhi_epi64(v6, v7); //64, 65, 66, 67, 74, 75, 76, 77
 
-    // transpose store
-#ifdef TRANSPOSE_SCAN
-    __m128i a03b03 = _mm_unpacklo_epi16(out0, out1);
-    __m128i c03d03 = _mm_unpacklo_epi16(out2, out3);
-    __m128i e03f03 = _mm_unpacklo_epi16(out4, out5);
-    __m128i g03h03 = _mm_unpacklo_epi16(out6, out7);
-    __m128i a47b47 = _mm_unpackhi_epi16(out0, out1);
-    __m128i c47d47 = _mm_unpackhi_epi16(out2, out3);
-    __m128i e47f47 = _mm_unpackhi_epi16(out4, out5);
-    __m128i g47h47 = _mm_unpackhi_epi16(out6, out7);
-    __m128i a01b01c01d01 = _mm_unpacklo_epi32(a03b03, c03d03);
-    __m128i a23b23c23d23 = _mm_unpackhi_epi32(a03b03, c03d03);
-    __m128i e01f01g01h01 = _mm_unpacklo_epi32(e03f03, g03h03);
-    __m128i e23f23g23h23 = _mm_unpackhi_epi32(e03f03, g03h03);
-    __m128i a45b45c45d45 = _mm_unpacklo_epi32(a47b47, c47d47);
-    __m128i a67b67c67d67 = _mm_unpackhi_epi32(a47b47, c47d47);
-    __m128i e45f45g45h45 = _mm_unpacklo_epi32(e47f47, g47h47);
-    __m128i e67f67g67h67 = _mm_unpackhi_epi32(e47f47, g47h47);
-    _mm_store_si128((__m128i*) & QF[0 ], _mm_unpacklo_epi64(a01b01c01d01, e01f01g01h01));
-    _mm_store_si128((__m128i*) & QF[8 ], _mm_unpackhi_epi64(a01b01c01d01, e01f01g01h01));
-    _mm_store_si128((__m128i*) & QF[16], _mm_unpacklo_epi64(a23b23c23d23, e23f23g23h23));
-    _mm_store_si128((__m128i*) & QF[24], _mm_unpackhi_epi64(a23b23c23d23, e23f23g23h23));
-    _mm_store_si128((__m128i*) & QF[32], _mm_unpacklo_epi64(a45b45c45d45, e45f45g45h45));
-    _mm_store_si128((__m128i*) & QF[40], _mm_unpackhi_epi64(a45b45c45d45, e45f45g45h45));
-    _mm_store_si128((__m128i*) & QF[48], _mm_unpacklo_epi64(a67b67c67d67, e67f67g67h67));
-    _mm_store_si128((__m128i*) & QF[56], _mm_unpackhi_epi64(a67b67c67d67, e67f67g67h67));
-#else
     _mm_store_si128((__m128i*) & QF[0 ], out0);
     _mm_store_si128((__m128i*) & QF[8 ], out1);
     _mm_store_si128((__m128i*) & QF[16], out2);
@@ -75,5 +48,4 @@ void inverse_alt_scan_sse2(int16_t QF[64], int16_t QFS[64]) {
     _mm_store_si128((__m128i*) & QF[40], out5);
     _mm_store_si128((__m128i*) & QF[48], out6);
     _mm_store_si128((__m128i*) & QF[56], out7);
-#endif
 }

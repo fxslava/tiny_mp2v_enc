@@ -7,7 +7,6 @@
 #include "sample_args.h"
 #include "bitstream.h"
 #include "core/decoder.h"
-#include <emmintrin.h>
 
 void stream_writer_func(mp2v_decoder_c* mp2v_decoder, std::string output_file) {
     FILE* fp = fopen(output_file.c_str(), "wb");

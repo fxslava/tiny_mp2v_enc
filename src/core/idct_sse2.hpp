@@ -103,9 +103,6 @@ MP2V_INLINE void inverse_dct_template_sse2(uint8_t* plane, int16_t F[64], int st
     idct_1d_sse2(buffer);
     transpose_8x8_sse2(buffer);
     idct_1d_sse2(buffer);
-#ifdef TRANSPOSE_SCAN
-    transpose_8x8_sse2(buffer);
-#endif
 
     for (int i = 0; i < 4; i++) {
         __m128i tmp, b0, b1;

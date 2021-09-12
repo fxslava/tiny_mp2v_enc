@@ -455,13 +455,13 @@ bool mp2v_picture_c::decode_picture() {
     if (m_quant_matrix_extension) {
         for (int i = 0; i < 64; i++) {
             if (m_quant_matrix_extension->load_intra_quantiser_matrix)
-                quantiser_matrices[0][g_scan[0][i]] = m_quant_matrix_extension->intra_quantiser_matrix[i];
+                quantiser_matrices[0][g_scan_trans[0][i]] = m_quant_matrix_extension->intra_quantiser_matrix[i];
             if (m_quant_matrix_extension->load_non_intra_quantiser_matrix)
-                quantiser_matrices[1][g_scan[0][i]] = m_quant_matrix_extension->non_intra_quantiser_matrix[i];
+                quantiser_matrices[1][g_scan_trans[0][i]] = m_quant_matrix_extension->non_intra_quantiser_matrix[i];
             if (m_quant_matrix_extension->load_chroma_intra_quantiser_matrix)
-                quantiser_matrices[2][g_scan[0][i]] = m_quant_matrix_extension->chroma_intra_quantiser_matrix[i];
+                quantiser_matrices[2][g_scan_trans[0][i]] = m_quant_matrix_extension->chroma_intra_quantiser_matrix[i];
             if (m_quant_matrix_extension->load_chroma_non_intra_quantiser_matrix)
-                quantiser_matrices[3][g_scan[0][i]] = m_quant_matrix_extension->chroma_non_intra_quantiser_matrix[i];
+                quantiser_matrices[3][g_scan_trans[0][i]] = m_quant_matrix_extension->chroma_non_intra_quantiser_matrix[i];
         }
     }
     auto& sext = m_dec->m_sequence_extension;
