@@ -1,9 +1,7 @@
 // Copyright © 2021 Vladislav Ovchinnikov. All rights reserved.
 
-#include <gtest/gtest.h>
-#include <iostream>
-
 // unit test common
+#include "test_common.h"
 #include "cavlc_utils.hpp"
 
 // Tiny MPEG2 headers
@@ -11,21 +9,6 @@
 #include "core/mp2v_vlc_dec.hpp"
 
 DEFINE_CAVLC_METHODS(random_vlc_code_bitstream_generator_c)
-
-#define ERROR_PRINTF(...)  \
-    do { testing::internal::ColoredPrintf(testing::internal::COLOR_RED, "[  FAILED  ] "); \
-    testing::internal::ColoredPrintf(testing::internal::COLOR_YELLOW, __VA_ARGS__); } while(0)
-
-// C++ stream interface
-class TestCout : public std::stringstream
-{
-public:
-    ~TestCout() { ERROR_PRINTF("%s", str().c_str()); }
-};
-
-#define TEST_COUT  TestCout()
-
-#define ARRAY_SIZE(p) (sizeof(p)/sizeof(*p))
 
 constexpr int TEST_NUM_ITERATIONS = 100;
 

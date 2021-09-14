@@ -12,7 +12,7 @@ MP2V_INLINE uint8_t mc_func_template(uint8_t* src, uint32_t i, uint32_t stride) 
     case MC_10:
         return (src[i] + src[i + stride] + 1) >> 1;
     case MC_11:
-        return (src[i] + src[i + 1] + src[i + stride] + src[i + stride + 1] + 2) >> 2;
+        return (((src[i] + src[i + 1] + 1) >> 1) + ((src[i + stride] + src[i + stride + 1] + 1) >> 1) + 1) >> 1;
     }
 }
 

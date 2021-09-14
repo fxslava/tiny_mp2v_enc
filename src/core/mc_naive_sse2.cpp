@@ -11,10 +11,10 @@ MP2V_INLINE __m128i mc8_func_template_nsse2(uint8_t* src, uint32_t stride) {
     case MC_01:
         return _mm_avg_epu8(_mm_loadl_epi64((__m128i*)src), _mm_loadl_epi64((__m128i*) & src[1]));
     case MC_10:
-        return _mm_avg_epu8(_mm_loadl_epi64((__m128i*)src), _mm_loadl_epi64((__m128i*) & src[stride + 1]));
+        return _mm_avg_epu8(_mm_loadl_epi64((__m128i*)src), _mm_loadl_epi64((__m128i*) & src[stride]));
     case MC_11:
         __m128i tmp0 = _mm_avg_epu8(_mm_loadl_epi64((__m128i*)src), _mm_loadl_epi64((__m128i*) & src[1]));
-        __m128i tmp1 = _mm_avg_epu8(_mm_loadl_epi64((__m128i*)src), _mm_loadl_epi64((__m128i*) & src[stride + 1]));
+        __m128i tmp1 = _mm_avg_epu8(_mm_loadl_epi64((__m128i*)&src[stride]), _mm_loadl_epi64((__m128i*) & src[stride + 1]));
         return _mm_avg_epu8(tmp0, tmp1);
     }
 }
@@ -28,10 +28,10 @@ MP2V_INLINE __m128i mc16_func_template_nsse2(uint8_t* src, uint32_t stride) {
     case MC_01:
         return _mm_avg_epu8(_mm_loadu_si128((__m128i*)src), _mm_loadu_si128((__m128i*) & src[1]));
     case MC_10:
-        return _mm_avg_epu8(_mm_loadu_si128((__m128i*)src), _mm_loadu_si128((__m128i*) & src[stride + 1]));
+        return _mm_avg_epu8(_mm_loadu_si128((__m128i*)src), _mm_loadu_si128((__m128i*) & src[stride]));
     case MC_11:
-        __m128i tmp0 = _mm_avg_epu8(_mm_loadu_si128((__m128i*)src), _mm_loadu_si128((__m128i*) & src[1]));
-        __m128i tmp1 = _mm_avg_epu8(_mm_loadu_si128((__m128i*)src), _mm_loadu_si128((__m128i*) & src[stride + 1]));
+        __m128i tmp0 = _mm_avg_epu8(_mm_loadu_si128((__m128i*)src), _mm_loadu_si128((__m128i*)&src[1]));
+        __m128i tmp1 = _mm_avg_epu8(_mm_loadu_si128((__m128i*)&src[stride]), _mm_loadu_si128((__m128i*)&src[stride + 1]));
         return _mm_avg_epu8(tmp0, tmp1);
     }
 }

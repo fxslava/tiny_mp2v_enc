@@ -18,7 +18,7 @@ enum mc_template_e {
 };
 
 template<typename pixel_t, bool alt_scan, bool intra, bool add>
-void decode_block_template(pixel_t* plane, uint32_t stride, int16_t QFS[64], uint16_t W_i[64], uint16_t W[64], uint8_t quantizer_scale, int intra_dc_prec) {
+MP2V_INLINE void decode_block_template(pixel_t* plane, uint32_t stride, int16_t QFS[64], uint16_t W_i[64], uint16_t W[64], uint8_t quantizer_scale, int intra_dc_prec) {
     /*int16_t QF[64];
     int16_t F[64];
 

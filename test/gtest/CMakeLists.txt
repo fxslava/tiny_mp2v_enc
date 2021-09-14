@@ -9,3 +9,4 @@ set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(gtest)
 
 add_subdirectory(cavlc)
+add_subdirectory(simd)
