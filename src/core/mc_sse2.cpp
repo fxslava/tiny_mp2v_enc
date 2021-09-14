@@ -26,7 +26,7 @@ MP2V_INLINE void pred_linex4_mc00_w8_sse2(__m128i (&dst)[4], uint8_t* src, uint3
 
 MP2V_INLINE void pred_linex8_mc00_w8_sse2(__m128i (&dst)[4], uint8_t* src, uint32_t stride) {
     for (int i = 0; i < 4; i++)
-        dst[i] = _mm_unpacklo_epi8(_mm_loadl_epi64((__m128i*) & src[i * 2 * stride]), _mm_loadl_epi64((__m128i*) & src[(i * 2 + 1) * stride]));
+        dst[i] = _mm_unpacklo_epi64(_mm_loadl_epi64((__m128i*) & src[i * 2 * stride]), _mm_loadl_epi64((__m128i*) & src[(i * 2 + 1) * stride]));
 }
 
 void mc_pred00_8xh_sse2(uint8_t* dst, uint8_t* src, uint32_t stride, uint32_t height) {
@@ -52,17 +52,17 @@ void mc_pred00_16xh_sse2(uint8_t* dst, uint8_t* src, uint32_t stride, uint32_t h
 
 MP2V_INLINE void pred_linex8_mc01_w8_sse2(__m128i (&dst)[4], uint8_t* src, uint32_t stride) {
     for (int i = 0; i < 4; i++) {
-        __m128i tmp0 = _mm_unpacklo_epi8(_mm_loadl_epi64((__m128i*) & src[(i * 2 + 0) * stride]), _mm_loadl_epi64((__m128i*) & src[(i * 2 + 1) * stride]));
-        __m128i tmp1 = _mm_unpacklo_epi8(_mm_loadl_epi64((__m128i*) & src[(i * 2 + 0) * stride + 1]), _mm_loadl_epi64((__m128i*) & src[(i * 2 + 1) * stride + 1]));
+        __m128i tmp0 = _mm_unpacklo_epi64(_mm_loadl_epi64((__m128i*) & src[(i * 2 + 0) * stride]), _mm_loadl_epi64((__m128i*) & src[(i * 2 + 1) * stride]));
+        __m128i tmp1 = _mm_unpacklo_epi64(_mm_loadl_epi64((__m128i*) & src[(i * 2 + 0) * stride + 1]), _mm_loadl_epi64((__m128i*) & src[(i * 2 + 1) * stride + 1]));
         dst[i] = _mm_avg_epu8(tmp0, tmp1);
     }
 }
 
 void mc_pred01_8xh_sse2(uint8_t* dst, uint8_t* src, uint32_t stride, uint32_t height) {
     __m128i tmp[4];
-    if (height == 8) {
-        pred_linex8_mc01_w8_sse2(tmp, src, stride);
-        store_linex8_w8_sse2(dst, tmp, stride);
+    for (int i = 0; i < height; i += 8) {
+        pred_linex8_mc01_w8_sse2(tmp, &src[i * stride], stride);
+        store_linex8_w8_sse2(&dst[i * stride], tmp, stride);
     }
 }
 
@@ -83,8 +83,8 @@ void mc_pred01_16xh_sse2(uint8_t* dst, uint8_t* src, uint32_t stride, uint32_t h
 }
 
 MP2V_INLINE __m128i pred_linex2_mc10_w8_sse2(const __m128i buf0, const __m128i buf1, const __m128i buf2, uint32_t stride) {
-    __m128i tmp0 = _mm_unpacklo_epi8(buf0, buf1);
-    __m128i tmp1 = _mm_unpacklo_epi8(buf1, buf2);
+    __m128i tmp0 = _mm_unpacklo_epi64(buf0, buf1);
+    __m128i tmp1 = _mm_unpacklo_epi64(buf1, buf2);
     return _mm_avg_epu8(tmp0, tmp1);
 }
 
@@ -106,9 +106,9 @@ MP2V_INLINE void pred_linex8_mc10_w8_sse2(__m128i (&dst)[4], uint8_t* src, uint3
 
 void mc_pred10_8xh_sse2(uint8_t* dst, uint8_t* src, uint32_t stride, uint32_t height) {
     __m128i tmp[4];
-    if (height == 8) {
-        pred_linex8_mc10_w8_sse2(tmp, src, stride);
-        store_linex8_w8_sse2(dst, tmp, stride);
+    for (int i = 0; i < height; i += 8) {
+        pred_linex8_mc10_w8_sse2(tmp, &src[i * stride], stride);
+        store_linex8_w8_sse2(&dst[i * stride], tmp, stride);
     }
 }
 
@@ -120,9 +120,9 @@ MP2V_INLINE void pred_linex4_mc10_w16_sse2(__m128i (&dst)[4], uint8_t* src, uint
     __m128i tmp1, tmp0 = _mm_loadu_si128((__m128i*) & src[0]);
     for (int i = 0; i < 4; i += 2) {
         tmp1 = _mm_loadu_si128((__m128i*) & src[(i + 1) * stride]);
-        dst[i * 2 + 0] = _mm_avg_epu8(tmp0, tmp1);
+        dst[i + 0] = _mm_avg_epu8(tmp0, tmp1);
         tmp0 = _mm_loadu_si128((__m128i*) & src[(i + 2) * stride]);
-        dst[i * 2 + 1] = _mm_avg_epu8(tmp1, tmp0);
+        dst[i + 1] = _mm_avg_epu8(tmp1, tmp0);
     }
 }
 
@@ -156,9 +156,9 @@ MP2V_INLINE void pred_linex8_mc11_w8_sse2(__m128i (&dst)[4], uint8_t* src, uint3
 
 void mc_pred11_8xh_sse2(uint8_t* dst, uint8_t* src, uint32_t stride, uint32_t height) {
     __m128i tmp[4];
-    if (height == 8) {
-        pred_linex8_mc11_w8_sse2(tmp, src, stride);
-        store_linex8_w8_sse2(dst, tmp, stride);
+    for (int i = 0; i < height; i += 8) {
+        pred_linex8_mc11_w8_sse2(tmp, &src[i * stride], stride);
+        store_linex8_w8_sse2(&dst[i * stride], tmp, stride);
     }
 }
 
@@ -170,9 +170,9 @@ MP2V_INLINE void pred_linex4_mc11_w16_sse2(__m128i (&dst)[4], uint8_t* src, uint
     __m128i tmp1, tmp0 = avg_loadx2_w16_sse2(&src[0]);
     for (int i = 0; i < 4; i += 2) {
         tmp1 = avg_loadx2_w16_sse2(&src[(i + 1) * stride]);
-        dst[i * 2 + 0] = _mm_avg_epu8(tmp0, tmp1);
+        dst[i + 0] = _mm_avg_epu8(tmp0, tmp1);
         tmp0 = avg_loadx2_w16_sse2(&src[(i + 2) * stride]);
-        dst[i * 2 + 1] = _mm_avg_epu8(tmp1, tmp0);
+        dst[i + 1] = _mm_avg_epu8(tmp1, tmp0);
     }
 }
 
@@ -228,7 +228,7 @@ MP2V_INLINE void bidir_mc_template_w8_sse2(uint8_t* dst, uint8_t* src0, uint8_t*
 {
     __m128i tmp0[4], tmp1[4];
     bool forward_mc00 = !((mc_type_src0 != MC_00) || (mc_type_src1 != MC_00));
-    for (int i = 0; i < height; i += (forward_mc00 ? 8 : 4)) {
+    for (int i = 0; i < height; i += (forward_mc00 ? 4 : 8)) {
         switch (mc_type_src0) {
         case MC_00: 
             if (mc_type_src0 != mc_type_src1)
@@ -252,8 +252,8 @@ MP2V_INLINE void bidir_mc_template_w8_sse2(uint8_t* dst, uint8_t* src0, uint8_t*
         case MC_11: pred_linex8_mc11_w8_sse2(tmp1, &src1[i * stride], stride); break;
         }
 
-        for (int i = 0; i < 4; i++)
-            tmp0[i] = _mm_avg_epu8(tmp0[i], tmp1[i]);
+        for (int j = 0; j < 4; j++)
+            tmp0[j] = _mm_avg_epu8(tmp0[j], tmp1[j]);
 
         if (forward_mc00)
             store_linex4_w8_sse2(&dst[i * stride], tmp0, stride);
