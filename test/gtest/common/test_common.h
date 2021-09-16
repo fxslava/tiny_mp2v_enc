@@ -49,6 +49,15 @@ public:
         return &r;
     }
 
+#if defined(_MSC_VER)
+    inline pointer allocate(size_type n) {
+        return (pointer)_aligned_malloc(n * sizeof(value_type), N);
+    }
+
+    inline void deallocate(pointer p, size_type) {
+        _aligned_free(p);
+    }
+#else
     inline pointer allocate(size_type n) {
         return (pointer)aligned_alloc(N, n * sizeof(value_type));
     }
@@ -56,6 +65,7 @@ public:
     inline void deallocate(pointer p, size_type) {
         free(p);
     }
+#endif
 
     inline void construct(pointer p, const value_type& wert) {
         new (p) value_type(wert);

@@ -8,8 +8,11 @@
 // unit test common
 #include "test_common.h"
 
-// Tiny MPEG2 headers
+// Tiny MPEG2 MC headers
 #include "core/mc.h"
+#include "core/mc_c.hpp"
+#include "core/mc_naive_sse2.hpp"
+#include "core/mc_sse2.hpp"
 
 constexpr int TEST_NUM_ITERATIONS = 10;
 constexpr int TEST_NUM_ITERATIONS_PERFORMANCE = 10000;
@@ -112,48 +115,48 @@ protected:
 };
 
 #define TEST_MC_ROUTINES(test_case, test_func, plane_c, simd) \
-TEST_F(simd_mc_test_c, test_case##_pred00_16xh_##simd)    { EXPECT_TRUE(test_func(mc_pred_16xh_##plane_c [ 0], mc_pred_16xh_##simd [ 0], "mc_pred00_16xh_" #plane_c   , "mc_pred00_16xh_" #simd   )); } \
-TEST_F(simd_mc_test_c, test_case##_pred01_16xh_##simd)    { EXPECT_TRUE(test_func(mc_pred_16xh_##plane_c [ 1], mc_pred_16xh_##simd [ 1], "mc_pred01_16xh_" #plane_c   , "mc_pred01_16xh_##simd"   )); } \
-TEST_F(simd_mc_test_c, test_case##_pred10_16xh_##simd)    { EXPECT_TRUE(test_func(mc_pred_16xh_##plane_c [ 2], mc_pred_16xh_##simd [ 2], "mc_pred10_16xh_" #plane_c   , "mc_pred10_16xh_##simd"   )); } \
-TEST_F(simd_mc_test_c, test_case##_pred11_16xh_##simd)    { EXPECT_TRUE(test_func(mc_pred_16xh_##plane_c [ 3], mc_pred_16xh_##simd [ 3], "mc_pred11_16xh_" #plane_c   , "mc_pred11_16xh_##simd"   )); } \
-TEST_F(simd_mc_test_c, test_case##_pred00_8xh_##simd)     { EXPECT_TRUE(test_func(mc_pred_8xh_##plane_c  [ 0], mc_pred_8xh_##simd  [ 0], "mc_pred00_8xh_" #plane_c    , "mc_pred00_8xh_##simd"    )); } \
-TEST_F(simd_mc_test_c, test_case##_pred01_8xh_##simd)     { EXPECT_TRUE(test_func(mc_pred_8xh_##plane_c  [ 1], mc_pred_8xh_##simd  [ 1], "mc_pred01_8xh_" #plane_c    , "mc_pred01_8xh_##simd"    )); } \
-TEST_F(simd_mc_test_c, test_case##_pred10_8xh_##simd)     { EXPECT_TRUE(test_func(mc_pred_8xh_##plane_c  [ 2], mc_pred_8xh_##simd  [ 2], "mc_pred10_8xh_" #plane_c    , "mc_pred10_8xh_##simd"    )); } \
-TEST_F(simd_mc_test_c, test_case##_pred11_8xh_##simd)     { EXPECT_TRUE(test_func(mc_pred_8xh_##plane_c  [ 3], mc_pred_8xh_##simd  [ 3], "mc_pred11_8xh_" #plane_c    , "mc_pred11_8xh_##simd"    )); } \
-TEST_F(simd_mc_test_c, test_case##_bidir0000_16xh_##simd) { EXPECT_TRUE(test_func(mc_bidir_16xh_##plane_c[ 0], mc_bidir_16xh_##simd[ 0], "mc_bidir0000_16xh_" #plane_c, "mc_bidir0000_16xh_" #simd)); } \
-TEST_F(simd_mc_test_c, test_case##_bidir0001_16xh_##simd) { EXPECT_TRUE(test_func(mc_bidir_16xh_##plane_c[ 1], mc_bidir_16xh_##simd[ 1], "mc_bidir0001_16xh_" #plane_c, "mc_bidir0001_16xh_" #simd)); } \
-TEST_F(simd_mc_test_c, test_case##_bidir0010_16xh_##simd) { EXPECT_TRUE(test_func(mc_bidir_16xh_##plane_c[ 2], mc_bidir_16xh_##simd[ 2], "mc_bidir0010_16xh_" #plane_c, "mc_bidir0010_16xh_" #simd)); } \
-TEST_F(simd_mc_test_c, test_case##_bidir0011_16xh_##simd) { EXPECT_TRUE(test_func(mc_bidir_16xh_##plane_c[ 3], mc_bidir_16xh_##simd[ 3], "mc_bidir0011_16xh_" #plane_c, "mc_bidir0011_16xh_" #simd)); } \
-TEST_F(simd_mc_test_c, test_case##_bidir0100_16xh_##simd) { EXPECT_TRUE(test_func(mc_bidir_16xh_##plane_c[ 4], mc_bidir_16xh_##simd[ 4], "mc_bidir0100_16xh_" #plane_c, "mc_bidir0100_16xh_" #simd)); } \
-TEST_F(simd_mc_test_c, test_case##_bidir0101_16xh_##simd) { EXPECT_TRUE(test_func(mc_bidir_16xh_##plane_c[ 5], mc_bidir_16xh_##simd[ 5], "mc_bidir0101_16xh_" #plane_c, "mc_bidir0101_16xh_" #simd)); } \
-TEST_F(simd_mc_test_c, test_case##_bidir0110_16xh_##simd) { EXPECT_TRUE(test_func(mc_bidir_16xh_##plane_c[ 6], mc_bidir_16xh_##simd[ 6], "mc_bidir0110_16xh_" #plane_c, "mc_bidir0110_16xh_" #simd)); } \
-TEST_F(simd_mc_test_c, test_case##_bidir0111_16xh_##simd) { EXPECT_TRUE(test_func(mc_bidir_16xh_##plane_c[ 7], mc_bidir_16xh_##simd[ 7], "mc_bidir0111_16xh_" #plane_c, "mc_bidir0111_16xh_" #simd)); } \
-TEST_F(simd_mc_test_c, test_case##_bidir1000_16xh_##simd) { EXPECT_TRUE(test_func(mc_bidir_16xh_##plane_c[ 8], mc_bidir_16xh_##simd[ 8], "mc_bidir1000_16xh_" #plane_c, "mc_bidir1000_16xh_" #simd)); } \
-TEST_F(simd_mc_test_c, test_case##_bidir1001_16xh_##simd) { EXPECT_TRUE(test_func(mc_bidir_16xh_##plane_c[ 9], mc_bidir_16xh_##simd[ 9], "mc_bidir1001_16xh_" #plane_c, "mc_bidir1001_16xh_" #simd)); } \
-TEST_F(simd_mc_test_c, test_case##_bidir1010_16xh_##simd) { EXPECT_TRUE(test_func(mc_bidir_16xh_##plane_c[10], mc_bidir_16xh_##simd[10], "mc_bidir1010_16xh_" #plane_c, "mc_bidir1010_16xh_" #simd)); } \
-TEST_F(simd_mc_test_c, test_case##_bidir1011_16xh_##simd) { EXPECT_TRUE(test_func(mc_bidir_16xh_##plane_c[11], mc_bidir_16xh_##simd[11], "mc_bidir1011_16xh_" #plane_c, "mc_bidir1011_16xh_" #simd)); } \
-TEST_F(simd_mc_test_c, test_case##_bidir1100_16xh_##simd) { EXPECT_TRUE(test_func(mc_bidir_16xh_##plane_c[12], mc_bidir_16xh_##simd[12], "mc_bidir1100_16xh_" #plane_c, "mc_bidir1100_16xh_" #simd)); } \
-TEST_F(simd_mc_test_c, test_case##_bidir1101_16xh_##simd) { EXPECT_TRUE(test_func(mc_bidir_16xh_##plane_c[13], mc_bidir_16xh_##simd[13], "mc_bidir1101_16xh_" #plane_c, "mc_bidir1101_16xh_" #simd)); } \
-TEST_F(simd_mc_test_c, test_case##_bidir1110_16xh_##simd) { EXPECT_TRUE(test_func(mc_bidir_16xh_##plane_c[14], mc_bidir_16xh_##simd[14], "mc_bidir1110_16xh_" #plane_c, "mc_bidir1110_16xh_" #simd)); } \
-TEST_F(simd_mc_test_c, test_case##_bidir1111_16xh_##simd) { EXPECT_TRUE(test_func(mc_bidir_16xh_##plane_c[15], mc_bidir_16xh_##simd[15], "mc_bidir1111_16xh_" #plane_c, "mc_bidir1111_16xh_" #simd)); } \
-TEST_F(simd_mc_test_c, test_case##_bidir0000_8xh_##simd)  { EXPECT_TRUE(test_func(mc_bidir_8xh_##plane_c [ 0], mc_bidir_8xh_##simd [ 0], "mc_bidir0000_8xh_" #plane_c , "mc_bidir0000_8xh_" #simd )); } \
-TEST_F(simd_mc_test_c, test_case##_bidir0001_8xh_##simd)  { EXPECT_TRUE(test_func(mc_bidir_8xh_##plane_c [ 1], mc_bidir_8xh_##simd [ 1], "mc_bidir0001_8xh_" #plane_c , "mc_bidir0001_8xh_" #simd )); } \
-TEST_F(simd_mc_test_c, test_case##_bidir0010_8xh_##simd)  { EXPECT_TRUE(test_func(mc_bidir_8xh_##plane_c [ 2], mc_bidir_8xh_##simd [ 2], "mc_bidir0010_8xh_" #plane_c , "mc_bidir0010_8xh_" #simd )); } \
-TEST_F(simd_mc_test_c, test_case##_bidir0011_8xh_##simd)  { EXPECT_TRUE(test_func(mc_bidir_8xh_##plane_c [ 3], mc_bidir_8xh_##simd [ 3], "mc_bidir0011_8xh_" #plane_c , "mc_bidir0011_8xh_" #simd )); } \
-TEST_F(simd_mc_test_c, test_case##_bidir0100_8xh_##simd)  { EXPECT_TRUE(test_func(mc_bidir_8xh_##plane_c [ 4], mc_bidir_8xh_##simd [ 4], "mc_bidir0100_8xh_" #plane_c , "mc_bidir0100_8xh_" #simd )); } \
-TEST_F(simd_mc_test_c, test_case##_bidir0101_8xh_##simd)  { EXPECT_TRUE(test_func(mc_bidir_8xh_##plane_c [ 5], mc_bidir_8xh_##simd [ 5], "mc_bidir0101_8xh_" #plane_c , "mc_bidir0101_8xh_" #simd )); } \
-TEST_F(simd_mc_test_c, test_case##_bidir0110_8xh_##simd)  { EXPECT_TRUE(test_func(mc_bidir_8xh_##plane_c [ 6], mc_bidir_8xh_##simd [ 6], "mc_bidir0110_8xh_" #plane_c , "mc_bidir0110_8xh_" #simd )); } \
-TEST_F(simd_mc_test_c, test_case##_bidir0111_8xh_##simd)  { EXPECT_TRUE(test_func(mc_bidir_8xh_##plane_c [ 7], mc_bidir_8xh_##simd [ 7], "mc_bidir0111_8xh_" #plane_c , "mc_bidir0111_8xh_" #simd )); } \
-TEST_F(simd_mc_test_c, test_case##_bidir1000_8xh_##simd)  { EXPECT_TRUE(test_func(mc_bidir_8xh_##plane_c [ 8], mc_bidir_8xh_##simd [ 8], "mc_bidir1000_8xh_" #plane_c , "mc_bidir1000_8xh_" #simd )); } \
-TEST_F(simd_mc_test_c, test_case##_bidir1001_8xh_##simd)  { EXPECT_TRUE(test_func(mc_bidir_8xh_##plane_c [ 9], mc_bidir_8xh_##simd [ 9], "mc_bidir1001_8xh_" #plane_c , "mc_bidir1001_8xh_" #simd )); } \
-TEST_F(simd_mc_test_c, test_case##_bidir1010_8xh_##simd)  { EXPECT_TRUE(test_func(mc_bidir_8xh_##plane_c [10], mc_bidir_8xh_##simd [10], "mc_bidir1010_8xh_" #plane_c , "mc_bidir1010_8xh_" #simd )); } \
-TEST_F(simd_mc_test_c, test_case##_bidir1011_8xh_##simd)  { EXPECT_TRUE(test_func(mc_bidir_8xh_##plane_c [11], mc_bidir_8xh_##simd [11], "mc_bidir1011_8xh_" #plane_c , "mc_bidir1011_8xh_" #simd )); } \
-TEST_F(simd_mc_test_c, test_case##_bidir1100_8xh_##simd)  { EXPECT_TRUE(test_func(mc_bidir_8xh_##plane_c [12], mc_bidir_8xh_##simd [12], "mc_bidir1100_8xh_" #plane_c , "mc_bidir1100_8xh_" #simd )); } \
-TEST_F(simd_mc_test_c, test_case##_bidir1101_8xh_##simd)  { EXPECT_TRUE(test_func(mc_bidir_8xh_##plane_c [13], mc_bidir_8xh_##simd [13], "mc_bidir1101_8xh_" #plane_c , "mc_bidir1101_8xh_" #simd )); } \
-TEST_F(simd_mc_test_c, test_case##_bidir1110_8xh_##simd)  { EXPECT_TRUE(test_func(mc_bidir_8xh_##plane_c [14], mc_bidir_8xh_##simd [14], "mc_bidir1110_8xh_" #plane_c , "mc_bidir1110_8xh_" #simd )); } \
-TEST_F(simd_mc_test_c, test_case##_bidir1111_8xh_##simd)  { EXPECT_TRUE(test_func(mc_bidir_8xh_##plane_c [15], mc_bidir_8xh_##simd [15], "mc_bidir1111_8xh_" #plane_c , "mc_bidir1111_8xh_" #simd )); }
+TEST_F(simd_mc_test_c, test_case##_pred00_16xh_##simd){ EXPECT_TRUE(test_func(mc_pred00_16xh_##plane_c, mc_pred00_16xh_##simd, "mc_pred00_16xh_" #plane_c, "mc_pred00_16xh_" #simd)); } \
+TEST_F(simd_mc_test_c, test_case##_pred01_16xh_##simd){ EXPECT_TRUE(test_func(mc_pred01_16xh_##plane_c, mc_pred01_16xh_##simd, "mc_pred01_16xh_" #plane_c, "mc_pred01_16xh_" #simd)); } \
+TEST_F(simd_mc_test_c, test_case##_pred10_16xh_##simd){ EXPECT_TRUE(test_func(mc_pred10_16xh_##plane_c, mc_pred10_16xh_##simd, "mc_pred10_16xh_" #plane_c, "mc_pred10_16xh_" #simd)); } \
+TEST_F(simd_mc_test_c, test_case##_pred11_16xh_##simd){ EXPECT_TRUE(test_func(mc_pred11_16xh_##plane_c, mc_pred11_16xh_##simd, "mc_pred11_16xh_" #plane_c, "mc_pred11_16xh_" #simd)); } \
+TEST_F(simd_mc_test_c, test_case##_pred00_8xh_##simd) { EXPECT_TRUE(test_func(mc_pred00_8xh_##plane_c,  mc_pred00_8xh_##simd,  "mc_pred00_8xh_" #plane_c , "mc_pred00_8xh_" #simd)); } \
+TEST_F(simd_mc_test_c, test_case##_pred01_8xh_##simd) { EXPECT_TRUE(test_func(mc_pred01_8xh_##plane_c,  mc_pred01_8xh_##simd,  "mc_pred01_8xh_" #plane_c , "mc_pred01_8xh_" #simd)); } \
+TEST_F(simd_mc_test_c, test_case##_pred10_8xh_##simd) { EXPECT_TRUE(test_func(mc_pred10_8xh_##plane_c,  mc_pred10_8xh_##simd,  "mc_pred10_8xh_" #plane_c , "mc_pred10_8xh_" #simd)); } \
+TEST_F(simd_mc_test_c, test_case##_pred11_8xh_##simd) { EXPECT_TRUE(test_func(mc_pred11_8xh_##plane_c,  mc_pred11_8xh_##simd,  "mc_pred11_8xh_" #plane_c , "mc_pred11_8xh_" #simd)); } \
+TEST_F(simd_mc_test_c, test_case##_bidir0000_16xh_##simd) { EXPECT_TRUE(test_func(mc_bidir0000_16xh_##plane_c, mc_bidir0000_16xh_##simd, "mc_bidir0000_16xh_" #plane_c, "mc_bidir0000_16xh_" #simd)); } \
+TEST_F(simd_mc_test_c, test_case##_bidir0001_16xh_##simd) { EXPECT_TRUE(test_func(mc_bidir0001_16xh_##plane_c, mc_bidir0001_16xh_##simd, "mc_bidir0001_16xh_" #plane_c, "mc_bidir0001_16xh_" #simd)); } \
+TEST_F(simd_mc_test_c, test_case##_bidir0010_16xh_##simd) { EXPECT_TRUE(test_func(mc_bidir0010_16xh_##plane_c, mc_bidir0010_16xh_##simd, "mc_bidir0010_16xh_" #plane_c, "mc_bidir0010_16xh_" #simd)); } \
+TEST_F(simd_mc_test_c, test_case##_bidir0011_16xh_##simd) { EXPECT_TRUE(test_func(mc_bidir0011_16xh_##plane_c, mc_bidir0011_16xh_##simd, "mc_bidir0011_16xh_" #plane_c, "mc_bidir0011_16xh_" #simd)); } \
+TEST_F(simd_mc_test_c, test_case##_bidir0100_16xh_##simd) { EXPECT_TRUE(test_func(mc_bidir0100_16xh_##plane_c, mc_bidir0100_16xh_##simd, "mc_bidir0100_16xh_" #plane_c, "mc_bidir0100_16xh_" #simd)); } \
+TEST_F(simd_mc_test_c, test_case##_bidir0101_16xh_##simd) { EXPECT_TRUE(test_func(mc_bidir0101_16xh_##plane_c, mc_bidir0101_16xh_##simd, "mc_bidir0101_16xh_" #plane_c, "mc_bidir0101_16xh_" #simd)); } \
+TEST_F(simd_mc_test_c, test_case##_bidir0110_16xh_##simd) { EXPECT_TRUE(test_func(mc_bidir0110_16xh_##plane_c, mc_bidir0110_16xh_##simd, "mc_bidir0110_16xh_" #plane_c, "mc_bidir0110_16xh_" #simd)); } \
+TEST_F(simd_mc_test_c, test_case##_bidir0111_16xh_##simd) { EXPECT_TRUE(test_func(mc_bidir0111_16xh_##plane_c, mc_bidir0111_16xh_##simd, "mc_bidir0111_16xh_" #plane_c, "mc_bidir0111_16xh_" #simd)); } \
+TEST_F(simd_mc_test_c, test_case##_bidir1000_16xh_##simd) { EXPECT_TRUE(test_func(mc_bidir1000_16xh_##plane_c, mc_bidir1000_16xh_##simd, "mc_bidir1000_16xh_" #plane_c, "mc_bidir1000_16xh_" #simd)); } \
+TEST_F(simd_mc_test_c, test_case##_bidir1001_16xh_##simd) { EXPECT_TRUE(test_func(mc_bidir1001_16xh_##plane_c, mc_bidir1001_16xh_##simd, "mc_bidir1001_16xh_" #plane_c, "mc_bidir1001_16xh_" #simd)); } \
+TEST_F(simd_mc_test_c, test_case##_bidir1010_16xh_##simd) { EXPECT_TRUE(test_func(mc_bidir1010_16xh_##plane_c, mc_bidir1010_16xh_##simd, "mc_bidir1010_16xh_" #plane_c, "mc_bidir1010_16xh_" #simd)); } \
+TEST_F(simd_mc_test_c, test_case##_bidir1011_16xh_##simd) { EXPECT_TRUE(test_func(mc_bidir1011_16xh_##plane_c, mc_bidir1011_16xh_##simd, "mc_bidir1011_16xh_" #plane_c, "mc_bidir1011_16xh_" #simd)); } \
+TEST_F(simd_mc_test_c, test_case##_bidir1100_16xh_##simd) { EXPECT_TRUE(test_func(mc_bidir1100_16xh_##plane_c, mc_bidir1100_16xh_##simd, "mc_bidir1100_16xh_" #plane_c, "mc_bidir1100_16xh_" #simd)); } \
+TEST_F(simd_mc_test_c, test_case##_bidir1101_16xh_##simd) { EXPECT_TRUE(test_func(mc_bidir1101_16xh_##plane_c, mc_bidir1101_16xh_##simd, "mc_bidir1101_16xh_" #plane_c, "mc_bidir1101_16xh_" #simd)); } \
+TEST_F(simd_mc_test_c, test_case##_bidir1110_16xh_##simd) { EXPECT_TRUE(test_func(mc_bidir1110_16xh_##plane_c, mc_bidir1110_16xh_##simd, "mc_bidir1110_16xh_" #plane_c, "mc_bidir1110_16xh_" #simd)); } \
+TEST_F(simd_mc_test_c, test_case##_bidir1111_16xh_##simd) { EXPECT_TRUE(test_func(mc_bidir1111_16xh_##plane_c, mc_bidir1111_16xh_##simd, "mc_bidir1111_16xh_" #plane_c, "mc_bidir1111_16xh_" #simd)); } \
+TEST_F(simd_mc_test_c, test_case##_bidir0000_8xh_##simd)  { EXPECT_TRUE(test_func(mc_bidir0000_8xh_##plane_c,  mc_bidir0000_8xh_##simd,  "mc_bidir0000_8xh_" #plane_c , "mc_bidir0000_8xh_" #simd )); } \
+TEST_F(simd_mc_test_c, test_case##_bidir0001_8xh_##simd)  { EXPECT_TRUE(test_func(mc_bidir0001_8xh_##plane_c,  mc_bidir0001_8xh_##simd,  "mc_bidir0001_8xh_" #plane_c , "mc_bidir0001_8xh_" #simd )); } \
+TEST_F(simd_mc_test_c, test_case##_bidir0010_8xh_##simd)  { EXPECT_TRUE(test_func(mc_bidir0010_8xh_##plane_c,  mc_bidir0010_8xh_##simd,  "mc_bidir0010_8xh_" #plane_c , "mc_bidir0010_8xh_" #simd )); } \
+TEST_F(simd_mc_test_c, test_case##_bidir0011_8xh_##simd)  { EXPECT_TRUE(test_func(mc_bidir0011_8xh_##plane_c,  mc_bidir0011_8xh_##simd,  "mc_bidir0011_8xh_" #plane_c , "mc_bidir0011_8xh_" #simd )); } \
+TEST_F(simd_mc_test_c, test_case##_bidir0100_8xh_##simd)  { EXPECT_TRUE(test_func(mc_bidir0100_8xh_##plane_c,  mc_bidir0100_8xh_##simd,  "mc_bidir0100_8xh_" #plane_c , "mc_bidir0100_8xh_" #simd )); } \
+TEST_F(simd_mc_test_c, test_case##_bidir0101_8xh_##simd)  { EXPECT_TRUE(test_func(mc_bidir0101_8xh_##plane_c,  mc_bidir0101_8xh_##simd,  "mc_bidir0101_8xh_" #plane_c , "mc_bidir0101_8xh_" #simd )); } \
+TEST_F(simd_mc_test_c, test_case##_bidir0110_8xh_##simd)  { EXPECT_TRUE(test_func(mc_bidir0110_8xh_##plane_c,  mc_bidir0110_8xh_##simd,  "mc_bidir0110_8xh_" #plane_c , "mc_bidir0110_8xh_" #simd )); } \
+TEST_F(simd_mc_test_c, test_case##_bidir0111_8xh_##simd)  { EXPECT_TRUE(test_func(mc_bidir0111_8xh_##plane_c,  mc_bidir0111_8xh_##simd,  "mc_bidir0111_8xh_" #plane_c , "mc_bidir0111_8xh_" #simd )); } \
+TEST_F(simd_mc_test_c, test_case##_bidir1000_8xh_##simd)  { EXPECT_TRUE(test_func(mc_bidir1000_8xh_##plane_c,  mc_bidir1000_8xh_##simd,  "mc_bidir1000_8xh_" #plane_c , "mc_bidir1000_8xh_" #simd )); } \
+TEST_F(simd_mc_test_c, test_case##_bidir1001_8xh_##simd)  { EXPECT_TRUE(test_func(mc_bidir1001_8xh_##plane_c,  mc_bidir1001_8xh_##simd,  "mc_bidir1001_8xh_" #plane_c , "mc_bidir1001_8xh_" #simd )); } \
+TEST_F(simd_mc_test_c, test_case##_bidir1010_8xh_##simd)  { EXPECT_TRUE(test_func(mc_bidir1010_8xh_##plane_c,  mc_bidir1010_8xh_##simd,  "mc_bidir1010_8xh_" #plane_c , "mc_bidir1010_8xh_" #simd )); } \
+TEST_F(simd_mc_test_c, test_case##_bidir1011_8xh_##simd)  { EXPECT_TRUE(test_func(mc_bidir1011_8xh_##plane_c,  mc_bidir1011_8xh_##simd,  "mc_bidir1011_8xh_" #plane_c , "mc_bidir1011_8xh_" #simd )); } \
+TEST_F(simd_mc_test_c, test_case##_bidir1100_8xh_##simd)  { EXPECT_TRUE(test_func(mc_bidir1100_8xh_##plane_c,  mc_bidir1100_8xh_##simd,  "mc_bidir1100_8xh_" #plane_c , "mc_bidir1100_8xh_" #simd )); } \
+TEST_F(simd_mc_test_c, test_case##_bidir1101_8xh_##simd)  { EXPECT_TRUE(test_func(mc_bidir1101_8xh_##plane_c,  mc_bidir1101_8xh_##simd,  "mc_bidir1101_8xh_" #plane_c , "mc_bidir1101_8xh_" #simd )); } \
+TEST_F(simd_mc_test_c, test_case##_bidir1110_8xh_##simd)  { EXPECT_TRUE(test_func(mc_bidir1110_8xh_##plane_c,  mc_bidir1110_8xh_##simd,  "mc_bidir1110_8xh_" #plane_c , "mc_bidir1110_8xh_" #simd )); } \
+TEST_F(simd_mc_test_c, test_case##_bidir1111_8xh_##simd)  { EXPECT_TRUE(test_func(mc_bidir1111_8xh_##plane_c,  mc_bidir1111_8xh_##simd,  "mc_bidir1111_8xh_" #plane_c , "mc_bidir1111_8xh_" #simd )); }
 
 #if (defined(__GNUC__) && defined(__x86_64)) || (defined(_MSC_VER) && defined(_M_X64))
 TEST_MC_ROUTINES(validation, test_mc_pred, c, sse2)
-TEST_MC_ROUTINES(performance, test_mc_pred_performance, nsse2, sse2)
+TEST_MC_ROUTINES(performance, test_mc_pred_performance, c, sse2)
 #endif

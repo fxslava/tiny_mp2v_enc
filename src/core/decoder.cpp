@@ -64,14 +64,14 @@ frame_c::~frame_c() {
         if (m_planes[i]) delete[] m_planes[i];
 }
 
-MP2V_INLINE static void parse_mb_pattern(macroblock_t& mb, bool pattern_code[12], int chroma_format) {
+MP2V_INLINE static void parse_mb_pattern(macroblock_t& mb, bool (&pattern_code)[12], int chroma_format) {
     bool macroblock_intra = mb.macroblock_type & macroblock_intra_bit;
     bool macroblock_pattern = mb.macroblock_type & macroblock_pattern_bit;
     uint32_t coded_block_pattern_1 = mb.coded_block_pattern_1;
     uint32_t coded_block_pattern_2 = mb.coded_block_pattern_2;
     uint32_t cbp = mb.coded_block_pattern_420;
 
-    pattern_code = { 0 };
+    memset(pattern_code, 0, sizeof(pattern_code));
     for (int i = 0; i < 12; i++) {
         if (macroblock_intra)
             pattern_code[i] = true;

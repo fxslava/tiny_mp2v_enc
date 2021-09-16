@@ -7,7 +7,7 @@
 #include "bitstream.h"
 #include "core/decoder.h"
 
-#if defined(_MSC_VER)
+#if defined(WIN32)
 #include <ittnotify.h>
 #endif
 
@@ -56,7 +56,7 @@ int main(int argc, char* argv[])
 
         const auto start = std::chrono::system_clock::now();
 
-#if defined(_MSC_VER)
+#if defined(WIN32)
         __itt_resume();
         mp2v_decoder.decode();
         __itt_pause();
