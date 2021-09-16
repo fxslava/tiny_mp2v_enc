@@ -3,14 +3,13 @@
 #include <vector>
 #include <deque>
 #include <mutex>
-#include <concurrent_queue.h>
 #include <condition_variable>
 
+#include "common/queue.hpp"
 #include "mp2v_hdr.h"
 #include "api/bitstream.h"
 #include "mb_decoder.h"
 
-using namespace concurrency;
 constexpr int CACHE_LINE = 64;
 
 class mp2v_picture_c;
@@ -111,7 +110,7 @@ public:
 class mp2v_decoder_c {
     friend class mp2v_slice_c;
 public:
-    mp2v_decoder_c(bitstream_reader_c* bitstream) : m_bs(bitstream) {};
+    mp2v_decoder_c(bitstream_reader_c* bitstream) : m_bs(bitstream), m_frames_pool(16), m_output_frames(16) {};
     bool decoder_init(decoder_config_t* config);
     bool decode();
     bool decode_user_data();
@@ -119,30 +118,22 @@ public:
     bool decode_extension_data(extension_after_code_e after_code, mp2v_picture_c* pic);
     bool decode_picture_data();
 
-    bool get_decoded_frame(frame_c*& frame) {
-        return m_output_frames.try_pop(frame);
+    void get_decoded_frame(frame_c*& frame) {
+        m_output_frames.pop(frame);
     }
     void release_frame(frame_c* frame) {
         m_frames_pool.push(frame);
     }
-    void wait_for_frame() {
-        std::unique_lock<std::mutex> new_frame_lock(new_frame_mutex);
-        new_frame_condition.wait(new_frame_lock);
-    }
     void push_frame(frame_c* frame) {
-        std::unique_lock<std::mutex> new_frame_lock(new_frame_mutex);
         m_output_frames.push(frame);
-        new_frame_condition.notify_one();
     }
 protected:
     bitstream_reader_c* m_bs;
 
     // stream data
     frame_c* ref_frames[2] = { 0 };
-    std::mutex new_frame_mutex;
-    std::condition_variable new_frame_condition;
-    concurrent_queue<frame_c*> m_frames_pool;
-    concurrent_queue<frame_c*> m_output_frames;
+    ThreadSafeQ<frame_c*> m_frames_pool;
+    ThreadSafeQ<frame_c*> m_output_frames;
 
 public:
     std::vector<uint8_t> user_data;

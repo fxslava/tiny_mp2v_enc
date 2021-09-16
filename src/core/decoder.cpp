@@ -63,7 +63,7 @@ frame_c::~frame_c() {
         if (m_planes[i]) delete[] m_planes[i];
 }
 
-static void parse_mb_pattern(macroblock_t& mb, bool pattern_code[12], int chroma_format) {
+MP2V_INLINE static void parse_mb_pattern(macroblock_t& mb, bool pattern_code[12], int chroma_format) {
     bool macroblock_intra = mb.macroblock_type & macroblock_intra_bit;
     bool macroblock_pattern = mb.macroblock_type & macroblock_pattern_bit;
     uint32_t coded_block_pattern_1 = mb.coded_block_pattern_1;
@@ -88,7 +88,7 @@ static void parse_mb_pattern(macroblock_t& mb, bool pattern_code[12], int chroma
 }
 
 template<bool use_dct_one_table>
-static void read_first_coefficient(bitstream_reader_c* bs, uint32_t& run, int32_t& level) {
+MP2V_INLINE static void read_first_coefficient(bitstream_reader_c* bs, uint32_t& run, int32_t& level) {
     if (bs->get_next_bits(6) == 0b000001) {
         bs->skip_bits(6);
         run = bs->read_next_bits(6);
@@ -112,7 +112,7 @@ static void read_first_coefficient(bitstream_reader_c* bs, uint32_t& run, int32_
 }
 
 template<bool use_dct_one_table>
-static void read_block_coefficients(bitstream_reader_c* bs, uint32_t& n, int16_t QFS[64]) {
+MP2V_INLINE static void read_block_coefficients(bitstream_reader_c* bs, uint32_t& n, int16_t QFS[64]) {
     bool eob_not_read = true;
     while (eob_not_read) {
         //<decode VLC, decode Escape coded coefficient if required>
@@ -282,11 +282,11 @@ bool mp2v_slice_c::decode_macroblock() {
     int chroma_stride = m_frame->m_stride[1];
 
     // decode skipped macroblocks
-    mb_data_t skipped_mb_data = { 0 };
+    //mb_data_t skipped_mb_data = { 0 };
     if ((mb.macroblock_address_increment > 1) && (m_picture_coding_type == picture_coding_type_bidir)) {
-        skipped_mb_data.mb.macroblock_type = mb.macroblock_type & (macroblock_motion_forward_bit | macroblock_motion_backward_bit);
-        skipped_mb_data.mb.prediction_type = Frame_based;
-        skipped_mb_data.mb.motion_vector_count = 1;
+        m_cur_mb_data.mb.macroblock_type = mb.macroblock_type & (macroblock_motion_forward_bit | macroblock_motion_backward_bit);
+        m_cur_mb_data.mb.prediction_type = Frame_based;
+        m_cur_mb_data.mb.motion_vector_count = 1;
     }
     for (int i = 0; i < mb.macroblock_address_increment; i++, mb_col++) {
         // prepare planes ptrs
@@ -318,16 +318,16 @@ bool mp2v_slice_c::decode_macroblock() {
 
         //update motion vectors predictors
         if (m_picture_coding_type == picture_coding_type_pred) {
-            skipped_mb_data.mb.prediction_type = Frame_based;
-            memset(skipped_mb_data.MVs, 0, sizeof(skipped_mb_data.MVs));
+            m_cur_mb_data.mb.prediction_type = Frame_based;
+            memset(m_cur_mb_data.MVs, 0, sizeof(m_cur_mb_data.MVs));
             memset(m_PMV, 0, sizeof(m_PMV));
         }
 
         //copy motion vectors for skipped macroblocks
-        if (m_picture_coding_type == picture_coding_type_bidir)
-            memcpy(skipped_mb_data.MVs, m_cur_mb_data.MVs, sizeof(m_cur_mb_data.MVs));
+        /*if (m_picture_coding_type == picture_coding_type_bidir)
+            memcpy(skipped_mb_data.MVs, m_cur_mb_data.MVs, sizeof(m_cur_mb_data.MVs));*/
 
-        decode_mb_func(yuv, stride, chroma_stride, skipped_mb_data, pic->quantiser_matrices, pcext.intra_dc_precision, cur_quantiser_scale_code, ref0, ref1);
+        decode_mb_func(yuv, stride, chroma_stride, m_cur_mb_data, pic->quantiser_matrices, pcext.intra_dc_precision, cur_quantiser_scale_code, ref0, ref1);
     }
 
     // Reset motion vectors predictors conditions
@@ -588,28 +588,25 @@ bool mp2v_decoder_c::decode() {
 
 bool mp2v_decoder_c::decode_picture_data() {
     frame_c* frame = nullptr;
-    if (m_frames_pool.try_pop(frame)) {
+    m_frames_pool.pop(frame);
 
-        /* Decode sequence parameters*/
-        mp2v_picture_c pic(m_bs, this, frame);
-        pic.block_count = block_count_tbl[m_sequence_extension.chroma_format];
+    /* Decode sequence parameters*/
+    mp2v_picture_c pic(m_bs, this, frame);
+    pic.block_count = block_count_tbl[m_sequence_extension.chroma_format];
 
-        parse_picture_header(m_bs, pic.m_picture_header);
-        parse_picture_coding_extension(m_bs, pic.m_picture_coding_extension);
-        decode_extension_and_user_data(after_picture_coding_extension, &pic);
+    parse_picture_header(m_bs, pic.m_picture_header);
+    parse_picture_coding_extension(m_bs, pic.m_picture_coding_extension);
+    decode_extension_and_user_data(after_picture_coding_extension, &pic);
 
-        if (pic.m_picture_header.picture_coding_type == picture_coding_type_pred || pic.m_picture_header.picture_coding_type == picture_coding_type_intra) {
-            ref_frames[0] = ref_frames[1];
-            ref_frames[1] = frame;
-        }
-
-        pic.decode_picture();
-
-        push_frame(frame);
-        return true;
+    if (pic.m_picture_header.picture_coding_type == picture_coding_type_pred || pic.m_picture_header.picture_coding_type == picture_coding_type_intra) {
+        ref_frames[0] = ref_frames[1];
+        ref_frames[1] = frame;
     }
-    else
-        return false;
+
+    pic.decode_picture();
+
+    push_frame(frame);
+    return true;
 }
 
 bool mp2v_decoder_c::decoder_init(decoder_config_t* config) {

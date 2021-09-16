@@ -12,8 +12,7 @@ void stream_writer_func(mp2v_decoder_c* mp2v_decoder, std::string output_file) {
     FILE* fp = fopen(output_file.c_str(), "wb");
 
     frame_c* frame = nullptr;
-    while (!mp2v_decoder->get_decoded_frame(frame))
-        mp2v_decoder->wait_for_frame();
+    mp2v_decoder->get_decoded_frame(frame);
 
     while (frame) {
         for (int i = 0; i < 3; i++) {
@@ -23,9 +22,7 @@ void stream_writer_func(mp2v_decoder_c* mp2v_decoder, std::string output_file) {
         }
 
         mp2v_decoder->release_frame(frame);
-
-        while (!mp2v_decoder->get_decoded_frame(frame))
-            mp2v_decoder->wait_for_frame();
+        mp2v_decoder->get_decoded_frame(frame);
     }
 
     fclose(fp);
