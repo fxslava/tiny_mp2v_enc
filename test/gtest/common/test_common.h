@@ -1,4 +1,4 @@
-// Copyright © 2021 Vladislav Ovchinnikov. All rights reserved.
+// Copyright ï¿½ 2021 Vladislav Ovchinnikov. All rights reserved.
 #include <gtest/gtest.h>
 #include <iostream>
 
@@ -50,11 +50,11 @@ public:
     }
 
     inline pointer allocate(size_type n) {
-        return (pointer)_aligned_malloc(n * sizeof(value_type), N);
+        return (pointer)aligned_alloc(N, n * sizeof(value_type));
     }
 
     inline void deallocate(pointer p, size_type) {
-        _aligned_free(p);
+        free(p);
     }
 
     inline void construct(pointer p, const value_type& wert) {

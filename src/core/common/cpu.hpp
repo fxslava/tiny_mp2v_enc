@@ -1,4 +1,4 @@
-// Copyright © 2021 Vladislav Ovchinnikov. All rights reserved.
+// Copyright ï¿½ 2021 Vladislav Ovchinnikov. All rights reserved.
 #pragma once
 #include <stdint.h>
 
@@ -8,9 +8,11 @@
 #define MP2V_INLINE                   __forceinline
 #endif
 
-#include <intrin.h>
-
 #if defined(_MSC_VER)
+#include <intrin.h>
+#define bswap_16(x) _byteswap_ushort(x)
+#define bswap_32(x) _byteswap_ulong(x)
+
 MP2V_INLINE uint32_t bit_scan_reverse(uint32_t x)
 {
     unsigned long index;
@@ -32,6 +34,9 @@ MP2V_INLINE uint64_t bit_scan_forward64(uint64_t x)
     return x ? index : 64;
 }
 #elif defined(__GNUC__) || defined(__clang__)
+#define bswap_16(x) __builtin_bswap16(x);
+#define bswap_32(x) __builtin_bswap32(x);
+
 MP2V_INLINE uint32_t bit_scan_reverse(uint32_t x)
 {
     return x ? __builtin_clz(x) : 32;

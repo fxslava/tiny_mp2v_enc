@@ -1,4 +1,5 @@
-// Copyright © 2021 Vladislav Ovchinnikov. All rights reserved.
+// Copyright ï¿½ 2021 Vladislav Ovchinnikov. All rights reserved.
+#include <string.h>
 
 #include "decoder.h"
 #include "mp2v_hdr.h"
@@ -70,7 +71,7 @@ MP2V_INLINE static void parse_mb_pattern(macroblock_t& mb, bool pattern_code[12]
     uint32_t coded_block_pattern_2 = mb.coded_block_pattern_2;
     uint32_t cbp = mb.coded_block_pattern_420;
 
-    memset(pattern_code, 0, sizeof(pattern_code));
+    pattern_code = { 0 };
     for (int i = 0; i < 12; i++) {
         if (macroblock_intra)
             pattern_code[i] = true;
@@ -368,7 +369,7 @@ bool mp2v_slice_c::decode_macroblock() {
         }
     }
 
-    // Update motion vectors predictors conditions (Table 7-9 – Updating of motion vector predictors in frame pictures)
+    // Update motion vectors predictors conditions (Table 7-9 ï¿½ Updating of motion vector predictors in frame pictures)
     if (mb.prediction_type == Frame_based) {
         if (mb.macroblock_type & macroblock_intra_bit)
             for (int t : { 0, 1 }) m_PMV[1][0][t] = m_PMV[0][0][t];
@@ -389,8 +390,8 @@ bool mp2v_slice_c::decode_macroblock() {
     if (((mb.macroblock_type & macroblock_intra_bit) && !m_concealment_motion_vectors) ||
         ((m_picture_coding_type == picture_coding_type_pred) && !(mb.macroblock_type & macroblock_intra_bit) && !(mb.macroblock_type & macroblock_motion_forward_bit)))
     {
-        memset(m_PMV, 0, sizeof(m_PMV));
         memset(m_cur_mb_data.MVs, 0, sizeof(m_cur_mb_data.MVs));
+        memset(m_PMV, 0, sizeof(m_PMV));
     }
 
     // Decode coefficients

@@ -1,4 +1,4 @@
-// Copyright © 2021 Vladislav Ovchinnikov. All rights reserved.
+// Copyright ï¿½ 2021 Vladislav Ovchinnikov. All rights reserved.
 #include <stdint.h>
 #include <algorithm>
 #include <math.h>
@@ -83,9 +83,9 @@ void inverse_dct_template(dst_t* plane, int16_t F[64], int stride) {
         }
 }
 
-void inverse_dct(uint8_t* plane, int16_t F[64], int stride) {
+void inverse_dct_c(uint8_t* plane, int16_t F[64], int stride) {
     inverse_dct_template<uint8_t, uint8_t, false>(plane, F, stride);
 }
-void add_inverse_dct(uint8_t* plane, int16_t F[64], int stride) {
+void add_inverse_dct_c(uint8_t* plane, int16_t F[64], int stride) {
     inverse_dct_template<uint8_t, uint8_t, true>(plane, F, stride);
 }

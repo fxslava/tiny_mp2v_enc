@@ -1,4 +1,4 @@
-// Copyright © 2021 Vladislav Ovchinnikov. All rights reserved.
+// Copyright ï¿½ 2021 Vladislav Ovchinnikov. All rights reserved.
 #pragma once
 #include <fstream>
 #include <vector>
@@ -10,7 +10,7 @@ private:
         buffer <<= 32;
         uint32_t tmp = *buffer_ptr;
         buffer_ptr++;
-        buffer |= (uint64_t)_byteswap_ulong(tmp);
+        buffer |= (uint64_t)bswap_32(tmp);
         buffer_idx -= 32;
     }
 

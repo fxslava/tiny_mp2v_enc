@@ -1,13 +1,7 @@
-// Copyright © 2021 Vladislav Ovchinnikov. All rights reserved.
+// Copyright ï¿½ 2021 Vladislav Ovchinnikov. All rights reserved.
 #include "common/cpu.hpp"
 #include "mb_decoder.h"
 #include "decoder.h"
-//#include "scan.h"
-//#include "idct.h"
-//#include "quant_c.hpp"
-//#include "scan_sse4.hpp"
-//#include "quant_sse2.hpp"
-#include "scan_dequant_idct_sse2.hpp"
 #include "mc.h"
 #include <cstddef>
 #include <stdlib.h>
@@ -17,31 +11,41 @@ enum mc_template_e {
     mc_templ_frame
 };
 
+#if defined(__aarch64__) || defined(__arm__)
+#include "scan.h"
+#include "idct.h"
+#include "quant_c.hpp"
+
 template<typename pixel_t, bool alt_scan, bool intra, bool add>
 MP2V_INLINE void decode_block_template(pixel_t* plane, uint32_t stride, int16_t QFS[64], uint16_t W_i[64], uint16_t W[64], uint8_t quantizer_scale, int intra_dc_prec) {
-    /*int16_t QF[64];
+    int16_t QF[64];
     int16_t F[64];
 
     // inverse scan
     if (alt_scan)
-        inverse_alt_scan_sse2(QF, QFS);
+        inverse_alt_scan_c(QF, QFS);
     else
         inverse_scan_c(QF, QFS);
 
     // dequantization
     if (!intra)
-        inverse_quant_sse2(F, QF, W, quantizer_scale);
+        inverse_quant_c(F, QF, W, quantizer_scale);
     else
-        inverse_quant_intra_sse2(F, QF, W_i, quantizer_scale, intra_dc_prec);
+        inverse_quant_intra_c(F, QF, W_i, quantizer_scale, intra_dc_prec);
 
     //idct
     if (add)
-        add_inverse_dct_sse2(plane, F, stride); 
+        add_inverse_dct_c(plane, F, stride); 
     else
-        inverse_dct_sse2(plane, F, stride);*/
-
+        inverse_dct_c(plane, F, stride);
+}
+#else
+#include "scan_dequant_idct_sse2.hpp"
+template<typename pixel_t, bool alt_scan, bool intra, bool add>
+MP2V_INLINE void decode_block_template(pixel_t* plane, uint32_t stride, int16_t QFS[64], uint16_t W_i[64], uint16_t W[64], uint8_t quantizer_scale, int intra_dc_prec) {
     scan_dequant_idct_template_sse2<pixel_t, intra, add>(plane, stride, QFS, intra ? W_i : W, quantizer_scale, intra_dc_prec);
 }
+#endif
 
 template<typename pixel_t, int chroma_format, bool alt_scan, bool intra, bool add>
 MP2V_INLINE void decode_transform_template(pixel_t* yuv_planes[3], int stride, int chroma_stride, uint16_t W[4][64], int16_t QFS[12][64], bool pattern_code[12], uint8_t quantizer_scale, uint8_t intra_dc_prec) {
@@ -144,15 +148,15 @@ MP2V_INLINE void mc_bidir_template(uint8_t* dst, uint8_t* ref0, uint8_t* ref1, m
 
     if (plane_idx == 0) {
         switch (mc_templ) {
-        case mc_templ_field: mc_bidir_16xh_nsse2[mvs_ridx](dst, bref, fref, _stride,  8); break;
-        case mc_templ_frame: mc_bidir_16xh_nsse2[mvs_ridx](dst, bref, fref, _stride, 16); break;
+        case mc_templ_field: mc_bidir_16xh[mvs_ridx](dst, bref, fref, _stride,  8); break;
+        case mc_templ_frame: mc_bidir_16xh[mvs_ridx](dst, bref, fref, _stride, 16); break;
         }
     }
     else {
         switch (chroma_format) {
-        case chroma_format_420: mc_bidir_8xh_nsse2[mvs_ridx](dst, bref, fref, _chroma_stride, (mc_templ == mc_templ_field) ? 4 :  8); break;
-        case chroma_format_422: mc_bidir_8xh_nsse2[mvs_ridx](dst, bref, fref, _chroma_stride, (mc_templ == mc_templ_field) ? 8 : 16); break;
-        case chroma_format_444: mc_bidir_16xh_nsse2[mvs_ridx](dst, bref, fref, _chroma_stride, (mc_templ == mc_templ_field) ? 8 : 16); break;
+        case chroma_format_420: mc_bidir_8xh[mvs_ridx](dst, bref, fref, _chroma_stride, (mc_templ == mc_templ_field) ? 4 :  8); break;
+        case chroma_format_422: mc_bidir_8xh[mvs_ridx](dst, bref, fref, _chroma_stride, (mc_templ == mc_templ_field) ? 8 : 16); break;
+        case chroma_format_444: mc_bidir_16xh[mvs_ridx](dst, bref, fref, _chroma_stride, (mc_templ == mc_templ_field) ? 8 : 16); break;
         }
     }
 }
@@ -200,15 +204,15 @@ MP2V_INLINE void mc_unidir_template(uint8_t* dst, uint8_t* ref, mb_data_t &mb_da
 
     if (plane_idx == 0) {
         switch (mc_templ) {
-        case mc_templ_field: mc_pred_16xh_nsse2[mvs_ridx](dst, ref, _stride,  8); break;
-        case mc_templ_frame: mc_pred_16xh_nsse2[mvs_ridx](dst, ref, _stride, 16); break;
+        case mc_templ_field: mc_pred_16xh[mvs_ridx](dst, ref, _stride,  8); break;
+        case mc_templ_frame: mc_pred_16xh[mvs_ridx](dst, ref, _stride, 16); break;
         }
     }
     else {
         switch (chroma_format) {
-        case chroma_format_420: mc_pred_8xh_nsse2[mvs_ridx](dst, ref, _chroma_stride, (mc_templ == mc_templ_field) ? 4 :  8); break;
-        case chroma_format_422: mc_pred_8xh_nsse2[mvs_ridx](dst, ref, _chroma_stride, (mc_templ == mc_templ_field) ? 8 : 16); break;
-        case chroma_format_444: mc_pred_16xh_nsse2[mvs_ridx](dst, ref, _chroma_stride, (mc_templ == mc_templ_field) ? 8 : 16); break;
+        case chroma_format_420: mc_pred_8xh[mvs_ridx](dst, ref, _chroma_stride, (mc_templ == mc_templ_field) ? 4 :  8); break;
+        case chroma_format_422: mc_pred_8xh[mvs_ridx](dst, ref, _chroma_stride, (mc_templ == mc_templ_field) ? 8 : 16); break;
+        case chroma_format_444: mc_pred_16xh[mvs_ridx](dst, ref, _chroma_stride, (mc_templ == mc_templ_field) ? 8 : 16); break;
         }
     }
 }

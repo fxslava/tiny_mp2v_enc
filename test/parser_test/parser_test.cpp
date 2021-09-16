@@ -1,12 +1,15 @@
-// Copyright © 2021 Vladislav Ovchinnikov. All rights reserved.
+// Copyright ï¿½ 2021 Vladislav Ovchinnikov. All rights reserved.
 
 #include <thread>
 #include <chrono>
 #include <iostream>
-#include <ittnotify.h>
 #include "sample_args.h"
 #include "bitstream.h"
 #include "core/decoder.h"
+
+#if defined(_MSC_VER)
+#include <ittnotify.h>
+#endif
 
 void stream_writer_func(mp2v_decoder_c* mp2v_decoder, std::string output_file) {
     FILE* fp = fopen(output_file.c_str(), "wb");
@@ -53,9 +56,13 @@ int main(int argc, char* argv[])
 
         const auto start = std::chrono::system_clock::now();
 
+#if defined(_MSC_VER)
         __itt_resume();
         mp2v_decoder.decode();
         __itt_pause();
+#else
+        mp2v_decoder.decode();
+#endif
 
         const auto end = std::chrono::system_clock::now();
         auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);

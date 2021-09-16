@@ -1,5 +1,7 @@
 project(tiny_mp2v_enc)
 
+set(CMAKE_CXX_STANDARD 11)
+
 file(
     GLOB INC_DIRECTORIES
         ./api
@@ -13,9 +15,7 @@ file(
         ./core/mp2v_hdr.cpp
         ./core/scan_c.cpp
         ./core/idct_c.cpp
-        ./core/mc_c.cpp
-        ./core/mc_sse2.cpp
-        ./core/mc_naive_sse2.cpp
+        ./core/mc.cpp
 )
 
 include_directories(
