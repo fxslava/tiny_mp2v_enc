@@ -7,6 +7,10 @@ file(
         ./api
 )
 
+include_directories(
+    ${INC_DIRECTORIES}
+)
+
 file(
     GLOB SOURCES
         ./core/decoder.cpp
@@ -18,9 +22,19 @@ file(
         ./core/mc.cpp
 )
 
-include_directories(
-    ${INC_DIRECTORIES}
-)
+if(WIN32)
+    set(
+        CMAKE_C_FLAGS
+            "${CMAKE_C_FLAGS} /fp:precise"
+    )
+elseif(UNIX)
+    set(
+        CMAKE_C_FLAGS
+            "${CMAKE_C_FLAGS} -msse2 -Ofast -g0 -Wall"
+    )
+endif()
+
+message(STATUS, ${CMAKE_C_FLAGS})
 
 add_library(
 	${PROJECT_NAME}
