@@ -11,8 +11,10 @@
 // Tiny MPEG2 MC headers
 #include "core/mc.h"
 #include "core/mc_c.hpp"
+#if (defined(__GNUC__) && defined(__x86_64)) || (defined(_MSC_VER) && defined(_M_X64))
 #include "core/mc_naive_sse2.hpp"
 #include "core/mc_sse2.hpp"
+#endif
 
 constexpr int TEST_NUM_ITERATIONS = 10;
 constexpr int TEST_NUM_ITERATIONS_PERFORMANCE = 10000;

@@ -324,6 +324,8 @@ void decode_macroblock_template(
     }
 }
 
+void decode_macroblock_func_nope(uint8_t* yuv_planes[3], int stride, int chroma_stride, mb_data_t &mb_data, uint16_t W[4][64], uint8_t intra_dc_prec, int &quant_scale_code, uint8_t* ref0[3], uint8_t* ref1[3]) {};
+
 decode_macroblock_func_t select_decode_macroblock(int chroma_format, bool q_scale_type, bool alt_scan) {
     switch (chroma_format) {
     case chroma_format_420:
@@ -354,4 +356,5 @@ decode_macroblock_func_t select_decode_macroblock(int chroma_format, bool q_scal
             else           return decode_macroblock_template<chroma_format_444, true, true>;
         }
     }
+    return decode_macroblock_func_nope;
 }
