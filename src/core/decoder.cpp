@@ -284,10 +284,6 @@ bool mp2v_slice_c::decode_macroblock(uint8_t* (&yuv)[3], uint8_t* (&yuv_l0)[3], 
         m_cur_mb_data.mb.prediction_type = Frame_based;
         m_cur_mb_data.mb.motion_vector_count = 1;
     }
-    else
-    {
-        m_cur_mb_data.mb = { 0 };
-    }
 
     auto refs = m_pic->m_dec->ref_frames;
     mp2v_picture_c* pic = reinterpret_cast<mp2v_picture_c*>(m_pic);

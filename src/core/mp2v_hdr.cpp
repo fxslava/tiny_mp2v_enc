@@ -250,7 +250,6 @@ static bool parse_modes(bitstream_reader_c* m_bs, macroblock_t& mb, int spatial_
                 mb.frame_motion_type = m_bs->read_next_bits(2);
         }
         else {
-            mb.frame_motion_type = 1; // Field-based
             mb.field_motion_type = m_bs->read_next_bits(2);
         }
     }
@@ -350,15 +349,13 @@ MP2V_INLINE void update_motion_predictor(uint32_t f_code[2][2], int32_t motion_c
 
     MVs[r][s][t] = prediction + delta;
 
-    if (delta != 0) {
-        if (MVs[r][s][t] < low)  MVs[r][s][t] += range;
-        if (MVs[r][s][t] > high) MVs[r][s][t] -= range;
+    if (MVs[r][s][t] < low)  MVs[r][s][t] += range;
+    if (MVs[r][s][t] > high) MVs[r][s][t] -= range;
 
-        if ((mv_format == Field) && (t == 1) && (picture_structure == picture_structure_framepic))
-            PMV[r][s][t] = MVs[r][s][t] * 2;
-        else
-            PMV[r][s][t] = MVs[r][s][t];
-    }
+    if ((mv_format == Field) && (t == 1) && (picture_structure == picture_structure_framepic))
+        PMV[r][s][t] = MVs[r][s][t] * 2;
+    else
+        PMV[r][s][t] = MVs[r][s][t];
 }
 
 template<uint8_t picture_structure, int r, int s>
@@ -429,57 +426,36 @@ bool parse_macroblock_template(bitstream_reader_c* m_bs, macroblock_t& mb, int s
     return true;
 }
 
-#define DEF_CHROMA_FROMATS_PARSE_MACROBLOCKS_ROUTINES(prefix, pct, ps, fpfdct, cmv) \
-static bool parse_##prefix##_420_macroblock(bitstream_reader_c* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index, uint32_t f_code[2][2], int16_t PMV[2][2][2], int16_t MVs[2][2][2]) { \
-    return parse_macroblock_template<pct, ps, fpfdct, cmv, chroma_format_420>(m_bs, mb, spatial_temporal_weight_code_table_index, f_code, PMV, MVs); \
-} \
-static bool parse_##prefix##_422_macroblock(bitstream_reader_c* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index, uint32_t f_code[2][2], int16_t PMV[2][2][2], int16_t MVs[2][2][2]) { \
-    return parse_macroblock_template<pct, ps, fpfdct, cmv, chroma_format_422>(m_bs, mb, spatial_temporal_weight_code_table_index, f_code, PMV, MVs); \
-} \
-static bool parse_##prefix##_444_macroblock(bitstream_reader_c* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index, uint32_t f_code[2][2], int16_t PMV[2][2][2], int16_t MVs[2][2][2]) { \
-    return parse_macroblock_template<pct, ps, fpfdct, cmv, chroma_format_444>(m_bs, mb, spatial_temporal_weight_code_table_index, f_code, PMV, MVs); \
-}
-
-#define DEF_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(prefix, pct, cmv) \
-DEF_CHROMA_FROMATS_PARSE_MACROBLOCKS_ROUTINES(prefix##_frame, pct, picture_structure_framepic, 0, cmv) \
-DEF_CHROMA_FROMATS_PARSE_MACROBLOCKS_ROUTINES(prefix##_frame_dct, pct, picture_structure_framepic, 1, cmv) \
-DEF_CHROMA_FROMATS_PARSE_MACROBLOCKS_ROUTINES(prefix##_field, pct, picture_structure_topfield, 0, cmv)
-
-DEF_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(i, picture_coding_type_intra, 0);
-DEF_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(i_cmv, picture_coding_type_intra, 1);
-DEF_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(p, picture_coding_type_pred, 0);
-DEF_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(b, picture_coding_type_bidir, 0);
-
-#define SEL_CHROMA_FROMATS_PARSE_MACROBLOCKS_ROUTINES(prefix, pct, ps, fpfdct, cmv) \
+#define SEL_CHROMA_FROMATS_PARSE_MACROBLOCKS_ROUTINES(pct, ps, fpfdct, cmv) \
     switch (chroma_format) { \
-        case chroma_format_420: return parse_##prefix##_420_macroblock; \
-        case chroma_format_422: return parse_##prefix##_422_macroblock; \
-        case chroma_format_444: return parse_##prefix##_444_macroblock; \
+        case chroma_format_420: return parse_macroblock_template<pct, ps, fpfdct, cmv, chroma_format_420>; \
+        case chroma_format_422: return parse_macroblock_template<pct, ps, fpfdct, cmv, chroma_format_422>; \
+        case chroma_format_444: return parse_macroblock_template<pct, ps, fpfdct, cmv, chroma_format_444>; \
     }
 
-#define SEL_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(prefix, pct, cmv) \
+#define SEL_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(pct, cmv) \
     if (picture_structure == picture_structure_framepic) { \
         if (frame_pred_frame_dct) \
-            SEL_CHROMA_FROMATS_PARSE_MACROBLOCKS_ROUTINES(prefix##_frame_dct, pct, picture_structure_framepic, 1, cmv) \
+            SEL_CHROMA_FROMATS_PARSE_MACROBLOCKS_ROUTINES(pct, picture_structure_framepic, 1, cmv) \
         else \
-            SEL_CHROMA_FROMATS_PARSE_MACROBLOCKS_ROUTINES(prefix##_frame, pct, picture_structure_framepic, 0, cmv) \
+            SEL_CHROMA_FROMATS_PARSE_MACROBLOCKS_ROUTINES(pct, picture_structure_framepic, 0, cmv) \
     } else \
-        SEL_CHROMA_FROMATS_PARSE_MACROBLOCKS_ROUTINES(prefix##_field, pct, picture_structure_topfield, 0, cmv)
+        SEL_CHROMA_FROMATS_PARSE_MACROBLOCKS_ROUTINES(pct, picture_structure_topfield, 0, cmv)
 
 parse_macroblock_func_t select_parse_macroblock_func(uint8_t picture_coding_type, uint8_t picture_structure, uint8_t frame_pred_frame_dct, uint8_t concealment_motion_vectors, uint8_t chroma_format) 
 {
     switch (picture_coding_type) {
     case picture_coding_type_intra:
         if (concealment_motion_vectors) {
-            SEL_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(i_cmv, picture_coding_type_intra, 1)
+            SEL_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(picture_coding_type_intra, 1)
         }
         else {
-            SEL_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(i, picture_coding_type_intra, 0)
+            SEL_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(picture_coding_type_intra, 0)
         }
     case picture_coding_type_pred:
-        SEL_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(p, picture_coding_type_pred, 0)
+        SEL_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(picture_coding_type_pred, 0)
     case picture_coding_type_bidir:
-        SEL_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(b, picture_coding_type_bidir, 0)
+        SEL_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(picture_coding_type_bidir, 0)
     default:
         return 0;
     };
