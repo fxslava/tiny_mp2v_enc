@@ -326,9 +326,9 @@ bool parse_coded_block_pattern(bitstream_reader_c* m_bs, macroblock_t& mb) {
     return false;
 }
 
-template<uint8_t picture_structure, int r, int s, int t, bool residual>
-MP2V_INLINE void update_motion_predictor(uint32_t f_code[2][2], int32_t motion_code[2][2][2], uint32_t motion_residual[2][2][2], int16_t PMV[2][2][2], int16_t MVs[2][2][2], mv_format_e mv_format) {
-    int r_size = f_code[s][t] - 1;
+template<uint8_t picture_structure, int t, bool residual>
+MP2V_INLINE void update_motion_predictor(uint32_t f_code, int32_t motion_code, uint32_t motion_residual, int16_t &PMV, int16_t &MVs, mv_format_e mv_format) {
+    int r_size = f_code - 1;
     int f = 1 << r_size;
     int high = (16 * f) - 1;
     int low = ((-16) * f);
@@ -336,47 +336,48 @@ MP2V_INLINE void update_motion_predictor(uint32_t f_code[2][2], int32_t motion_c
 
     int delta;
     if (residual) {
-        delta = ((labs(motion_code[r][s][t]) - 1) * f) + motion_residual[r][s][t] + 1;
-        if (motion_code[r][s][t] < 0)
+        delta = ((labs(motion_code) - 1) * f) + motion_residual + 1;
+        if (motion_code < 0)
             delta = -delta;
     }
     else
-        delta = motion_code[r][s][t];
+        delta = motion_code;
 
-    int prediction = PMV[r][s][t];
+    int prediction = PMV;
     if ((mv_format == Field) && (t == 1) && (picture_structure == picture_structure_framepic))
-        prediction = PMV[r][s][t] >> 1;
+        prediction = PMV >> 1;
 
-    MVs[r][s][t] = prediction + delta;
+    MVs = prediction + delta;
 
-    if (MVs[r][s][t] < low)  MVs[r][s][t] += range;
-    if (MVs[r][s][t] > high) MVs[r][s][t] -= range;
+    if (MVs < low)  MVs += range;
+    if (MVs > high) MVs -= range;
 
     if ((mv_format == Field) && (t == 1) && (picture_structure == picture_structure_framepic))
-        PMV[r][s][t] = MVs[r][s][t] * 2;
+        PMV = MVs * 2;
     else
-        PMV[r][s][t] = MVs[r][s][t];
+        PMV = MVs;
 }
 
-template<uint8_t picture_structure, int r, int s>
-MP2V_INLINE bool parse_motion_vector(bitstream_reader_c* m_bs, macroblock_t& mb, uint32_t f_code[2][2], int16_t PMV[2][2][2], int16_t MVs[2][2][2], mv_format_e mv_format) {
-    mb.motion_code[r][s][0] = get_motion_code(m_bs);
-    if ((f_code[s][0] != 1) && (mb.motion_code[r][s][0] != 0)) {
-        mb.motion_residual[r][s][0] = m_bs->read_next_bits(f_code[s][0] - 1);
-        update_motion_predictor<picture_structure, r, s, 0, true>(f_code, mb.motion_code, mb.motion_residual, PMV, MVs, mv_format);
+template<uint8_t picture_structure>
+MP2V_INLINE bool parse_motion_vector(bitstream_reader_c* m_bs, macroblock_t& mb, uint32_t f_code[2], int16_t PMV[2], int16_t MVs[2], mv_format_e mv_format) {
+    int32_t motion_code = get_motion_code(m_bs);
+    if ((f_code[0] != 1) && (motion_code != 0)) {
+        uint32_t motion_residual = m_bs->read_next_bits(f_code[0] - 1);
+        update_motion_predictor<picture_structure, 0, true>(f_code[0], motion_code, motion_residual, PMV[0], MVs[0], mv_format);
     }
     else
-        update_motion_predictor<picture_structure, r, s, 0, false>(f_code, mb.motion_code, mb.motion_residual, PMV, MVs, mv_format);
+        update_motion_predictor<picture_structure, 0, false>(f_code[0], motion_code, 0, PMV[0], MVs[0], mv_format);
 
     if (mb.dmv == 1)
         mb.dmvector[0] = get_dmvector(m_bs);
-    mb.motion_code[r][s][1] = get_motion_code(m_bs);
-    if ((f_code[s][1] != 1) && (mb.motion_code[r][s][1] != 0)) {
-        mb.motion_residual[r][s][1] = m_bs->read_next_bits(f_code[s][1] - 1);
-        update_motion_predictor<picture_structure, r, s, 1, true>(f_code, mb.motion_code, mb.motion_residual, PMV, MVs, mv_format);
+
+    motion_code = get_motion_code(m_bs);
+    if ((f_code[1] != 1) && (motion_code != 0)) {
+        uint32_t motion_residual = m_bs->read_next_bits(f_code[1] - 1);
+        update_motion_predictor<picture_structure, 1, true>(f_code[1], motion_code, motion_residual, PMV[1], MVs[1], mv_format);
     }
     else
-        update_motion_predictor<picture_structure, r, s, 1, false>(f_code, mb.motion_code, mb.motion_residual, PMV, MVs, mv_format);
+        update_motion_predictor<picture_structure, 1, false>(f_code[1], motion_code, 0, PMV[1], MVs[1], mv_format);
 
     if (mb.dmv == 1)
         mb.dmvector[1] = get_dmvector(m_bs);
@@ -388,13 +389,13 @@ MP2V_INLINE bool parse_motion_vectors(bitstream_reader_c* m_bs, macroblock_t& mb
     if (mb.motion_vector_count == 1) {
         if ((mb.mv_format == Field) && (mb.dmv != 1))
             mb.motion_vertical_field_select[0][s] = m_bs->read_next_bits(1);
-        parse_motion_vector<picture_structure, 0,s>(m_bs, mb, f_code, PMV, MVs, mv_format);
+        parse_motion_vector<picture_structure>(m_bs, mb, f_code[s], PMV[0][s], MVs[0][s], mv_format);
     }
     else {
         mb.motion_vertical_field_select[0][s] = m_bs->read_next_bits(1);
-        parse_motion_vector<picture_structure, 0,s>(m_bs, mb, f_code, PMV, MVs, mv_format);
+        parse_motion_vector<picture_structure>(m_bs, mb, f_code[s], PMV[0][s], MVs[0][s], mv_format);
         mb.motion_vertical_field_select[1][s] = m_bs->read_next_bits(1);
-        parse_motion_vector<picture_structure, 1,s>(m_bs, mb, f_code, PMV, MVs, mv_format);
+        parse_motion_vector<picture_structure>(m_bs, mb, f_code[s], PMV[1][s], MVs[1][s], mv_format);
     }
     return true;
 }
