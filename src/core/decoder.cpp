@@ -204,8 +204,8 @@ static bool parse_block(bitstream_reader_c* bs, mb_data_t& mb_data, int i, uint1
     return true;
 }
 
-mp2v_slice_c::mp2v_slice_c(bitstream_reader_c* bitstream, mp2v_picture_c* pic, decode_macroblock_func_t dec_mb_func, frame_c* frame) :
-    m_bs(bitstream), m_pic(pic), decode_mb_func(dec_mb_func), m_frame(frame), m_slice{ 0 }
+mp2v_slice_c::mp2v_slice_c(bitstream_reader_c* bitstream, mp2v_picture_c* pic, frame_c* frame) :
+    m_bs(bitstream), m_pic(pic), m_frame(frame), m_slice{ 0 }
 {
     // headers
     auto* seq = m_pic->m_dec;
@@ -228,14 +228,6 @@ mp2v_slice_c::mp2v_slice_c(bitstream_reader_c* bitstream, mp2v_picture_c* pic, d
     m_intra_vlc_format = pcext.intra_vlc_format;
     m_block_count = m_pic->block_count;
     m_dct_dc_pred_reset_value = predictor_reset_value[pcext.intra_dc_precision];
-
-    // set macroblock parser
-    m_parse_macroblock_func = select_parse_macroblock_func(
-        ph.picture_coding_type,
-        pcext.picture_structure,
-        pcext.frame_pred_frame_dct,
-        pcext.concealment_motion_vectors,
-        m_chroma_format);
 
     // if picture spatial scalable extension exist then store temporal weight code table index
     if (pssext)
@@ -292,7 +284,7 @@ bool mp2v_slice_c::decode_macroblock(uint8_t* (&yuv)[3], uint8_t* (&yuv_l0)[3], 
     int stride = m_frame->m_stride[0];
     int chroma_stride = m_frame->m_stride[1];
 
-    m_parse_macroblock_func(m_bs, mb, 0, m_f_code, m_PMV, m_cur_mb_data.MVs);
+    m_pic->m_parse_macroblock_func(m_bs, mb, 0, m_f_code, m_PMV, m_cur_mb_data.MVs);
     parse_mb_pattern(mb, m_cur_mb_data.pattern_code, m_chroma_format);
 
     // Decode coefficients
@@ -351,7 +343,7 @@ bool mp2v_slice_c::decode_macroblock(uint8_t* (&yuv)[3], uint8_t* (&yuv_l0)[3], 
             memset(m_PMV, 0, sizeof(m_PMV));
         }
 
-        decode_mb_func(yuv, stride, chroma_stride, m_cur_mb_data, pic->quantiser_matrices, pcext.intra_dc_precision, cur_quantiser_scale_code, yuv_l0, yuv_l1);
+        m_pic->m_decode_macroblock_func(yuv, stride, chroma_stride, m_cur_mb_data, pic->quantiser_matrices, pcext.intra_dc_precision, cur_quantiser_scale_code, yuv_l0, yuv_l1);
 
         inc_macroblock_yuv_ptrs(yuv, m_chroma_format);
         inc_macroblock_yuv_ptrs(yuv_l0, m_chroma_format);
@@ -387,7 +379,7 @@ bool mp2v_slice_c::decode_macroblock(uint8_t* (&yuv)[3], uint8_t* (&yuv_l0)[3], 
         memset(m_PMV, 0, sizeof(m_PMV));
     }
 
-    decode_mb_func(yuv, stride, chroma_stride, m_cur_mb_data, pic->quantiser_matrices, pcext.intra_dc_precision, cur_quantiser_scale_code, yuv_l0, yuv_l1);
+    m_pic->m_decode_macroblock_func(yuv, stride, chroma_stride, m_cur_mb_data, pic->quantiser_matrices, pcext.intra_dc_precision, cur_quantiser_scale_code, yuv_l0, yuv_l1);
 
     inc_macroblock_yuv_ptrs(yuv, m_chroma_format);
     inc_macroblock_yuv_ptrs(yuv_l0, m_chroma_format);
@@ -467,10 +459,19 @@ bool mp2v_picture_c::decode_picture() {
         }
     }
     auto& sext = m_dec->m_sequence_extension;
-    decode_macroblock_func = select_decode_macroblock(sext.chroma_format, m_picture_coding_extension.q_scale_type, m_picture_coding_extension.alternate_scan);
+    auto& pcext = m_picture_coding_extension;
+    auto& ph = m_picture_header;
+
+    m_decode_macroblock_func = select_decode_macroblock(sext.chroma_format, m_picture_coding_extension.q_scale_type, m_picture_coding_extension.alternate_scan);
+    m_parse_macroblock_func = select_parse_macroblock_func(
+        ph.picture_coding_type,
+        pcext.picture_structure,
+        pcext.frame_pred_frame_dct,
+        pcext.concealment_motion_vectors,
+        sext.chroma_format);
 
     do {
-        mp2v_slice_c slice(m_bs, this, decode_macroblock_func, m_frame);
+        mp2v_slice_c slice(m_bs, this, m_frame);
         slice.decode_slice();
 #ifdef _DEBUG
         m_slices.push_back(slice);
