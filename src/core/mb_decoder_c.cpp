@@ -76,13 +76,13 @@ MP2V_INLINE void decode_transform_template(pixel_t* yuv_planes[3], int stride, i
     // Chroma format 4:4:4
     if (chroma_format == 3) {
         if (pattern_code[8])
-            decode_block_template<pixel_t, alt_scan, intra, add>(yuv_planes[1] + 8, stride, QFS[8], W[2], W[3], quantizer_scale, intra_dc_prec);
+            decode_block_template<pixel_t, alt_scan, intra, add>(yuv_planes[1] + 8, chroma_stride, QFS[8], W[2], W[3], quantizer_scale, intra_dc_prec);
         if (pattern_code[9])
-            decode_block_template<pixel_t, alt_scan, intra, add>(yuv_planes[2] + 8, stride, QFS[9], W[2], W[3], quantizer_scale, intra_dc_prec);
+            decode_block_template<pixel_t, alt_scan, intra, add>(yuv_planes[2] + 8, chroma_stride, QFS[9], W[2], W[3], quantizer_scale, intra_dc_prec);
         if (pattern_code[10])
-            decode_block_template<pixel_t, alt_scan, intra, add>(yuv_planes[1] + 8 * (stride + 1), stride, QFS[10], W[2], W[3], quantizer_scale, intra_dc_prec);
+            decode_block_template<pixel_t, alt_scan, intra, add>(yuv_planes[1] + 8 * (stride + 1), chroma_stride, QFS[10], W[2], W[3], quantizer_scale, intra_dc_prec);
         if (pattern_code[11])
-            decode_block_template<pixel_t, alt_scan, intra, add>(yuv_planes[2] + 8 * (stride + 1), stride, QFS[11], W[2], W[3], quantizer_scale, intra_dc_prec);
+            decode_block_template<pixel_t, alt_scan, intra, add>(yuv_planes[2] + 8 * (stride + 1), chroma_stride, QFS[11], W[2], W[3], quantizer_scale, intra_dc_prec);
     }
 }
 

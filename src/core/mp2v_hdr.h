@@ -298,7 +298,7 @@ struct macroblock_t {
     // ISO/IEC 13818-2 : 2000 (E) 6.2.5.1 Macroblock Modes -----------------------
     //     | Syntax element                               | No. of bits | Mnemonic
     uint32_t macroblock_type;                          // | 1 - 9       | vlclbf
-    uint32_t spatial_temporal_weight_code;             // | 2           | uimsbf
+    //uint32_t spatial_temporal_weight_code;           // | 2           | uimsbf
     uint32_t frame_motion_type;                        // | 2           | uimsbf
     uint32_t field_motion_type;                        // | 2           | uimsbf
     uint32_t dct_type;                                 // | 1           | uimsbf
@@ -306,9 +306,9 @@ struct macroblock_t {
     //     | Syntax element                               | No. of bits | Mnemonic
     uint32_t motion_vertical_field_select[2][2];       // | 1           | uimsbf
     // ISO/IEC 13818-2 : 2000 (E) 6.2.5.2.1
-    int32_t motion_code[2][2][2];                      // | 1 - 11      | vlclbf
-    uint32_t motion_residual[2][2][2];                 // | 1 - 8       | uimsbf
-    uint32_t dmvector[2];                              // | 1 - 2       | vlclbf
+    //int32_t motion_code[2][2][2];                    // | 1 - 11      | vlclbf
+    //uint32_t motion_residual[2][2][2];               // | 1 - 8       | uimsbf
+    //uint32_t dmvector[2];                            // | 1 - 2       | vlclbf
     // ISO/IEC 13818-2 : 2000 (E) 6.2.5 Coded Block Pattern ----------------------
     //     | Syntax element                               | No. of bits | Mnemonic
     uint32_t coded_block_pattern_420;                  // | 3 - 9       | vlclbf
@@ -316,9 +316,8 @@ struct macroblock_t {
     uint32_t coded_block_pattern_2;                    // | 6           | uimsbf
 
     // Decoded fields
-    uint32_t          motion_vector_count;
     uint32_t          dmv;
-    mv_format_e       mv_format;
+    uint32_t          motion_vector_count;    
     prediction_type_e prediction_type;
 };
 

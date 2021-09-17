@@ -238,10 +238,10 @@ bool parse_copyright_extension(bitstream_reader_c* m_bs, copyright_extension_t& 
 }
 
 template<int picture_coding_type, int picture_structure, int frame_pred_frame_dct>
-static bool parse_modes(bitstream_reader_c* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index) {
+static bool parse_modes(bitstream_reader_c* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index, mv_format_e &mv_format) {
     mb.macroblock_type = get_macroblock_type(m_bs, picture_coding_type);
     if ((mb.macroblock_type & spatial_temporal_weight_code_flag_bit) && (spatial_temporal_weight_code_table_index != 0)) {
-        mb.spatial_temporal_weight_code = m_bs->read_next_bits(2);
+        /*uint32_t spatial_temporal_weight_code = */m_bs->read_next_bits(2);
     }
     if ((mb.macroblock_type & macroblock_motion_forward_bit) || (mb.macroblock_type & macroblock_motion_backward_bit)) {
         if (picture_structure == picture_structure_framepic) {
@@ -264,11 +264,11 @@ static bool parse_modes(bitstream_reader_c* m_bs, macroblock_t& mb, int spatial_
         mb.motion_vector_count = 0;
         mb.dmv = 0;
         if (picture_structure == picture_structure_framepic) {
-            mb.mv_format = Frame;
+            mv_format = Frame;
             mb.prediction_type = Frame_based;
         }
         else {
-            mb.mv_format = Field;
+            mv_format = Field;
             mb.prediction_type = Field_based;
         }
     }
@@ -279,16 +279,16 @@ static bool parse_modes(bitstream_reader_c* m_bs, macroblock_t& mb, int spatial_
         if (picture_structure == picture_structure_framepic) {
             switch (mb.frame_motion_type) {
             case 1:
-                mb.mv_format = Field;
+                mv_format = Field;
                 mb.motion_vector_count = 2;
                 mb.prediction_type = Field_based;
                 break;
             case 2:
-                mb.mv_format = Frame;
+                mv_format = Frame;
                 mb.prediction_type = Frame_based;
                 break;
             case 3:
-                mb.mv_format = Field;
+                mv_format = Field;
                 mb.prediction_type = Dual_Prime;
                 mb.dmv = 1;
                 break;
@@ -297,16 +297,16 @@ static bool parse_modes(bitstream_reader_c* m_bs, macroblock_t& mb, int spatial_
         else {
             switch (mb.field_motion_type) {
             case 1:
-                mb.mv_format = Field;
+                mv_format = Field;
                 mb.prediction_type = Field_based;
                 break;
             case 2:
-                mb.mv_format = Field;
+                mv_format = Field;
                 mb.motion_vector_count = 2;
                 mb.prediction_type = MC16x8;
                 break;
             case 3:
-                mb.mv_format = Field;
+                mv_format = Field;
                 mb.prediction_type = Dual_Prime;
                 mb.dmv = 1;
                 break;
@@ -359,7 +359,7 @@ MP2V_INLINE void update_motion_predictor(uint32_t f_code, int32_t motion_code, u
 }
 
 template<uint8_t picture_structure>
-MP2V_INLINE bool parse_motion_vector(bitstream_reader_c* m_bs, macroblock_t& mb, uint32_t f_code[2], int16_t PMV[2], int16_t MVs[2], mv_format_e mv_format) {
+MP2V_INLINE bool parse_motion_vector(bitstream_reader_c* m_bs, int dmv, uint32_t f_code[2], int16_t PMV[2], int16_t MVs[2], mv_format_e mv_format) {
     int32_t motion_code = get_motion_code(m_bs);
     if ((f_code[0] != 1) && (motion_code != 0)) {
         uint32_t motion_residual = m_bs->read_next_bits(f_code[0] - 1);
@@ -368,8 +368,8 @@ MP2V_INLINE bool parse_motion_vector(bitstream_reader_c* m_bs, macroblock_t& mb,
     else
         update_motion_predictor<picture_structure, 0, false>(f_code[0], motion_code, 0, PMV[0], MVs[0], mv_format);
 
-    if (mb.dmv == 1)
-        mb.dmvector[0] = get_dmvector(m_bs);
+    if (dmv == 1)
+        /*mb.dmvector[0] = */get_dmvector(m_bs);
 
     motion_code = get_motion_code(m_bs);
     if ((f_code[1] != 1) && (motion_code != 0)) {
@@ -379,23 +379,23 @@ MP2V_INLINE bool parse_motion_vector(bitstream_reader_c* m_bs, macroblock_t& mb,
     else
         update_motion_predictor<picture_structure, 1, false>(f_code[1], motion_code, 0, PMV[1], MVs[1], mv_format);
 
-    if (mb.dmv == 1)
-        mb.dmvector[1] = get_dmvector(m_bs);
+    if (dmv == 1)
+        /*mb.dmvector[1] = */get_dmvector(m_bs);
     return true;
 }
 
 template <uint8_t picture_structure, int s>
 MP2V_INLINE bool parse_motion_vectors(bitstream_reader_c* m_bs, macroblock_t& mb, uint32_t f_code[2][2], int16_t PMV[2][2][2], int16_t MVs[2][2][2], mv_format_e mv_format) {
     if (mb.motion_vector_count == 1) {
-        if ((mb.mv_format == Field) && (mb.dmv != 1))
+        if ((mv_format == Field) && (mb.dmv != 1))
             mb.motion_vertical_field_select[0][s] = m_bs->read_next_bits(1);
-        parse_motion_vector<picture_structure>(m_bs, mb, f_code[s], PMV[0][s], MVs[0][s], mv_format);
+        parse_motion_vector<picture_structure>(m_bs, mb.dmv, f_code[s], PMV[0][s], MVs[0][s], mv_format);
     }
     else {
         mb.motion_vertical_field_select[0][s] = m_bs->read_next_bits(1);
-        parse_motion_vector<picture_structure>(m_bs, mb, f_code[s], PMV[0][s], MVs[0][s], mv_format);
+        parse_motion_vector<picture_structure>(m_bs, mb.dmv, f_code[s], PMV[0][s], MVs[0][s], mv_format);
         mb.motion_vertical_field_select[1][s] = m_bs->read_next_bits(1);
-        parse_motion_vector<picture_structure>(m_bs, mb, f_code[s], PMV[1][s], MVs[1][s], mv_format);
+        parse_motion_vector<picture_structure>(m_bs, mb.dmv, f_code[s], PMV[1][s], MVs[1][s], mv_format);
     }
     return true;
 }
@@ -406,6 +406,7 @@ template<uint8_t picture_coding_type,        //3 bit (I, P, B)
          uint8_t concealment_motion_vectors, //1 bit // only with picture_coding_type == I
          uint8_t chroma_format>              //2 bit (420, 422, 444)
 bool parse_macroblock_template(bitstream_reader_c* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index, uint32_t f_code[2][2], int16_t PMV[2][2][2], int16_t MVs[2][2][2]) {
+    mv_format_e mv_format;
     mb.macroblock_address_increment = 0;
     while (m_bs->get_next_bits(vlc_macroblock_escape_code.len) == vlc_macroblock_escape_code.value) {
         m_bs->skip_bits(vlc_macroblock_escape_code.len);
@@ -413,13 +414,13 @@ bool parse_macroblock_template(bitstream_reader_c* m_bs, macroblock_t& mb, int s
     }
     mb.macroblock_address_increment += get_macroblock_address_increment(m_bs);
 
-    parse_modes<picture_coding_type, picture_structure, frame_pred_frame_dct>(m_bs, mb, spatial_temporal_weight_code_table_index);
+    parse_modes<picture_coding_type, picture_structure, frame_pred_frame_dct>(m_bs, mb, spatial_temporal_weight_code_table_index, mv_format);
     if (mb.macroblock_type & macroblock_quant_bit)
         mb.quantiser_scale_code = m_bs->read_next_bits(5);
     if ((mb.macroblock_type & macroblock_motion_forward_bit) || ((mb.macroblock_type & macroblock_intra_bit) && concealment_motion_vectors))
-        parse_motion_vectors<picture_structure, 0>(m_bs, mb, f_code, PMV, MVs, mb.mv_format);
+        parse_motion_vectors<picture_structure, 0>(m_bs, mb, f_code, PMV, MVs, mv_format);
     if ((mb.macroblock_type & macroblock_motion_backward_bit) != 0)
-        parse_motion_vectors<picture_structure, 1>(m_bs, mb, f_code, PMV, MVs, mb.mv_format);
+        parse_motion_vectors<picture_structure, 1>(m_bs, mb, f_code, PMV, MVs, mv_format);
     if (((mb.macroblock_type & macroblock_intra_bit) != 0) && concealment_motion_vectors)
         m_bs->skip_bits(1);
     if (mb.macroblock_type & macroblock_pattern_bit)
