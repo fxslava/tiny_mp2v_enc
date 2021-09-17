@@ -327,32 +327,75 @@ bool parse_coded_block_pattern(bitstream_reader_c* m_bs, macroblock_t& mb) {
     return false;
 }
 
-bool parse_motion_vector(bitstream_reader_c* m_bs, macroblock_t& mb, int r, int s, uint32_t f_code[2][2]) {
+template<uint8_t picture_structure, int r, int s, int t, bool residual>
+MP2V_INLINE void update_motion_predictor(uint32_t f_code[2][2], int32_t motion_code[2][2][2], uint32_t motion_residual[2][2][2], int16_t PMV[2][2][2], int16_t MVs[2][2][2], mv_format_e mv_format) {
+    int r_size = f_code[s][t] - 1;
+    int f = 1 << r_size;
+    int high = (16 * f) - 1;
+    int low = ((-16) * f);
+    int range = (32 * f);
+
+    int delta;
+    if (residual) {
+        delta = ((labs(motion_code[r][s][t]) - 1) * f) + motion_residual[r][s][t] + 1;
+        if (motion_code[r][s][t] < 0)
+            delta = -delta;
+    }
+    else
+        delta = motion_code[r][s][t];
+
+    int prediction = PMV[r][s][t];
+    if ((mv_format == Field) && (t == 1) && (picture_structure == picture_structure_framepic))
+        prediction = PMV[r][s][t] >> 1;
+
+    MVs[r][s][t] = prediction + delta;
+
+    if (MVs[r][s][t] < low)  MVs[r][s][t] += range;
+    if (MVs[r][s][t] > high) MVs[r][s][t] -= range;
+
+    if ((mv_format == Field) && (t == 1) && (picture_structure == picture_structure_framepic))
+        PMV[r][s][t] = MVs[r][s][t] * 2;
+    else
+        PMV[r][s][t] = MVs[r][s][t];
+}
+
+template<uint8_t picture_structure, int r, int s>
+MP2V_INLINE bool parse_motion_vector(bitstream_reader_c* m_bs, macroblock_t& mb, uint32_t f_code[2][2], int16_t PMV[2][2][2], int16_t MVs[2][2][2], mv_format_e mv_format) {
     mb.motion_code[r][s][0] = get_motion_code(m_bs);
-    if ((f_code[s][0] != 1) && (mb.motion_code[r][s][0] != 0))
+    if ((f_code[s][0] != 1) && (mb.motion_code[r][s][0] != 0)) {
         mb.motion_residual[r][s][0] = m_bs->read_next_bits(f_code[s][0] - 1);
+        update_motion_predictor<picture_structure, r, s, 0, true>(f_code, mb.motion_code, mb.motion_residual, PMV, MVs, mv_format);
+    }
+    else
+        update_motion_predictor<picture_structure, r, s, 0, false>(f_code, mb.motion_code, mb.motion_residual, PMV, MVs, mv_format);
+
     if (mb.dmv == 1)
         mb.dmvector[0] = get_dmvector(m_bs);
     mb.motion_code[r][s][1] = get_motion_code(m_bs);
-    if ((f_code[s][1] != 1) && (mb.motion_code[r][s][1] != 0))
+    if ((f_code[s][1] != 1) && (mb.motion_code[r][s][1] != 0)) {
         mb.motion_residual[r][s][1] = m_bs->read_next_bits(f_code[s][1] - 1);
+        update_motion_predictor<picture_structure, r, s, 1, true>(f_code, mb.motion_code, mb.motion_residual, PMV, MVs, mv_format);
+    }
+    else
+        update_motion_predictor<picture_structure, r, s, 1, false>(f_code, mb.motion_code, mb.motion_residual, PMV, MVs, mv_format);
+
     if (mb.dmv == 1)
         mb.dmvector[1] = get_dmvector(m_bs);
     return true;
 }
 
-template <int s>
-bool parse_motion_vectors(bitstream_reader_c* m_bs, macroblock_t& mb, uint32_t f_code[2][2]) {
+template <uint8_t picture_structure, int s>
+MP2V_INLINE bool parse_motion_vectors(bitstream_reader_c* m_bs, macroblock_t& mb, uint32_t f_code[2][2], int16_t PMV[2][2][2], int16_t MVs[2][2][2], mv_format_e mv_format) {
     if (mb.motion_vector_count == 1) {
         if ((mb.mv_format == Field) && (mb.dmv != 1))
             mb.motion_vertical_field_select[0][s] = m_bs->read_next_bits(1);
-        parse_motion_vector(m_bs, mb, 0, s, f_code);
+        parse_motion_vector<picture_structure, 0,s>(m_bs, mb, f_code, PMV, MVs, mv_format);
     }
     else {
         mb.motion_vertical_field_select[0][s] = m_bs->read_next_bits(1);
-        parse_motion_vector(m_bs, mb, 0, s, f_code);
+        parse_motion_vector<picture_structure, 0,s>(m_bs, mb, f_code, PMV, MVs, mv_format);
         mb.motion_vertical_field_select[1][s] = m_bs->read_next_bits(1);
-        parse_motion_vector(m_bs, mb, 1, s, f_code);
+        parse_motion_vector<picture_structure, 1,s>(m_bs, mb, f_code, PMV, MVs, mv_format);
     }
     return true;
 }
@@ -362,7 +405,7 @@ template<uint8_t picture_coding_type,        //3 bit (I, P, B)
          uint8_t frame_pred_frame_dct,       //1 bit // only with picture_structure == frame
          uint8_t concealment_motion_vectors, //1 bit // only with picture_coding_type == I
          uint8_t chroma_format>              //2 bit (420, 422, 444)
-bool parse_macroblock_template(bitstream_reader_c* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index, uint32_t f_code[2][2]) {
+bool parse_macroblock_template(bitstream_reader_c* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index, uint32_t f_code[2][2], int16_t PMV[2][2][2], int16_t MVs[2][2][2]) {
     mb.macroblock_address_increment = 0;
     while (m_bs->get_next_bits(vlc_macroblock_escape_code.len) == vlc_macroblock_escape_code.value) {
         m_bs->skip_bits(vlc_macroblock_escape_code.len);
@@ -374,9 +417,9 @@ bool parse_macroblock_template(bitstream_reader_c* m_bs, macroblock_t& mb, int s
     if (mb.macroblock_type & macroblock_quant_bit)
         mb.quantiser_scale_code = m_bs->read_next_bits(5);
     if ((mb.macroblock_type & macroblock_motion_forward_bit) || ((mb.macroblock_type & macroblock_intra_bit) && concealment_motion_vectors))
-        parse_motion_vectors<0>(m_bs, mb, f_code);
+        parse_motion_vectors<picture_coding_type, 0>(m_bs, mb, f_code, PMV, MVs, mb.mv_format);
     if ((mb.macroblock_type & macroblock_motion_backward_bit) != 0)
-        parse_motion_vectors<1>(m_bs, mb, f_code);
+        parse_motion_vectors<picture_coding_type, 1>(m_bs, mb, f_code, PMV, MVs, mb.mv_format);
     if (((mb.macroblock_type & macroblock_intra_bit) != 0) && concealment_motion_vectors)
         m_bs->skip_bits(1);
     if (mb.macroblock_type & macroblock_pattern_bit)
@@ -385,14 +428,14 @@ bool parse_macroblock_template(bitstream_reader_c* m_bs, macroblock_t& mb, int s
 }
 
 #define DEF_CHROMA_FROMATS_PARSE_MACROBLOCKS_ROUTINES(prefix, pct, ps, fpfdct, cmv) \
-static bool parse_##prefix##_420_macroblock(bitstream_reader_c* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index, uint32_t f_code[2][2]) { \
-    return parse_macroblock_template<pct, ps, fpfdct, cmv, chroma_format_420>(m_bs, mb, spatial_temporal_weight_code_table_index, f_code); \
+static bool parse_##prefix##_420_macroblock(bitstream_reader_c* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index, uint32_t f_code[2][2], int16_t PMV[2][2][2], int16_t MVs[2][2][2]) { \
+    return parse_macroblock_template<pct, ps, fpfdct, cmv, chroma_format_420>(m_bs, mb, spatial_temporal_weight_code_table_index, f_code, PMV, MVs); \
 } \
-static bool parse_##prefix##_422_macroblock(bitstream_reader_c* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index, uint32_t f_code[2][2]) { \
-    return parse_macroblock_template<pct, ps, fpfdct, cmv, chroma_format_422>(m_bs, mb, spatial_temporal_weight_code_table_index, f_code); \
+static bool parse_##prefix##_422_macroblock(bitstream_reader_c* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index, uint32_t f_code[2][2], int16_t PMV[2][2][2], int16_t MVs[2][2][2]) { \
+    return parse_macroblock_template<pct, ps, fpfdct, cmv, chroma_format_422>(m_bs, mb, spatial_temporal_weight_code_table_index, f_code, PMV, MVs); \
 } \
-static bool parse_##prefix##_444_macroblock(bitstream_reader_c* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index, uint32_t f_code[2][2]) { \
-    return parse_macroblock_template<pct, ps, fpfdct, cmv, chroma_format_444>(m_bs, mb, spatial_temporal_weight_code_table_index, f_code); \
+static bool parse_##prefix##_444_macroblock(bitstream_reader_c* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index, uint32_t f_code[2][2], int16_t PMV[2][2][2], int16_t MVs[2][2][2]) { \
+    return parse_macroblock_template<pct, ps, fpfdct, cmv, chroma_format_444>(m_bs, mb, spatial_temporal_weight_code_table_index, f_code, PMV, MVs); \
 }
 
 #define DEF_FRAME_FIELD_PARSE_MACROBLOCKS_ROUTINES(prefix, pct, cmv) \

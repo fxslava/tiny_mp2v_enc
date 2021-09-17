@@ -338,7 +338,7 @@ bool parse_picture_temporal_scalable_extension(bitstream_reader_c* m_bs, picture
 bool parse_picture_spatial_scalable_extension(bitstream_reader_c* m_bs, picture_spatial_scalable_extension_t& pssext);
 bool parse_copyright_extension(bitstream_reader_c* m_bs, copyright_extension_t& crext);
 
-typedef bool (*parse_macroblock_func_t)(bitstream_reader_c* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index, uint32_t f_code[2][2]);
+typedef bool (*parse_macroblock_func_t)(bitstream_reader_c* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index, uint32_t f_code[2][2], int16_t PMV[2][2][2], int16_t MVs[2][2][2]);
 parse_macroblock_func_t select_parse_macroblock_func(
     uint8_t picture_coding_type, 
     uint8_t picture_structure, 

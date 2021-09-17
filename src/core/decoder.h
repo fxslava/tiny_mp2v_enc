@@ -49,7 +49,7 @@ class mp2v_slice_c {
 public:
     mp2v_slice_c(bitstream_reader_c* bitstream, mp2v_picture_c* pic, decode_macroblock_func_t dec_mb_func, frame_c* frame);
     bool decode_slice();
-    bool decode_macroblock();
+    bool decode_macroblock(uint8_t* (&yuv)[3], uint8_t* (&yuv_l0)[3], uint8_t* (&yuv_l1)[3]);
 
 private:
     uint32_t m_spatial_temporal_weight_code_table_index = 0;
@@ -73,7 +73,6 @@ private:
     frame_c* m_frame;
     int cur_quantiser_scale_code = 0;
     int mb_row = 0;
-    int mb_col = 0;
 
 public:
     slice_t m_slice = { 0 };

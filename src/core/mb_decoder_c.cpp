@@ -101,7 +101,7 @@ MP2V_INLINE int mc_bidir_idx(int16_t mvfx, int16_t mvfy, int16_t mvbx, int16_t m
 }
 
 template<int chroma_format, int plane_idx, int vect_idx, mc_template_e mc_templ>
-MP2V_INLINE void mc_bidir_template(uint8_t* dst, uint8_t* ref0, uint8_t* ref1, mb_data_t &mb_data, uint32_t stride, uint32_t chroma_stride) {
+MP2V_INLINE void mc_bidir_template(uint8_t* dst, uint8_t* ref0, uint8_t* ref1, mb_data_t& mb_data, uint32_t stride, uint32_t chroma_stride) {
     auto  _stride = (mc_templ == mc_templ_field) ? stride << 1 : stride;
     auto  _chroma_stride = (mc_templ == mc_templ_field) ? chroma_stride << 1 : chroma_stride;
     uint8_t* fref = ref0;
@@ -116,45 +116,25 @@ MP2V_INLINE void mc_bidir_template(uint8_t* dst, uint8_t* ref0, uint8_t* ref1, m
     fref += static_cast<ptrdiff_t>(mvfx >> 1) + static_cast<ptrdiff_t>(mvfy >> 1) * (plane_idx ? _chroma_stride : _stride);
     bref += static_cast<ptrdiff_t>(mvbx >> 1) + static_cast<ptrdiff_t>(mvby >> 1) * (plane_idx ? _chroma_stride : _stride);
 
-    if (plane_idx == 0) {
+    auto plane_stride = (plane_idx == 0) ? stride : chroma_stride;
+    if (mc_templ == mc_templ_field) {
         if (mb_data.mb.motion_vertical_field_select[vect_idx][0])
-            fref += stride;
+            fref += plane_stride;
         if (mb_data.mb.motion_vertical_field_select[vect_idx][1])
-            bref += stride;
+            bref += plane_stride;
         if (vect_idx)
-            dst += stride;
-    }
-    else {
-        switch (chroma_format) {
-        case chroma_format_420:
-            if (mb_data.mb.motion_vertical_field_select[vect_idx][0])
-                fref += chroma_stride;
-            if (mb_data.mb.motion_vertical_field_select[vect_idx][1])
-                bref += chroma_stride;
-            if (vect_idx)
-                dst += chroma_stride;
-            break;
-        case chroma_format_422:
-        case chroma_format_444:
-            if (mb_data.mb.motion_vertical_field_select[vect_idx][0])
-                fref += chroma_stride;
-            if (mb_data.mb.motion_vertical_field_select[vect_idx][1])
-                bref += chroma_stride;
-            if (vect_idx)
-                dst += chroma_stride;
-            break;
-        }
+            dst += plane_stride;
     }
 
     if (plane_idx == 0) {
         switch (mc_templ) {
-        case mc_templ_field: mc_bidir_16xh[mvs_ridx](dst, bref, fref, _stride,  8); break;
+        case mc_templ_field: mc_bidir_16xh[mvs_ridx](dst, bref, fref, _stride, 8); break;
         case mc_templ_frame: mc_bidir_16xh[mvs_ridx](dst, bref, fref, _stride, 16); break;
         }
     }
     else {
         switch (chroma_format) {
-        case chroma_format_420: mc_bidir_8xh[mvs_ridx](dst, bref, fref, _chroma_stride, (mc_templ == mc_templ_field) ? 4 :  8); break;
+        case chroma_format_420: mc_bidir_8xh[mvs_ridx](dst, bref, fref, _chroma_stride, (mc_templ == mc_templ_field) ? 4 : 8); break;
         case chroma_format_422: mc_bidir_8xh[mvs_ridx](dst, bref, fref, _chroma_stride, (mc_templ == mc_templ_field) ? 8 : 16); break;
         case chroma_format_444: mc_bidir_16xh[mvs_ridx](dst, bref, fref, _chroma_stride, (mc_templ == mc_templ_field) ? 8 : 16); break;
         }
@@ -176,30 +156,12 @@ MP2V_INLINE void mc_unidir_template(uint8_t* dst, uint8_t* ref, mb_data_t &mb_da
     int offset = (mvx >> 1) + (mvy >> 1) * (plane_idx ? _chroma_stride : _stride);
     ref += static_cast<ptrdiff_t>(offset);
 
+    auto plane_stride = (plane_idx == 0) ? stride : chroma_stride;
     if (mc_templ == mc_templ_field) {
-        if (plane_idx == 0) {
-            if (mb_data.mb.motion_vertical_field_select[vect_idx][forward ? 0 : 1])
-                ref += stride;
-            if (vect_idx)
-                dst += stride;
-        }
-        else {
-            switch (chroma_format) {
-            case chroma_format_420:
-                if (mb_data.mb.motion_vertical_field_select[vect_idx][forward ? 0 : 1])
-                    ref += chroma_stride;
-                if (vect_idx)
-                    dst += chroma_stride;
-                break;
-            case chroma_format_422:
-            case chroma_format_444:
-                if (mb_data.mb.motion_vertical_field_select[vect_idx][forward ? 0 : 1])
-                    ref += chroma_stride;
-                if (vect_idx)
-                    dst += chroma_stride;
-                break;
-            }
-        }
+        if (mb_data.mb.motion_vertical_field_select[vect_idx][forward ? 0 : 1])
+            ref += plane_stride;
+        if (vect_idx)
+            dst += plane_stride;
     }
 
     if (plane_idx == 0) {
