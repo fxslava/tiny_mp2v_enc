@@ -76,6 +76,10 @@ private:
 
 public:
     slice_t m_slice = { 0 };
+
+#ifdef _DEBUG
+    std::vector<mb_data_t> m_macroblocks;
+#endif
 };
 
 class mp2v_picture_c {
@@ -102,6 +106,7 @@ public:
     int block_count = 0;
 
 #ifdef _DEBUG
+    std::vector<mp2v_slice_c> m_slices;
     void dump_mvs(const char* dump_filename);
 #endif
 };

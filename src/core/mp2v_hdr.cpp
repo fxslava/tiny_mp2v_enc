@@ -350,13 +350,15 @@ MP2V_INLINE void update_motion_predictor(uint32_t f_code[2][2], int32_t motion_c
 
     MVs[r][s][t] = prediction + delta;
 
-    if (MVs[r][s][t] < low)  MVs[r][s][t] += range;
-    if (MVs[r][s][t] > high) MVs[r][s][t] -= range;
+    if (delta != 0) {
+        if (MVs[r][s][t] < low)  MVs[r][s][t] += range;
+        if (MVs[r][s][t] > high) MVs[r][s][t] -= range;
 
-    if ((mv_format == Field) && (t == 1) && (picture_structure == picture_structure_framepic))
-        PMV[r][s][t] = MVs[r][s][t] * 2;
-    else
-        PMV[r][s][t] = MVs[r][s][t];
+        if ((mv_format == Field) && (t == 1) && (picture_structure == picture_structure_framepic))
+            PMV[r][s][t] = MVs[r][s][t] * 2;
+        else
+            PMV[r][s][t] = MVs[r][s][t];
+    }
 }
 
 template<uint8_t picture_structure, int r, int s>
@@ -417,9 +419,9 @@ bool parse_macroblock_template(bitstream_reader_c* m_bs, macroblock_t& mb, int s
     if (mb.macroblock_type & macroblock_quant_bit)
         mb.quantiser_scale_code = m_bs->read_next_bits(5);
     if ((mb.macroblock_type & macroblock_motion_forward_bit) || ((mb.macroblock_type & macroblock_intra_bit) && concealment_motion_vectors))
-        parse_motion_vectors<picture_coding_type, 0>(m_bs, mb, f_code, PMV, MVs, mb.mv_format);
+        parse_motion_vectors<picture_structure, 0>(m_bs, mb, f_code, PMV, MVs, mb.mv_format);
     if ((mb.macroblock_type & macroblock_motion_backward_bit) != 0)
-        parse_motion_vectors<picture_coding_type, 1>(m_bs, mb, f_code, PMV, MVs, mb.mv_format);
+        parse_motion_vectors<picture_structure, 1>(m_bs, mb, f_code, PMV, MVs, mb.mv_format);
     if (((mb.macroblock_type & macroblock_intra_bit) != 0) && concealment_motion_vectors)
         m_bs->skip_bits(1);
     if (mb.macroblock_type & macroblock_pattern_bit)
