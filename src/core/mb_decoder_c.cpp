@@ -184,46 +184,42 @@ MP2V_INLINE void base_motion_compensation(uint8_t* dst[3], uint8_t* ref0[3], uin
     auto mb = mb_data.mb;
     if ((mb.macroblock_type & macroblock_motion_forward_bit) && (mb.macroblock_type & macroblock_motion_backward_bit)) {
         mc_bidir_template<chroma_format, 0, 0, mc_templ>(dst[0], ref0[0], ref1[0], mb_data, stride, chroma_stride);
-        if (two_vect)
-            mc_bidir_template<chroma_format, 0, 1, mc_templ>(dst[0], ref0[0], ref1[0], mb_data, stride, chroma_stride);
         mc_bidir_template<chroma_format, 1, 0, mc_templ>(dst[1], ref0[1], ref1[1], mb_data, stride, chroma_stride);
-        if (two_vect)
-            mc_bidir_template<chroma_format, 1, 1, mc_templ>(dst[1], ref0[1], ref1[1], mb_data, stride, chroma_stride);
         mc_bidir_template<chroma_format, 2, 0, mc_templ>(dst[2], ref0[2], ref1[2], mb_data, stride, chroma_stride);
-        if (two_vect)
+        if (two_vect) {
+            mc_bidir_template<chroma_format, 0, 1, mc_templ>(dst[0], ref0[0], ref1[0], mb_data, stride, chroma_stride);
+            mc_bidir_template<chroma_format, 1, 1, mc_templ>(dst[1], ref0[1], ref1[1], mb_data, stride, chroma_stride);
             mc_bidir_template<chroma_format, 2, 1, mc_templ>(dst[2], ref0[2], ref1[2], mb_data, stride, chroma_stride);
+        }
     } else
     if ((mb.macroblock_type & macroblock_motion_forward_bit) && !(mb.macroblock_type & macroblock_motion_backward_bit)) {
         mc_unidir_template<chroma_format, 0, 0, mc_templ, true>(dst[0], ref0[0], mb_data, stride, chroma_stride);
-        if (two_vect)
-            mc_unidir_template<chroma_format, 0, 1, mc_templ, true>(dst[0], ref0[0], mb_data, stride, chroma_stride);
         mc_unidir_template<chroma_format, 1, 0, mc_templ, true>(dst[1], ref0[1], mb_data, stride, chroma_stride);
-        if (two_vect)
-            mc_unidir_template<chroma_format, 1, 1, mc_templ, true>(dst[1], ref0[1], mb_data, stride, chroma_stride);
         mc_unidir_template<chroma_format, 2, 0, mc_templ, true>(dst[2], ref0[2], mb_data, stride, chroma_stride);
-        if (two_vect)
+        if (two_vect) {
+            mc_unidir_template<chroma_format, 0, 1, mc_templ, true>(dst[0], ref0[0], mb_data, stride, chroma_stride);
+            mc_unidir_template<chroma_format, 1, 1, mc_templ, true>(dst[1], ref0[1], mb_data, stride, chroma_stride);
             mc_unidir_template<chroma_format, 2, 1, mc_templ, true>(dst[2], ref0[2], mb_data, stride, chroma_stride);
+        }
     } else
     if (!(mb.macroblock_type & macroblock_motion_forward_bit) && (mb.macroblock_type & macroblock_motion_backward_bit)) {
         mc_unidir_template<chroma_format, 0, 0, mc_templ, false>(dst[0], ref1[0], mb_data, stride, chroma_stride);
-        if (two_vect)
-            mc_unidir_template<chroma_format, 0, 1, mc_templ, false>(dst[0], ref1[0], mb_data, stride, chroma_stride);
         mc_unidir_template<chroma_format, 1, 0, mc_templ, false>(dst[1], ref1[1], mb_data, stride, chroma_stride);
-        if (two_vect)
-            mc_unidir_template<chroma_format, 1, 1, mc_templ, false>(dst[1], ref1[1], mb_data, stride, chroma_stride);
         mc_unidir_template<chroma_format, 2, 0, mc_templ, false>(dst[2], ref1[2], mb_data, stride, chroma_stride);
-        if (two_vect)
+        if (two_vect) {
+            mc_unidir_template<chroma_format, 0, 1, mc_templ, false>(dst[0], ref1[0], mb_data, stride, chroma_stride);
+            mc_unidir_template<chroma_format, 1, 1, mc_templ, false>(dst[1], ref1[1], mb_data, stride, chroma_stride);
             mc_unidir_template<chroma_format, 2, 1, mc_templ, false>(dst[2], ref1[2], mb_data, stride, chroma_stride);
+        }
     } else {
         mc_unidir_template<chroma_format, 0, 0, mc_templ, true>(dst[0], ref0[0], mb_data, stride, chroma_stride);
-        if (two_vect)
-            mc_unidir_template<chroma_format, 0, 1, mc_templ, true>(dst[0], ref0[0], mb_data, stride, chroma_stride);
         mc_unidir_template<chroma_format, 1, 0, mc_templ, true>(dst[1], ref0[1], mb_data, stride, chroma_stride);
-        if (two_vect)
-            mc_unidir_template<chroma_format, 1, 1, mc_templ, true>(dst[1], ref0[1], mb_data, stride, chroma_stride);
         mc_unidir_template<chroma_format, 2, 0, mc_templ, true>(dst[2], ref0[2], mb_data, stride, chroma_stride);
-        if (two_vect)
+        if (two_vect) {
+            mc_unidir_template<chroma_format, 0, 1, mc_templ, true>(dst[0], ref0[0], mb_data, stride, chroma_stride);
+            mc_unidir_template<chroma_format, 1, 1, mc_templ, true>(dst[1], ref0[1], mb_data, stride, chroma_stride);
             mc_unidir_template<chroma_format, 2, 1, mc_templ, true>(dst[2], ref0[2], mb_data, stride, chroma_stride);
+        }
     }
 }
 
