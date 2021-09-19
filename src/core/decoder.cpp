@@ -1,6 +1,6 @@
 // Copyright � 2021 Vladislav Ovchinnikov. All rights reserved.
 #include <string.h>
-
+#include "mb_decoder.h"
 #include "decoder.h"
 #include "mp2v_hdr.h"
 #include "mp2v_vlc.h"
@@ -432,6 +432,20 @@ bool mp2v_slice_c::decode_slice() {
     if (refs[1])
         make_macroblock_yuv_ptrs(ref1, refs[1], mb_row, stride, chroma_stride, m_chroma_format);
 
+    macroblock_context_cache_t cache;
+    memcpy(cache.W, m_pic->quantiser_matrices, sizeof(cache.W));
+    memcpy(cache.f_code, m_f_code, sizeof(cache.f_code));
+    memcpy(cache.PMVs, m_PMV, sizeof(cache.PMVs));
+    memcpy(cache.dct_dc_pred, m_dct_dc_pred, sizeof(cache.dct_dc_pred));
+    memcpy(cache.yuv_planes[REF_TYPE_SRC], yuv, sizeof(yuv));
+    memcpy(cache.yuv_planes[REF_TYPE_L0], ref0, sizeof(yuv));
+    memcpy(cache.yuv_planes[REF_TYPE_L1], ref1, sizeof(yuv));
+    cache.spatial_temporal_weight_code_table_index = 0;
+    cache.luma_stride = stride;
+    cache.chroma_stride = chroma_stride;
+    cache.quantiser_scale_code = cur_quantiser_scale_code;
+    cache.intra_dc_prec = m_pic->m_picture_coding_extension.intra_dc_precision;
+
     // decode macroblocks
     m_bs->skip_bits(1); /* with the value '0' */
     do {
@@ -468,7 +482,9 @@ bool mp2v_picture_c::decode_picture() {
         pcext.picture_structure,
         pcext.frame_pred_frame_dct,
         pcext.concealment_motion_vectors,
-        sext.chroma_format);
+        sext.chroma_format,
+        pcext.q_scale_type,
+        pcext.alternate_scan);
 
     do {
         mp2v_slice_c slice(m_bs, this, m_frame);
