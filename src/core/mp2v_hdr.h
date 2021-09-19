@@ -294,7 +294,7 @@ struct macroblock_t {
     //  macroblock_escape                                 | 11          | bslbf
     //macroblock_address_increment                        | 1 - 11      | vlclbf
     uint32_t macroblock_address_increment;             // |             |
-    uint32_t quantiser_scale_code;                     // | 5           | uimsbf
+    //uint32_t quantiser_scale_code;                   // | 5           | uimsbf
     // ISO/IEC 13818-2 : 2000 (E) 6.2.5.1 Macroblock Modes -----------------------
     //     | Syntax element                               | No. of bits | Mnemonic
     uint32_t macroblock_type;                          // | 1 - 9       | vlclbf
@@ -311,13 +311,14 @@ struct macroblock_t {
     //uint32_t dmvector[2];                            // | 1 - 2       | vlclbf
     // ISO/IEC 13818-2 : 2000 (E) 6.2.5 Coded Block Pattern ----------------------
     //     | Syntax element                               | No. of bits | Mnemonic
-    uint32_t coded_block_pattern_420;                  // | 3 - 9       | vlclbf
-    uint32_t coded_block_pattern_1;                    // | 2           | uimsbf
-    uint32_t coded_block_pattern_2;                    // | 6           | uimsbf
+    //uint32_t coded_block_pattern_420;                // | 3 - 9       | vlclbf
+    //uint32_t coded_block_pattern_1;                  // | 2           | uimsbf
+    //uint32_t coded_block_pattern_2;                  // | 6           | uimsbf
 
     // Decoded fields
-    uint32_t          dmv;
-    uint32_t          motion_vector_count;    
+    bool              dmv;
+    uint32_t          motion_vector_count;
+    uint16_t          coded_block_pattern;
     prediction_type_e prediction_type;
 };
 

@@ -49,7 +49,6 @@ class mp2v_slice_c {
 public:
     mp2v_slice_c(bitstream_reader_c* bitstream, mp2v_picture_c* pic, frame_c* frame);
     bool decode_slice();
-    bool decode_macroblock(uint8_t* (&yuv)[3], uint8_t* (&yuv_l0)[3], uint8_t* (&yuv_l1)[3]);
 
 private:
     uint32_t m_spatial_temporal_weight_code_table_index = 0;
@@ -66,7 +65,6 @@ private:
     uint16_t m_block_count = 0;
     bitstream_reader_c* m_bs = nullptr;
     mp2v_picture_c* m_pic = nullptr;
-    mb_data_t m_cur_mb_data = { 0 };
 
     frame_c* m_frame;
     int cur_quantiser_scale_code = 0;
@@ -90,7 +88,6 @@ private:
     bitstream_reader_c* m_bs;
     mp2v_decoder_c* m_dec;
     uint16_t quantiser_matrices[4][64];
-    decode_macroblock_func_t m_decode_macroblock_func = nullptr;
     parse_macroblock_func_t m_parse_macroblock_func = nullptr;
     frame_c* m_frame;
 public:
