@@ -133,6 +133,7 @@ bool mp2v_slice_c::decode_slice() {
     }
 
     // calculate row position of the slice
+    int mb_row = 0;
     int slice_vertical_position = m_slice.slice_start_code & 0xff;
     if (m_vertical_size_value > 2800)
         mb_row = (m_slice.slice_vertical_position_extension << 7) + slice_vertical_position - 1;
@@ -149,7 +150,6 @@ bool mp2v_slice_c::decode_slice() {
     cache.spatial_temporal_weight_code_table_index = 0;
     cache.luma_stride      = m_frame->m_stride[0];
     cache.chroma_stride    = m_frame->m_stride[1];
-    cache.quantiser_scale  = cur_quantiser_scale_code;
     cache.intra_dc_prec    = m_pic->m_picture_coding_extension.intra_dc_precision;
     cache.intra_vlc_format = m_intra_vlc_format;
                  make_macroblock_yuv_ptrs(cache.yuv_planes[REF_TYPE_SRC], m_frame, mb_row, cache.luma_stride, cache.chroma_stride, m_chroma_format);
@@ -168,7 +168,7 @@ bool mp2v_slice_c::decode_slice() {
         m_pic->m_parse_macroblock_func(m_bs, cache);
 
 #ifdef _DEBUG
-        m_macroblocks.push_back(m_cur_mb_data);
+        m_macroblocks.push_back(cache.mb);
 #endif
     } while (m_bs->get_next_bits(23) != 0);
     local_find_start_code(m_bs);
@@ -220,15 +220,15 @@ void mp2v_picture_c::dump_mvs(const char* dump_filename) {
         y0 += 16;
         int x0 = 0;
         for (auto mb : slice.m_macroblocks) {
-            x0 += 16 * mb.mb.macroblock_address_increment;
-            if (mb.mb.macroblock_type & macroblock_motion_forward_bit) {
+            x0 += 16 * mb.macroblock_address_increment;
+            if (mb.macroblock_type & macroblock_motion_forward_bit) {
                 int x1 = x0 + mb.MVs[0][0][0];
                 int y1 = y0 + mb.MVs[0][0][1];
                 fprintf(fp, "%d\t%d\n", x0, y0);
                 fprintf(fp, "%d\t%d\tx:%d y:%d\n", x1, y1, mb.MVs[0][0][0], mb.MVs[0][0][1]);
                 fprintf(fp, "\n");
             }
-            if (mb.mb.macroblock_type & macroblock_motion_backward_bit) {
+            if (mb.macroblock_type & macroblock_motion_backward_bit) {
                 int x1 = x0 + mb.MVs[0][1][0];
                 int y1 = y0 + mb.MVs[0][1][1];
                 fprintf(fp, "%d\t%d\n", x0, y0);
@@ -330,7 +330,7 @@ bool mp2v_decoder_c::decode() {
                 // remove this when end of stream issue was resolved
                 static int pic_num = 0;
                 pic_num++;
-                if (pic_num > 98) {
+                if (pic_num > 0) {
                     push_frame(nullptr);
                     return true;
                 }

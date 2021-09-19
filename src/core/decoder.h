@@ -55,7 +55,6 @@ private:
     uint32_t m_vertical_size_value = 0;
     uint32_t m_chroma_format = 0;
     uint32_t m_f_code[2][2] = { { 0 } };
-    int16_t  m_PMV[2][2][2] = { { 0 } };
     uint32_t m_intra_vlc_format = 0;
     uint32_t m_picture_structure = 0;
     uint32_t m_picture_coding_type = 0;
@@ -65,16 +64,13 @@ private:
     uint16_t m_block_count = 0;
     bitstream_reader_c* m_bs = nullptr;
     mp2v_picture_c* m_pic = nullptr;
-
     frame_c* m_frame;
-    int cur_quantiser_scale_code = 0;
-    int mb_row = 0;
 
 public:
     slice_t m_slice = { 0 };
 
 #ifdef _DEBUG
-    std::vector<mb_data_t> m_macroblocks;
+    std::vector<macroblock_t> m_macroblocks;
 #endif
 };
 

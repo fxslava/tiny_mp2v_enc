@@ -320,6 +320,10 @@ struct macroblock_t {
     uint32_t          motion_vector_count;
     uint16_t          coded_block_pattern;
     prediction_type_e prediction_type;
+
+#ifdef _DEBUG
+    int16_t  MVs[2][2][2];
+#endif
 };
 
 // ISO/IEC 13818-2 : 2000 (E) 6.2.2

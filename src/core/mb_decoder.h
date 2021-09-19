@@ -20,6 +20,10 @@ struct macroblock_context_cache_t {
     int quantiser_scale;
     int intra_dc_prec;
     int intra_vlc_format;
+
+#ifdef _DEBUG
+    macroblock_t mb;
+#endif
 };
 
 typedef bool (*parse_macroblock_func_t)(bitstream_reader_c* m_bs, macroblock_context_cache_t &cache);
