@@ -330,7 +330,7 @@ bool mp2v_decoder_c::decode() {
                 // remove this when end of stream issue was resolved
                 static int pic_num = 0;
                 pic_num++;
-                if (pic_num > 0) {
+                if (pic_num > 6) {
                     push_frame(nullptr);
                     return true;
                 }
