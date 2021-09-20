@@ -25,8 +25,6 @@ spatial_temporal_weights_classes_t local_spatial_temporal_weights_classes_tbl[4]
     {{{2, 0}, 2, 1}, {{2, 1}, 2, 0}, {{1, 2}, 3, 0}, {{1, 1}, 1, 0} }
 };
 
-uint16_t predictor_reset_value[4] = { 128, 256, 512, 1024 };
-
 uint8_t color_component_index[12] = { 0, 0, 0, 0, 1, 2, 1, 2, 1, 2, 1, 2 };
 
 frame_c::frame_c(int width, int height, int chroma_format) {
@@ -152,6 +150,7 @@ bool mp2v_slice_c::decode_slice() {
     cache.chroma_stride    = m_frame->m_stride[1];
     cache.intra_dc_prec    = m_pic->m_picture_coding_extension.intra_dc_precision;
     cache.intra_vlc_format = m_intra_vlc_format;
+    cache.previous_mb_type = 0;
                  make_macroblock_yuv_ptrs(cache.yuv_planes[REF_TYPE_SRC], m_frame, mb_row, cache.luma_stride, cache.chroma_stride, m_chroma_format);
     if (refs[0]) make_macroblock_yuv_ptrs(cache.yuv_planes[REF_TYPE_L0 ], refs[0], mb_row, cache.luma_stride, cache.chroma_stride, m_chroma_format);
     if (refs[1]) make_macroblock_yuv_ptrs(cache.yuv_planes[REF_TYPE_L1 ], refs[1], mb_row, cache.luma_stride, cache.chroma_stride, m_chroma_format);
@@ -330,7 +329,7 @@ bool mp2v_decoder_c::decode() {
                 // remove this when end of stream issue was resolved
                 static int pic_num = 0;
                 pic_num++;
-                if (pic_num > 6) {
+                if (pic_num > 98) {
                     push_frame(nullptr);
                     return true;
                 }
