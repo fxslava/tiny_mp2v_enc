@@ -57,6 +57,7 @@ mc_bidir_func_t mc_bidir_8xh[16] = {
 
 #else
 #include "mc_naive_sse2.hpp"
+//#include "mc_sse2.hpp"
 
 mc_pred_func_t mc_pred_16xh[4] = {
     mc_pred00_16xh_nsse2,

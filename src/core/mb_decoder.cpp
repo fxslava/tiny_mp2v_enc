@@ -60,8 +60,88 @@ MP2V_INLINE static void read_first_coefficient(bitstream_reader_c* bs, uint32_t&
     }
 }
 
+static void read_block_coefficients_0(bitstream_reader_c* bs, uint32_t n, int16_t QFS[64]) {
+    int16_t* qfs = &QFS[n];
+    while (true) {
+        int run;
+        int signed_level;
+        uint64_t buffer = bs->align_buffer();
+        if ((buffer & 0xc000000000000000ll) == (0b10ll << (64 - 2))) { // EOB
+            bs->flush_bits(2);
+            break;
+        } else if ((buffer & 0xfc00000000000000ll) == (0b000001ll << (64 - 6))) { // escape code
+            run = (buffer >> (64 - 12)) & 0x3f;
+            signed_level = (buffer >> (64 - 24)) & 0xfff;
+            if (signed_level & 0b100000000000)
+                signed_level |= 0xfffff000;
+            bs->flush_bits(24);
+        } else if ((buffer & 0xf800000000000000ll) == (0b00100ll << (64 - 5))) {
+            coeff_t coeff = vlc_coeff_zero_ex[(buffer >> (64 - 8)) & 7];
+            signed_level = (buffer & (0b000000001ll << (64 - 9))) ? -coeff.level : coeff.level;
+            run = coeff.run;
+            bs->flush_bits(8);
+        } else {
+            int nlz = bit_scan_reverse64(buffer);
+            int idx = buffer >> (64 - nlz - 5);
+            vlc_lut_coeff_t coeff = vlc_coeff_zero[nlz][idx];
+            run = coeff.coeff.run;
+            signed_level = (buffer & (1 << (64ll - coeff.len))) ? -coeff.coeff.level : coeff.coeff.level;
+            bs->flush_bits(coeff.len);
+        }
+        qfs += run;
+        *(qfs++) = signed_level;
+    }
+}
+
+static void read_block_coefficients_1(bitstream_reader_c* bs, uint32_t n, int16_t QFS[64]) {
+    int16_t* qfs = &QFS[n];
+    uint64_t buffer = bs->align_buffer();
+    while (true) {
+        int run;
+        int signed_level;
+        if ((buffer & 0xF000000000000000ll) == (0b0110ll << (64 - 4))) { // EOB
+            bs->flush_bits(4);
+            break;
+        }
+        else if ((buffer & 0xfc00000000000000ll) == (0b000001ll << (64 - 6))) { // escape code
+            run = (buffer >> (64 - 12)) & 0x3f;
+            signed_level = (buffer >> (64 - 24)) & 0xfff;
+            if (signed_level & 0b100000000000)
+                signed_level |= 0xfffff000;
+            bs->flush_bits(24);
+        }
+        else if ((buffer & 0xf800000000000000ll) == (0b00100ll << (64 - 5))) {
+            coeff_t coeff = vlc_coeff_one_ex[(buffer >> (64 - 8)) & 7];
+            signed_level = (buffer & (0b000000001ll << (63 - 9))) ? -coeff.level : coeff.level;
+            run = coeff.run;
+            bs->flush_bits(9);
+        }
+        else {
+            int nlz = std::min<uint32_t>(bit_scan_reverse64(buffer), 32);
+            vlc_lut_coeff_t coeff;
+            if (nlz > 0) {
+                int idx = buffer >> (64 - nlz - 5);
+                coeff = vlc_coeff_one0[nlz - 1][idx];
+                bs->flush_bits(coeff.len+1);
+            } else {
+                nlz = std::min<uint32_t>(bit_scan_reverse64(~buffer), 8);
+                int idx = (buffer >> (64 - nlz - 3)) & 7;
+                coeff = vlc_coeff_one1[nlz - 1][idx];
+                bs->flush_bits(coeff.len+1);
+            }
+            run = coeff.coeff.run;
+            signed_level = (buffer & (1ll << (63 - coeff.len))) ? -coeff.coeff.level : coeff.coeff.level;
+        }
+        buffer = bs->load_dword();
+        qfs += run;
+        *(qfs++) = signed_level;
+    }
+    bs->align_rigth_buffer();
+}
+
 template<bool use_dct_one_table>
-MP2V_INLINE static void read_block_coefficients(bitstream_reader_c* bs, uint32_t& n, int16_t QFS[64]) {
+static void read_block_coefficients(bitstream_reader_c* bs, uint32_t n, int16_t QFS[64]) {
+    int16_t* qfs = &QFS[n];
     bool eob_not_read = true;
     while (eob_not_read) {
         //<decode VLC, decode Escape coded coefficient if required>
@@ -85,9 +165,8 @@ MP2V_INLINE static void read_block_coefficients(bitstream_reader_c* bs, uint32_t
                 signed_level = s ? -coeff.level : coeff.level;
             }
 
-            n += run;
-            QFS[n] = signed_level;
-            n++;
+            qfs += run;
+            *(qfs++) = signed_level;
         }
         else { //<decoded VLC indicates End of block>
             if (use_dct_one_table)
@@ -141,7 +220,12 @@ static void parse_block(bitstream_reader_c* bs, int16_t(&QFS)[64], uint16_t& dct
         QFS[n] = level;
         n++;
     }
-    read_block_coefficients<use_dct_one_table>(bs, n, QFS);
+    //read_block_coefficients<use_dct_one_table>(bs, n, QFS);
+    if (use_dct_one_table)
+        read_block_coefficients_1(bs, n, QFS);
+    else
+        read_block_coefficients<false>(bs, n, QFS);
+        //read_block_coefficients_0(bs, n, QFS);
 }
 
 #if defined(__aarch64__) || defined(__arm__)
@@ -545,7 +629,8 @@ template<uint8_t picture_coding_type,        //3 bit (I, P, B)
          bool q_scale_type, bool alt_scan>
 bool parse_macroblock_template(bitstream_reader_c* m_bs, macroblock_context_cache_t &cache) {
 #ifdef _DEBUG
-    auto& mb = cache.mb;
+    //auto& mb = cache.mb;
+    macroblock_t mb;
 #else
     macroblock_t mb;
 #endif

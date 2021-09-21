@@ -14,7 +14,7 @@ include_directories(
 file(
     GLOB SOURCES
         ./core/decoder.cpp
-        ./core/mb_decoder_c.cpp
+        ./core/mb_decoder.cpp
         ./core/mp2v_vlc.cpp
         ./core/mp2v_hdr.cpp
         ./core/scan_c.cpp
