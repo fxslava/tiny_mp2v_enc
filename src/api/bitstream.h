@@ -5,17 +5,6 @@
 #include "core/common/cpu.hpp"
 
 class bitstream_reader_c {
-private:
-    MP2V_INLINE void read32() {
-        buffer <<= 32;
-        buffer |= (uint64_t)bswap_32(*(buffer_ptr++));
-        buffer_idx -= 32;
-    }
-
-    MP2V_INLINE void update_buffer() {
-        if (buffer_idx >= 32)
-            read32();
-    }
 public:
     bitstream_reader_c(std::string filename) :
         buffer(0),
@@ -45,24 +34,6 @@ public:
         return buffer;
     }
 
-    MP2V_INLINE uint64_t& align_buffer() {
-        update_buffer();
-        if (buffer_idx > 0) {
-            buffer <<= buffer_idx;
-            cache = bswap_64(*(uint64_t*)(buffer_ptr));
-            buffer |= cache >> (64 - buffer_idx);
-        } else
-            cache = bswap_64(*(uint64_t*)(buffer_ptr)); // just precache
-        return buffer;
-    }
-
-    MP2V_INLINE void align_rigth_buffer() {
-        if (buffer_idx > 0) {
-            buffer >>= buffer_idx;
-            update_buffer();
-        }
-    }
-
     template<int len>
     MP2V_INLINE void flush_bits() {
         buffer <<= len;
@@ -74,7 +45,7 @@ public:
         buffer_idx += len;
     }
 
-    MP2V_INLINE uint64_t& load_dword() {
+    MP2V_INLINE uint64_t& update() {
         if (buffer_idx >= 64) {
             buffer |= bswap_64(*(uint64_t*)(buffer_ptr)) << (buffer_idx - 64);
             buffer_ptr += 2;
@@ -88,7 +59,7 @@ public:
             buffer_idx -= 32;
             return buffer;
         }
-        else {
+        else if (buffer_idx != 0) {
             buffer |= cache >> (64 - buffer_idx);
             return buffer;
         }
@@ -96,38 +67,47 @@ public:
     // End of low level
 
     MP2V_INLINE uint32_t get_next_bits(int len) {
-        update_buffer();
-        uint64_t tmp = buffer << buffer_idx;
-        return tmp >> (64 - len);
+        update();
+        return buffer >> (64 - len);
     }
 
     MP2V_INLINE uint32_t read_next_bits(int len) {
         uint32_t tmp = get_next_bits(len);
-        buffer_idx += len;
+        flush_bits(len);
         return tmp;
     }
 
-    MP2V_INLINE bool seek_pattern(uint32_t pattern, int len) {
+    MP2V_INLINE bool next_start_code() {
+        int current_byte_pos = buffer_idx / 8; // align bit index
+        buffer_ptr -= 2;
+        auto bytestream = (uint8_t*)buffer_ptr;
+        int zcnt = 0;
+
         do {
-            update_buffer();
-            int range = 64 - buffer_idx - len;
-            uint64_t tmp = buffer << buffer_idx;
-            uint64_t mask = (1ll << len) - 1;
-            int offset = 64 - len;
-            for (int pos = 0; pos < range; pos++) {
-                if ((uint32_t)((tmp >> offset) & mask) == pattern) {
-                    buffer_idx += pos;
-                    return true;
-                }
-                tmp <<= 1;
+            if (bytestream[current_byte_pos] == 0) {
+                if (zcnt) zcnt++;
+                else zcnt = 1;
             }
-            buffer_idx += range;
-        } while (buffer_ptr < buffer_end);
+            else if (zcnt >= 2 && bytestream[current_byte_pos] == 1) break;
+            current_byte_pos++;
+        } while ((uint32_t*)&bytestream[current_byte_pos] < buffer_end);
+        current_byte_pos -= 2;
+
+        auto current_qword_pos = current_byte_pos / 8;
+        buffer_ptr = (uint32_t*)&bytestream[current_qword_pos * 8];
+        buffer_idx = (current_byte_pos - current_qword_pos * 8) * 8;
+
+        buffer = bswap_64(*(uint64_t*)(buffer_ptr)) << buffer_idx;
+        buffer_ptr += 2;
+        cache  = bswap_64(*(uint64_t*)(buffer_ptr)); // precache next value
+        if (buffer_idx)
+            buffer |= cache >> (64 - buffer_idx);
+
         return false;
     }
 
     MP2V_INLINE void skip_bits(int len) {
-        buffer_idx += len;
+        flush_bits(len);
     }
 
 private:

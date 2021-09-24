@@ -96,25 +96,23 @@ MP2V_INLINE bool read_coefficient_0(bitstream_reader_c* bs, int16_t*& qfs, uint6
 
 static void read_block_coefficients_0(bitstream_reader_c* bs, uint32_t n, int16_t QFS[64]) {
     int16_t* qfs = &QFS[n];
-    uint64_t& buffer = bs->align_buffer();
+    uint64_t& buffer = bs->update();
     for (int i = 0; i < 2; i++) {
-        if (!read_coefficient_0(bs, qfs, buffer)) goto bye;
-        if (!read_coefficient_0(bs, qfs, buffer)) goto bye;
-        bs->load_dword();
+        if (!read_coefficient_0(bs, qfs, buffer)) return;
+        if (!read_coefficient_0(bs, qfs, buffer)) return;
+        bs->update();
     }
     while (1) {
-        if (!read_coefficient_0(bs, qfs, buffer)) break;
-        if (!read_coefficient_0(bs, qfs, buffer)) break;
-        if (!read_coefficient_0(bs, qfs, buffer)) break;
-        bs->load_dword();
+        if (!read_coefficient_0(bs, qfs, buffer)) return;
+        if (!read_coefficient_0(bs, qfs, buffer)) return;
+        if (!read_coefficient_0(bs, qfs, buffer)) return;
+        bs->update();
     }
-bye:
-    bs->align_rigth_buffer();
 }
 
 static void read_block_coefficients_1(bitstream_reader_c* bs, uint32_t n, int16_t QFS[64]) {
     int16_t* qfs = &QFS[n];
-    uint64_t& buffer = bs->align_buffer();
+    uint64_t& buffer = bs->update();
     while (true) {
         int run;
         int signed_level;
@@ -151,11 +149,10 @@ static void read_block_coefficients_1(bitstream_reader_c* bs, uint32_t n, int16_
             run = coeff.run;
             signed_level = (buffer & (1ll << (63 - coeff.len))) ? -coeff.level : coeff.level;
         }
-        buffer = bs->load_dword();
+        buffer = bs->update();
         qfs += run;
         *(qfs++) = signed_level;
     }
-    bs->align_rigth_buffer();
 }
 
 template<bool use_dct_one_table>

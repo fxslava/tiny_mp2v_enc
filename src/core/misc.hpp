@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 static uint8_t local_find_start_code(bitstream_reader_c* bs) {
-    bs->seek_pattern(vlc_start_code.value, vlc_start_code.len);
+    bs->next_start_code();
     return (uint8_t)(bs->get_next_bits(32) & 0xff);
 }
 
