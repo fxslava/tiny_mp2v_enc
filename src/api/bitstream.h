@@ -80,7 +80,7 @@ public:
 
 private:
     //FILE* bitstream = nullptr;
-    std::vector<uint32_t> buffer_pool;
+    std::vector<uint32_t, AlignmentAllocator<uint8_t, 32>> buffer_pool;
     uint32_t* buffer_ptr = nullptr;
     uint32_t* buffer_end = nullptr;
     uint64_t  buffer = 0;

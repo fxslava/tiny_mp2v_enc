@@ -176,7 +176,7 @@ MP2V_INLINE void decode_block_template(pixel_t* plane, uint32_t stride, int16_t 
 #include "scan_dequant_idct_sse2.hpp"
 template<bool alt_scan, bool intra, bool add, bool use_dct_one_table, bool luma = false>
 MP2V_INLINE void decode_block_template(bitstream_reader_c* m_bs, uint8_t* plane, uint32_t stride, uint16_t W_i[64], uint16_t W[64], uint8_t quantizer_scale, uint16_t &dct_dc_pred, uint8_t intra_dc_prec) {
-    int16_t QFS[64];
+    ALIGN(32) int16_t QFS[64];
     parse_block<use_dct_one_table, intra, luma>(m_bs, QFS, dct_dc_pred);
     scan_dequant_idct_template_sse2<intra, add>(plane, stride, QFS, intra ? W_i : W, quantizer_scale, intra_dc_prec);
 }

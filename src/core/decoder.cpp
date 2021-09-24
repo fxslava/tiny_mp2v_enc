@@ -54,12 +54,12 @@ frame_c::frame_c(int width, int height, int chroma_format) {
     m_height[2] = m_height[1];
 
     for (int i = 0; i < 3; i++)
-        m_planes[i] = new uint8_t[m_height[i] * m_stride[i]];
+        m_planes[i] = (uint8_t*)_aligned_malloc(m_height[i] * m_stride[i], 32);
 }
 
 frame_c::~frame_c() {
     for (int i = 0; i < 3; i++)
-        if (m_planes[i]) delete[] m_planes[i];
+        if (m_planes[i]) _aligned_free(m_planes[i]);
 }
 
 mp2v_slice_c::mp2v_slice_c(bitstream_reader_c* bitstream, mp2v_picture_c* pic, frame_c* frame) :
