@@ -22,6 +22,23 @@ public:
     void generate_vlc_code(vlc_t vlc_code)                 { generate_vlc_code(vlc_code.value, vlc_code.len); }
     int  get_fullness() { return fullness; }
 
+    // Low level
+    MP2V_INLINE uint64_t& get_buffer() {
+        return buffer;
+    }
+
+    template<int len>
+    MP2V_INLINE void flush_bits() {
+        buffer <<= len;
+        fullness -= len;
+    }
+
+    MP2V_INLINE void flush_bits(int len) {
+        buffer <<= len;
+        fullness -= len;
+    }
+    // End of Low level
+
     uint32_t get_next_bits(int len) {
         uint64_t mask = (1ll << len) - 1;
         return (buffer >> (64 - len)) & mask;
