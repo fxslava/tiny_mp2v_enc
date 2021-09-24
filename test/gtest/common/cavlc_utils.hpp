@@ -39,11 +39,13 @@ public:
     }
     // End of Low level
 
+    template<bool update_buffer = true>
     uint32_t get_next_bits(int len) {
         uint64_t mask = (1ll << len) - 1;
         return (buffer >> (64 - len)) & mask;
     }
 
+    template<bool update_buffer = true>
     uint32_t read_next_bits(int len) {
         fullness -= len;
         return get_next_bits(len);

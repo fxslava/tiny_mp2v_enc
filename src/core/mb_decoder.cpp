@@ -38,22 +38,22 @@ MP2V_INLINE static void inc_macroblock_yuv_ptrs(uint8_t* (&yuv)[3][3]) {
 
 template<bool use_dct_one_table>
 MP2V_INLINE static void read_first_coefficient(bitstream_reader_c* bs, uint32_t& run, int32_t& level) {
-    if (bs->get_next_bits(6) == 0b000001) {
+    if (bs->get_next_bits<false>(6) == 0b000001) {
         bs->skip_bits(6);
-        run = bs->read_next_bits(6);
-        level = bs->read_next_bits(12);
+        run = bs->read_next_bits<false>(6);
+        level = bs->read_next_bits<false>(12);
         if (level & 0b100000000000)
             level |= 0xfffff000;
     }
     else {
-        if (bs->get_next_bits(1) == 1) {
-            int code = bs->read_next_bits(2);
+        if (bs->get_next_bits<false>(1) == 1) {
+            int code = bs->read_next_bits<false>(2);
             level = (code == 2) ? 1 : -1;
             run = 0;
         }
         else {
-            coeff_t c = use_dct_one_table ? get_coeff_one(bs) : get_coeff_zero(bs);
-            int s = bs->read_next_bits(1);
+            coeff_t c = use_dct_one_table ? get_coeff_one<false>(bs) : get_coeff_zero<false>(bs);
+            int s = bs->read_next_bits<false>(1);
             level = s ? -c.level : c.level;
             run = c.run;
         }
@@ -199,19 +199,20 @@ template<bool use_dct_one_table, bool intra_block, bool luma>
 MP2V_INLINE static void parse_block(bitstream_reader_c* bs, int16_t(&QFS)[64], uint16_t& dct_dc_pred) {
     uint32_t n = 0;
 
+    bs->update();
     memset(QFS, 0, sizeof(QFS));
     if (intra_block) {
         uint16_t dct_dc_differential;
         uint16_t dct_dc_size;
         if (luma) {
-            dct_dc_size = get_dct_size_luminance(bs);
+            dct_dc_size = get_dct_size_luminance<false>(bs);
             if (dct_dc_size != 0)
-                dct_dc_differential = bs->read_next_bits(dct_dc_size);
+                dct_dc_differential = bs->read_next_bits<false>(dct_dc_size);
         }
         else {
-            dct_dc_size = get_dct_size_chrominance(bs);
+            dct_dc_size = get_dct_size_chrominance<false>(bs);
             if (dct_dc_size != 0)
-                dct_dc_differential = bs->read_next_bits(dct_dc_size);
+                dct_dc_differential = bs->read_next_bits<false>(dct_dc_size);
         }
         n++;
 
@@ -460,23 +461,23 @@ MP2V_INLINE void base_motion_compensation(macroblock_context_cache_t& cache, mac
 
 template<int picture_coding_type, int picture_structure, int frame_pred_frame_dct>
 static bool parse_modes(bitstream_reader_c* m_bs, macroblock_t& mb, int spatial_temporal_weight_code_table_index, mv_format_e& mv_format) {
-    mb.macroblock_type = get_macroblock_type(m_bs, picture_coding_type);
+    mb.macroblock_type = get_macroblock_type<false>(m_bs, picture_coding_type);
     if ((mb.macroblock_type & spatial_temporal_weight_code_flag_bit) && (spatial_temporal_weight_code_table_index != 0)) {
-        /*uint32_t spatial_temporal_weight_code = */m_bs->read_next_bits(2);
+        /*uint32_t spatial_temporal_weight_code = */m_bs->read_next_bits<false>(2);
     }
     if ((mb.macroblock_type & macroblock_motion_forward_bit) || (mb.macroblock_type & macroblock_motion_backward_bit)) {
         if (picture_structure == picture_structure_framepic) {
             mb.frame_motion_type = 2; // Frame-based
             if (frame_pred_frame_dct == 0)
-                mb.frame_motion_type = m_bs->read_next_bits(2);
+                mb.frame_motion_type = m_bs->read_next_bits<false>(2);
         }
         else {
-            mb.field_motion_type = m_bs->read_next_bits(2);
+            mb.field_motion_type = m_bs->read_next_bits<false>(2);
         }
     }
     if ((picture_structure == picture_structure_framepic) && (frame_pred_frame_dct == 0) &&
         ((mb.macroblock_type & macroblock_intra_bit) || (mb.macroblock_type & macroblock_pattern_bit))) {
-        mb.dct_type = m_bs->read_next_bits(1);
+        mb.dct_type = m_bs->read_next_bits<false>(1);
     }
 
     // decode modes
@@ -542,11 +543,11 @@ MP2V_INLINE uint16_t parse_coded_block_pattern(bitstream_reader_c* m_bs, macrobl
     uint16_t coded_block_pattern = 0;
     uint32_t coded_block_pattern_1, coded_block_pattern_2, cbp;
 
-    cbp = get_coded_block_pattern(m_bs);
+    cbp = get_coded_block_pattern<false>(m_bs);
     if (chroma_format == chroma_format_422)
-        coded_block_pattern_1 = m_bs->read_next_bits(2);
+        coded_block_pattern_1 = m_bs->read_next_bits<false>(2);
     if (chroma_format == chroma_format_444)
-        coded_block_pattern_2 = m_bs->read_next_bits(6);
+        coded_block_pattern_2 = m_bs->read_next_bits<false>(6);
     
     if (mb.macroblock_type & macroblock_intra_bit)
         coded_block_pattern = 0xffff;
@@ -597,27 +598,27 @@ MP2V_INLINE void update_motion_predictor(uint32_t f_code, int32_t motion_code, u
 
 template<uint8_t picture_structure, bool dmv>
 MP2V_INLINE bool parse_motion_vector(bitstream_reader_c* m_bs, uint32_t f_code[2], int16_t PMV[2], int16_t MVs[2], mv_format_e mv_format) {
-    int32_t motion_code = get_motion_code(m_bs);
+    int32_t motion_code = get_motion_code<false>(m_bs);
     if ((f_code[0] != 1) && (motion_code != 0)) {
-        uint32_t motion_residual = m_bs->read_next_bits(f_code[0] - 1);
+        uint32_t motion_residual = m_bs->read_next_bits<false>(f_code[0] - 1);
         update_motion_predictor<picture_structure, 0, true>(f_code[0], motion_code, motion_residual, PMV[0], MVs[0], mv_format);
     }
     else
         update_motion_predictor<picture_structure, 0, false>(f_code[0], motion_code, 0, PMV[0], MVs[0], mv_format);
 
     if (dmv)
-        /*mb.dmvector[0] = */get_dmvector(m_bs);
+        /*mb.dmvector[0] = */get_dmvector<false>(m_bs);
 
-    motion_code = get_motion_code(m_bs);
+    motion_code = get_motion_code<false>(m_bs);
     if ((f_code[1] != 1) && (motion_code != 0)) {
-        uint32_t motion_residual = m_bs->read_next_bits(f_code[1] - 1);
+        uint32_t motion_residual = m_bs->read_next_bits<false>(f_code[1] - 1);
         update_motion_predictor<picture_structure, 1, true>(f_code[1], motion_code, motion_residual, PMV[1], MVs[1], mv_format);
     }
     else
         update_motion_predictor<picture_structure, 1, false>(f_code[1], motion_code, 0, PMV[1], MVs[1], mv_format);
 
     if (dmv)
-        /*mb.dmvector[1] = */get_dmvector(m_bs);
+        /*mb.dmvector[1] = */get_dmvector<false>(m_bs);
     return true;
 }
 
@@ -625,13 +626,13 @@ template <uint8_t picture_structure, int s, bool dmv>
 MP2V_INLINE bool parse_motion_vectors(bitstream_reader_c* m_bs, macroblock_t& mb, uint32_t f_code[2][2], int16_t PMV[2][2][2], int16_t MVs[2][2][2], mv_format_e mv_format) {
     if (mb.motion_vector_count == 1) {
         if ((mv_format == Field) && !dmv)
-            mb.motion_vertical_field_select[0][s] = m_bs->read_next_bits(1);
+            mb.motion_vertical_field_select[0][s] = m_bs->read_next_bits<false>(1);
         parse_motion_vector<picture_structure, dmv>(m_bs, f_code[s], PMV[0][s], MVs[0][s], mv_format);
     }
     else {
-        mb.motion_vertical_field_select[0][s] = m_bs->read_next_bits(1);
+        mb.motion_vertical_field_select[0][s] = m_bs->read_next_bits<false>(1);
         parse_motion_vector<picture_structure, dmv>(m_bs, f_code[s], PMV[0][s], MVs[0][s], mv_format);
-        mb.motion_vertical_field_select[1][s] = m_bs->read_next_bits(1);
+        mb.motion_vertical_field_select[1][s] = m_bs->read_next_bits<false>(1);
         parse_motion_vector<picture_structure, dmv>(m_bs, f_code[s], PMV[1][s], MVs[1][s], mv_format);
     }
     return true;
@@ -656,7 +657,7 @@ bool parse_macroblock_template(bitstream_reader_c* m_bs, macroblock_context_cach
         m_bs->skip_bits(vlc_macroblock_escape_code.len);
         mb.macroblock_address_increment += 33;
     }
-    mb.macroblock_address_increment += get_macroblock_address_increment(m_bs);
+    mb.macroblock_address_increment += get_macroblock_address_increment<false>(m_bs);
 
     // decode skipped macroblocks
     if ((mb.macroblock_address_increment > 1) && (picture_coding_type == picture_coding_type_pred))
@@ -673,7 +674,7 @@ bool parse_macroblock_template(bitstream_reader_c* m_bs, macroblock_context_cach
     mv_format_e mv_format;
     parse_modes<picture_coding_type, picture_structure, frame_pred_frame_dct>(m_bs, mb, 0, mv_format);
     if (mb.macroblock_type & macroblock_quant_bit) {
-        auto quantiser_scale_code = m_bs->read_next_bits(5);
+        auto quantiser_scale_code = m_bs->read_next_bits<false>(5);
         if (q_scale_type) {
             if (quantiser_scale_code < 9)       cache.quantiser_scale =  quantiser_scale_code;
             else if (quantiser_scale_code < 17) cache.quantiser_scale = (quantiser_scale_code -  4) << 1;
@@ -683,6 +684,7 @@ bool parse_macroblock_template(bitstream_reader_c* m_bs, macroblock_context_cach
     }
 
     // Parse Motion Vectors
+    m_bs->update();
     int16_t  MVs[2][2][2];
     if ((mb.macroblock_type & macroblock_motion_forward_bit) || ((mb.macroblock_type & macroblock_intra_bit) && concealment_motion_vectors)) {
         if (mb.dmv) parse_motion_vectors<picture_structure, 0, true> (m_bs, mb, cache.f_code, cache.PMVs, MVs, mv_format);
@@ -745,8 +747,10 @@ bool parse_macroblock_template(bitstream_reader_c* m_bs, macroblock_context_cach
 
     bool dct_one_table = (cache.intra_vlc_format == 1) && intra_block;
     uint16_t coded_block_pattern = 0xffff;
+    m_bs->update();
     if (mb.macroblock_type & macroblock_pattern_bit)
         coded_block_pattern = parse_coded_block_pattern<chroma_format>(m_bs, mb);
+    m_bs->update();
     if ((mb.macroblock_type & macroblock_pattern_bit) || intra_block){
         if (dct_one_table)    decode_transform_template<chroma_format, alt_scan, true, false, true >(m_bs, cache, coded_block_pattern);
         else if (intra_block) decode_transform_template<chroma_format, alt_scan, true, false, false>(m_bs, cache, coded_block_pattern);

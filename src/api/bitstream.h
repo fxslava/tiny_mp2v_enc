@@ -66,13 +66,16 @@ public:
     }
     // End of low level
 
+    template<bool update_buffer = true>
     MP2V_INLINE uint32_t get_next_bits(int len) {
-        update();
+        if (update_buffer)
+            update();
         return buffer >> (64 - len);
     }
 
+    template<bool update_buffer = true>
     MP2V_INLINE uint32_t read_next_bits(int len) {
-        uint32_t tmp = get_next_bits(len);
+        uint32_t tmp = get_next_bits<update_buffer>(len);
         flush_bits(len);
         return tmp;
     }
