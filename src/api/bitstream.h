@@ -41,17 +41,32 @@ public:
     ~bitstream_reader_c() {}
 
     // Low level
-    MP2V_INLINE uint64_t align_buffer() {
+    MP2V_INLINE uint64_t& get_buffer() {
+        return buffer;
+    }
+
+    MP2V_INLINE uint64_t& align_buffer() {
+        update_buffer();
         if (buffer_idx > 0) {
             buffer <<= buffer_idx;
-            buffer |= bswap_64(*(uint64_t*)buffer_ptr) >> (64 - buffer_idx);
-        }
+            cache = bswap_64(*(uint64_t*)(buffer_ptr));
+            buffer |= cache >> (64 - buffer_idx);
+        } else
+            cache = bswap_64(*(uint64_t*)(buffer_ptr)); // just precache
         return buffer;
     }
 
     MP2V_INLINE void align_rigth_buffer() {
-        if (buffer_idx > 0)
+        if (buffer_idx > 0) {
             buffer >>= buffer_idx;
+            update_buffer();
+        }
+    }
+
+    template<int len>
+    MP2V_INLINE void flush_bits() {
+        buffer <<= len;
+        buffer_idx += len;
     }
 
     MP2V_INLINE void flush_bits(int len) {
@@ -59,14 +74,22 @@ public:
         buffer_idx += len;
     }
 
-    MP2V_INLINE uint64_t load_dword() {
-        if (buffer_idx >= 32) {
+    MP2V_INLINE uint64_t& load_dword() {
+        if (buffer_idx >= 64) {
+            buffer |= bswap_64(*(uint64_t*)(buffer_ptr)) << (buffer_idx - 64);
+            buffer_ptr += 2;
+            cache = bswap_64(*(uint64_t*)(buffer_ptr)); // precache next value
+            buffer_idx -= 64;
+            return buffer;
+        } 
+        else if (buffer_idx >= 32) {
             buffer |= bswap_64(*(uint64_t*)(buffer_ptr++)) >> (64 - buffer_idx);
+            cache = bswap_64(*(uint64_t*)(buffer_ptr)); // precache next value
             buffer_idx -= 32;
             return buffer;
         }
         else {
-            buffer |= bswap_64(*(uint64_t*)buffer_ptr) >> (64 - buffer_idx);
+            buffer |= cache >> (64 - buffer_idx);
             return buffer;
         }
     }
@@ -109,9 +132,10 @@ public:
 
 private:
     //FILE* bitstream = nullptr;
-    std::vector<uint32_t> buffer_pool;
-    uint32_t* buffer_ptr = nullptr;
-    uint32_t* buffer_end = nullptr;
-    uint64_t  buffer = 0;
-    uint32_t  buffer_idx = 64;
+    std::vector<uint32_t, AlignmentAllocator<uint8_t, 32>> buffer_pool;
+    ALIGN(16) uint32_t* buffer_ptr = nullptr;
+    ALIGN(16) uint32_t* buffer_end = nullptr;
+    ALIGN(16) uint64_t  buffer = 0;
+    ALIGN(16) uint64_t  cache = 0;
+    ALIGN(16) uint32_t  buffer_idx = 64;
 };

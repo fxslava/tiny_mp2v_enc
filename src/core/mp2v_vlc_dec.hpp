@@ -233,9 +233,9 @@ MP2V_INLINE coeff_t get_coeff_zero_template(bitstream_reader_t* bs) {
     else {
         int nlz = bit_scan_reverse(buffer);
         int idx = buffer >> (32 - nlz - 5);
-        coeff_t val = vlc_coeff_zero[nlz][idx].coeff;
-        bs->skip_bits(vlc_coeff_zero[nlz][idx].len);
-        return val;
+        vlc_lut_coeff_t val = vlc_coeff_zero[nlz][idx];
+        bs->skip_bits(val.len);
+        return { val.run, val.level };
     }
 }
 
@@ -251,17 +251,17 @@ MP2V_INLINE coeff_t get_coeff_one_template(bitstream_reader_t* bs) {
         int nlz = bit_scan_reverse(buffer);
         if (nlz > 0) {
             int idx = buffer >> (32 - nlz - 5);
-            coeff_t val = vlc_coeff_one0[nlz - 1][idx].coeff;
-            bs->skip_bits(vlc_coeff_one0[nlz - 1][idx].len);
-            return val;
+            vlc_lut_coeff_t val = vlc_coeff_one0[nlz - 1][idx];
+            bs->skip_bits(val.len);
+            return { val.run, val.level };
         }
         else
         {
             nlz = std::min<uint32_t>(bit_scan_reverse(~buffer), 8);
             int idx = (buffer >> (32 - nlz - 3)) & 7;
-            coeff_t val = vlc_coeff_one1[nlz - 1][idx].coeff;
-            bs->skip_bits(vlc_coeff_one1[nlz - 1][idx].len);
-            return val;
+            vlc_lut_coeff_t val = vlc_coeff_one0[nlz - 1][idx];
+            bs->skip_bits(val.len);
+            return { val.run, val.level };
         }
     }
 }

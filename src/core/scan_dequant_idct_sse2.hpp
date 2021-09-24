@@ -10,7 +10,7 @@
 
 template<bool intra, bool add>
 void scan_dequant_idct_template_sse2(uint8_t* plane, uint32_t stride, int16_t QF[64], uint16_t W[64], uint8_t quantizer_scale, int intra_dc_precision) {
-    __m128i buffer[8];
+    register __m128i buffer[8];
     for (int i = 0; i < 8; i++)
         buffer[i] = _mm_loadu_si128((__m128i*) & QF[i * 8]);
 
