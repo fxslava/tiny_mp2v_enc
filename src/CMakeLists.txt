@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 11)
 file(
     GLOB SOURCES
         ./core/encoder.cpp
+        ./core/mp2v_hdr.cpp
 )
 
 if(WIN32)
