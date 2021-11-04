@@ -5,7 +5,7 @@
 #include "bitstream_writer.h"
 #include "common/cpu.hpp"
 
-#define START_CODE(code) (0x00010000 | (code << 24))
+#define START_CODE(code) (0x00000100 | code)
 
 constexpr uint32_t macroblock_quant_bit = 0b100000;
 constexpr uint32_t macroblock_motion_forward_bit = 0b10000;
@@ -298,6 +298,7 @@ bool write_picture_spatial_scalable_extension(bitstream_writer_c* m_bs, picture_
 bool write_copyright_extension(bitstream_writer_c* m_bs, copyright_extension_t& crext);
 
 MP2V_INLINE bool write_slice_header(bitstream_writer_c* m_bs, slice_t& slice, sequence_header_t& sh, sequence_scalable_extension_t* sequence_scalable_extension) {
+    m_bs->align();
     m_bs->write_bits(slice.slice_start_code, 32);
     if (sh.vertical_size_value > 2800)
         m_bs->write_bits(slice.slice_vertical_position_extension, 3);
