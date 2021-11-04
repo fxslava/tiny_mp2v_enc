@@ -5,6 +5,8 @@
 #include "bitstream_writer.h"
 #include "common/cpu.hpp"
 
+#define START_CODE(code) (0x00010000 | (code << 24))
+
 constexpr uint32_t macroblock_quant_bit = 0b100000;
 constexpr uint32_t macroblock_motion_forward_bit = 0b10000;
 constexpr uint32_t macroblock_motion_backward_bit = 0b1000;
@@ -61,7 +63,7 @@ constexpr uint8_t chroma_format_444 = 3;
 // ISO/IEC 13818-2 : 2000 (E) 6.2.2.1
 struct sequence_header_t {
     //     | Syntax element                               | No. of bits | Mnemonic
-    uint32_t sequence_header_code;                     // | 32          | bslbf
+    //uint32_t sequence_header_code;                   // | 32          | bslbf
     uint32_t horizontal_size_value;                    // | 12          | uimsbf
     uint32_t vertical_size_value;                      // | 12          | uimsbf
     uint32_t aspect_ratio_information;                 // | 4           | uimsbf
@@ -87,8 +89,8 @@ struct sequence_header_t {
 // ISO/IEC 13818-2 : 2000 (E) 6.2.2.3
 struct sequence_extension_t {
     //     | Syntax element                               | No. of bits | Mnemonic
-    uint32_t extension_start_code;                     // | 32          | bslbf
-    uint32_t extension_start_code_identifier;          // | 4           | uimsbf
+    //uint32_t extension_start_code;                   // | 32          | bslbf
+    //uint32_t extension_start_code_identifier;        // | 4           | uimsbf
     uint32_t profile_and_level_indication;             // | 8           | uimsbf
     uint32_t progressive_sequence;                     // | 1           | uimsbf
     uint32_t chroma_format;                            // | 2           | uimsbf
@@ -104,7 +106,7 @@ struct sequence_extension_t {
 // ISO/IEC 13818-2 : 2000 (E) 6.2.2.4
 struct sequence_display_extension_t {
     //     | Syntax element                               | No. of bits | Mnemonic
-    uint32_t extension_start_code_identifier;          // | 4           | uimsbf
+    //uint32_t extension_start_code_identifier;        // | 4           | uimsbf
     uint32_t video_format;                             // | 3           | uimsbf
     uint32_t colour_description;                       // | 1           | uimsbf
     uint32_t colour_primaries;                         // | 8           | uimsbf
@@ -117,7 +119,7 @@ struct sequence_display_extension_t {
 // ISO/IEC 13818-2 : 2000 (E) 6.2.2.5
 struct sequence_scalable_extension_t {
     //     | Syntax element                               | No. of bits | Mnemonic
-    uint32_t extension_start_code_identifier;          // | 4           | uimsbf
+    //uint32_t extension_start_code_identifier;        // | 4           | uimsbf
     uint32_t scalable_mode;                            // | 2           | uimsbf
     uint32_t layer_id;                                 // | 4           | uimsbf
     uint32_t lower_layer_prediction_horizontal_size;   // | 14          | uimsbf
@@ -135,7 +137,7 @@ struct sequence_scalable_extension_t {
 // ISO/IEC 13818-2 : 2000 (E) 6.2.2.6
 struct group_of_pictures_header_t {
     //     | Syntax element                               | No. of bits | Mnemonic
-    uint32_t group_start_code;                         // | 32          | bslbf
+    //uint32_t group_start_code;                       // | 32          | bslbf
     uint32_t time_code;                                // | 25          | uimsbf
     uint32_t closed_gop;                               // | 1           | uimsbf
     uint32_t broken_link;                              // | 1           | uimsbf
@@ -144,7 +146,7 @@ struct group_of_pictures_header_t {
 // ISO/IEC 13818-2 : 2000 (E) 6.2.3
 struct picture_header_t {
     //     | Syntax element                               | No. of bits | Mnemonic
-    uint32_t picture_start_code;                       // | 32          | bslbf
+    //uint32_t picture_start_code;                     // | 32          | bslbf
     uint32_t temporal_reference;                       // | 10          | uimsbf
     uint32_t picture_coding_type;                      // | 3           | uimsbf
     uint32_t vbv_delay;                                // | 16          | uimsbf
@@ -157,7 +159,7 @@ struct picture_header_t {
 // ISO/IEC 13818-2 : 2000 (E) 6.2.3.1
 struct picture_coding_extension_t {
     //     | Syntax element                               | No. of bits | Mnemonic
-    uint32_t extension_start_code;                     // | 32          | bslbf
+    //uint32_t extension_start_code;                   // | 32          | bslbf
     uint32_t extension_start_code_identifier;          // | 4           | uimsbf
     uint32_t f_code[2][2];                             // | 4           | uimsbf
     uint32_t intra_dc_precision;                       // | 2           | uimsbf
@@ -182,7 +184,7 @@ struct picture_coding_extension_t {
 // ISO/IEC 13818-2 : 2000 (E) 6.2.3.2
 struct quant_matrix_extension_t {
     //     | Syntax element                               | No. of bits | Mnemonic
-    uint32_t extension_start_code_identifier;          // | 4           | uimsbf
+    //uint32_t extension_start_code_identifier;        // | 4           | uimsbf
     uint32_t load_intra_quantiser_matrix;              // | 1           | uimsbf
     uint8_t  intra_quantiser_matrix[64];               // | 8 * 64      | uimsbf
     uint32_t load_non_intra_quantiser_matrix;          // | 1           | uimsbf
@@ -196,7 +198,7 @@ struct quant_matrix_extension_t {
 // ISO/IEC 13818-2 : 2000 (E) 6.2.3.3
 struct picture_display_extension_t {
     //     | Syntax element                               | No. of bits | Mnemonic
-    uint32_t extension_start_code_identifier;          // | 4           | uimsbf
+    //uint32_t extension_start_code_identifier;        // | 4           | uimsbf
     uint32_t frame_centre_horizontal_offset[3];        // | 16          | simsbf
     uint32_t frame_centre_vertical_offset[3];          // | 16          | simsbf
 };
@@ -204,7 +206,7 @@ struct picture_display_extension_t {
 // ISO/IEC 13818-2 : 2000 (E) 6.2.3.4
 struct picture_temporal_scalable_extension_t {
     //     | Syntax element                               | No. of bits | Mnemonic
-    uint32_t extension_start_code_identifier;          // | 4           | uimsbf
+    //uint32_t extension_start_code_identifier;        // | 4           | uimsbf
     uint32_t reference_select_code;                    // | 2           | uimsbf
     uint32_t forward_temporal_reference;               // | 10          | uimsbf
     uint32_t backward_temporal_reference;              // | 10          | uimsbf
@@ -213,7 +215,7 @@ struct picture_temporal_scalable_extension_t {
 // ISO/IEC 13818-2 : 2000 (E) 6.2.3.5
 struct picture_spatial_scalable_extension_t {
     //     | Syntax element                               | No. of bits | Mnemonic
-    uint32_t extension_start_code_identifier;          // | 4           | uimsbf
+    //uint32_t extension_start_code_identifier;        // | 4           | uimsbf
     uint32_t lower_layer_temporal_reference;           // | 10          | uimsbf
     uint32_t lower_layer_horizontal_offset;            // | 15          | simsbf
     uint32_t lower_layer_vertical_offset;              // | 15          | simsbf
@@ -225,7 +227,7 @@ struct picture_spatial_scalable_extension_t {
 // ISO/IEC 13818-2 : 2000 (E) 6.2.3.6
 struct copyright_extension_t {
     //     | Syntax element                               | No. of bits | Mnemonic
-    uint32_t extension_start_code_identifier;          // | 4           | uimsbf
+    //uint32_t extension_start_code_identifier;        // | 4           | uimsbf
     uint32_t copyright_flag;                           // | 1           | uimsbf
     uint32_t copyright_identifier;                     // | 8           | uimsbf
     uint32_t original_or_copy;                         // | 1           | uimsbf
@@ -241,7 +243,7 @@ struct copyright_extension_t {
 // ISO/IEC 13818-2 : 2000 (E) 6.2.3.7.1
 struct camera_parameters_extension_t {
     //     | Syntax element                               | No. of bits | Mnemonic
-    uint32_t extension_start_code_identifier;          // | 4           | uimsbf
+    //uint32_t extension_start_code_identifier;        // | 4           | uimsbf
     uint32_t reserved0;                                // | 1           | uimsbf
     uint32_t camera_id;                                // | 7           | simsbf
     uint32_t height_of_image_device;                   // | 22          | uimsbf
@@ -274,18 +276,6 @@ struct slice_t {
     uint32_t intra_slice;                              // | 1           | uimsbf
     uint32_t slice_picture_id_enable;                  // | 1           | uimsbf
     uint32_t slice_picture_id;                         // | 6           | uimbsf
-};
-
-enum mv_format_e {
-    Field = 0,
-    Frame
-};
-
-enum prediction_type_e {
-    Field_based,
-    Frame_based,
-    Dual_Prime,
-    MC16x8
 };
 
 // ISO/IEC 13818-2 : 2000 (E) 6.2.5
