@@ -9,11 +9,12 @@
 frame_t read_422_yuv(FILE* fp, int width, int height) {
     frame_t res;
 
+    int h = (height + 15) & ~15;
     int stride = (width + CACHE_LINE - 1) & ~(CACHE_LINE - 1);
     int chroma_stride = ((stride / 2) + CACHE_LINE - 1) & ~(CACHE_LINE - 1);
-    res.planes[0] = new uint8_t[stride * height];
-    res.planes[1] = new uint8_t[chroma_stride * height];
-    res.planes[2] = new uint8_t[chroma_stride * height];
+    res.planes[0] = new uint8_t[stride * h];
+    res.planes[1] = new uint8_t[chroma_stride * h];
+    res.planes[2] = new uint8_t[chroma_stride * h];
     res.strides[0] = stride;
     res.strides[1] = chroma_stride;
     res.strides[2] = chroma_stride;
@@ -46,12 +47,17 @@ int main(int argc, char* argv[])
     if (input_yuv) {
         mp2v_encoder_c encoder;
 
+        const auto start = std::chrono::system_clock::now();
+
         FILE* fp = fopen(input_yuv->c_str(), "rb");
         while (!feof(fp))
             encoder.put_frame(read_422_yuv(fp, width, height));
         fclose(fp);
 
         encoder.flush();
+
+        auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start);
+        printf("Time = %.2f ms\n", static_cast<double>(elapsed_ms.count()));
 
         if (output_bitsream) {
             uint32_t* bitstream;

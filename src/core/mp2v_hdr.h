@@ -299,7 +299,7 @@ bool write_copyright_extension(bitstream_writer_c* m_bs, copyright_extension_t& 
 
 MP2V_INLINE bool write_slice_header(bitstream_writer_c* m_bs, slice_t& slice, sequence_header_t& sh, sequence_scalable_extension_t* sequence_scalable_extension) {
     m_bs->align();
-    m_bs->write_bits(slice.slice_start_code, 32);
+    m_bs->write_bits(START_CODE(slice.slice_start_code), 32);
     if (sh.vertical_size_value > 2800)
         m_bs->write_bits(slice.slice_vertical_position_extension, 3);
     if (sequence_scalable_extension && sequence_scalable_extension->scalable_mode == scalable_mode_data_partitioning)

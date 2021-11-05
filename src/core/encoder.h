@@ -82,7 +82,6 @@ public:
     }
 
 private:
-    void encode_slice(int row_idx, uint8_t* planes[3], int strides[3], int qp);
     void encode_I_frame(frame_t frame);
     void encode_video_sequence();
     static void encode_proc(mp2v_encoder_c* enc) {

@@ -22,6 +22,7 @@ bool write_sequence_header(bitstream_writer_c* m_bs, sequence_header_t &sh) {
 }
 
 bool write_sequence_extension(bitstream_writer_c* m_bs, sequence_extension_t &sext) {
+    m_bs->align();
     m_bs->write_bits(START_CODE(extension_start_code), 32);
     m_bs->write_bits(sequence_extension_id, 4);
     m_bs->write_bits(sext.profile_and_level_indication, 8);
@@ -39,6 +40,7 @@ bool write_sequence_extension(bitstream_writer_c* m_bs, sequence_extension_t &se
 }
 
 bool write_sequence_display_extension(bitstream_writer_c* m_bs, sequence_display_extension_t & sdext) {
+    m_bs->align();
     m_bs->write_bits(START_CODE(extension_start_code), 32);
     m_bs->write_bits(sequence_display_extension_id, 4);
     m_bs->write_bits(sdext.video_format, 3);
@@ -55,6 +57,7 @@ bool write_sequence_display_extension(bitstream_writer_c* m_bs, sequence_display
 }
 
 bool write_sequence_scalable_extension(bitstream_writer_c* m_bs, sequence_scalable_extension_t &ssext) {
+    m_bs->align();
     m_bs->write_bits(START_CODE(extension_start_code), 32);
     m_bs->write_bits(sequence_scalable_extension_id, 4);
     m_bs->write_bits(ssext.scalable_mode, 2);
@@ -106,6 +109,7 @@ bool write_picture_header(bitstream_writer_c* m_bs, picture_header_t & ph) {
 }
 
 bool write_picture_coding_extension(bitstream_writer_c* m_bs, picture_coding_extension_t &pcext) {
+    m_bs->align();
     m_bs->write_bits(START_CODE(extension_start_code), 32);
     m_bs->write_bits(picture_coding_extension_id, 4);
     m_bs->write_bits(pcext.f_code[0][0], 4);
@@ -135,6 +139,7 @@ bool write_picture_coding_extension(bitstream_writer_c* m_bs, picture_coding_ext
 }
 
 bool write_quant_matrix_extension(bitstream_writer_c* m_bs, quant_matrix_extension_t &qmext) {
+    m_bs->align();
     m_bs->write_bits(START_CODE(extension_start_code), 32);
     m_bs->write_bits(quant_matrix_extension_id, 4);
     m_bs->write_bits(qmext.load_intra_quantiser_matrix, 1);
@@ -176,6 +181,7 @@ bool write_picture_display_extension(bitstream_writer_c* m_bs, picture_display_e
         }
     }
 
+    m_bs->align();
     m_bs->write_bits(START_CODE(extension_start_code), 32);
     m_bs->write_bits(picture_display_extension_id, 4);
     for (int i = 0; i < number_of_frame_centre_offsets; i++) {
@@ -188,6 +194,7 @@ bool write_picture_display_extension(bitstream_writer_c* m_bs, picture_display_e
 }
 
 bool write_picture_temporal_scalable_extension(bitstream_writer_c* m_bs, picture_temporal_scalable_extension_t& ptsext) {
+    m_bs->align();
     m_bs->write_bits(START_CODE(extension_start_code), 32);
     m_bs->write_bits(picture_temporal_scalable_extension_id, 4);
     m_bs->write_bits(ptsext.reference_select_code, 2);
@@ -197,6 +204,7 @@ bool write_picture_temporal_scalable_extension(bitstream_writer_c* m_bs, picture
     return true;
 }
 bool write_picture_spatial_scalable_extension(bitstream_writer_c* m_bs, picture_spatial_scalable_extension_t& pssext) {
+    m_bs->align();
     m_bs->write_bits(START_CODE(extension_start_code), 32);
     m_bs->write_bits(picture_spatial_scalable_extension_id, 4);
     m_bs->write_bits(pssext.lower_layer_temporal_reference, 10);
@@ -211,6 +219,7 @@ bool write_picture_spatial_scalable_extension(bitstream_writer_c* m_bs, picture_
 }
 
 bool write_copyright_extension(bitstream_writer_c* m_bs, copyright_extension_t& crext) {
+    m_bs->align();
     m_bs->write_bits(START_CODE(extension_start_code), 32);
     m_bs->write_bits(copiright_extension_id, 4);
     m_bs->write_bits(crext.copyright_flag, 1);

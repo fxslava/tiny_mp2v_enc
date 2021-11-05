@@ -1,4 +1,5 @@
 #include "encoder.h"
+#include "mb_encoder.h"
 
 int frame_rate_code_tbl[8] = { 1, 2, 3, 4, 5, 6, 7, 8 };
 
@@ -32,6 +33,24 @@ static void make_macroblock_yuv_ptrs(uint8_t* (&yuv)[3], frame_t frame, int mb_r
     case chroma_format_444:
         yuv[1] = frame.planes[1] + mb_row * 16 * frame.strides[1];
         yuv[2] = frame.planes[2] + mb_row * 16 * frame.strides[2];
+        break;
+    }
+}
+
+static void yuv_ptrs_increment(uint8_t* (&yuv)[3], int chroma_format) {
+    yuv[0] += 16;
+    switch (chroma_format) {
+    case chroma_format_420:
+        yuv[1] += 8;
+        yuv[2] += 8;
+        break;
+    case chroma_format_422:
+        yuv[1] += 8;
+        yuv[2] += 8;
+        break;
+    case chroma_format_444:
+        yuv[1] += 16;
+        yuv[2] += 16;
         break;
     }
 }
@@ -127,7 +146,7 @@ void mp2v_encoder_c::encode_I_frame(frame_t frame) {
     pic_coding_ext.intra_dc_precision = cfg.intra_dc_prec;
     pic_coding_ext.picture_structure = picture_structure_framepic;
     pic_coding_ext.top_field_first = 1;
-    pic_coding_ext.frame_pred_frame_dct = 0;
+    pic_coding_ext.frame_pred_frame_dct = 1;
     pic_coding_ext.concealment_motion_vectors = 0;
     pic_coding_ext.q_scale_type = 1;
     pic_coding_ext.intra_vlc_format = 1;
@@ -140,19 +159,24 @@ void mp2v_encoder_c::encode_I_frame(frame_t frame) {
 
     int qp = cfg.rc_config.intra_qp;
 
-    for (int y = 0; y < mb_height; y++) {
+    for (int row_idx = 0; row_idx < mb_height; row_idx++) {
         uint8_t* yuv_ptrs[3];
-        make_macroblock_yuv_ptrs(yuv_ptrs, frame, y, cfg.chroma_format);
-        encode_slice(y, yuv_ptrs, frame.strides, qp);
+        make_macroblock_yuv_ptrs(yuv_ptrs, frame, row_idx, cfg.chroma_format);
+
+        slice_t slice;
+        slice.slice_start_code = (row_idx & 0x7f) + 1;
+        slice.slice_vertical_position_extension = (row_idx >> 7);
+        slice.quantiser_scale_code = qp;
+        slice.slice_extension_flag = 0;
+
+        write_slice_header(&m_bs, slice, seq_hdr, nullptr);
+
+        int16_t reset = 1 << (cfg.intra_dc_prec + 7);
+        int16_t dc_pred[3] = { reset, reset, reset };
+
+        for (int col_idx = 0; col_idx < mb_width; col_idx++) {
+            encode_mb(m_bs, yuv_ptrs, dc_pred, frame.strides, qp, cfg.intra_dc_prec);
+            yuv_ptrs_increment(yuv_ptrs, cfg.chroma_format);
+        }
     }
-}
-
-void mp2v_encoder_c::encode_slice(int row_idx, uint8_t* yuv_ptrs[3], int strides[3], int qp) {
-    slice_t slice;
-    slice.slice_start_code = (row_idx & 0x7f) + 1;
-    slice.slice_vertical_position_extension = (row_idx >> 7);
-    slice.quantiser_scale_code = qp;
-    slice.slice_extension_flag = 0;
-
-    write_slice_header(&m_bs, slice, seq_hdr, nullptr);
 }
