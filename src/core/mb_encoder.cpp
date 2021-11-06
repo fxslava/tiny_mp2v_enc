@@ -16,12 +16,23 @@ MP2V_INLINE bool encode_coeff(bitstream_writer_c &bs, int16_t level, int run) {
     return false;
 }
 
+MP2V_INLINE int16_t next_coeff(uint64_t& nnz, int16_t*& QF, int& run)
+{
+    nnz >>= 1;
+    QF++;
+    run = static_cast<uint32_t>(bit_scan_forward64(~nnz));
+    nnz >>= run;
+    QF += run;
+    return QF[0];
+}
+
 template<bool luma>
 MP2V_INLINE void encode_intra_block(bitstream_writer_c &bs, int16_t &dc_pred, uint8_t* plane, int stride, int qp, int dc_prec) {
     auto W = default_intra_quantiser_matrix;
     int16_t QF[65];
+    int16_t* qf = QF;
 
-    forward_dct_scan_quant_template<true, true>(QF, plane, W, stride, qp, dc_prec);
+    uint64_t nnz = forward_dct_scan_quant_template<true, true>(QF, plane, W, stride, qp, dc_prec);
 
     int16_t dc_diff = QF[0] - dc_pred;
     dc_pred = QF[0];
@@ -34,6 +45,19 @@ MP2V_INLINE void encode_intra_block(bitstream_writer_c &bs, int16_t &dc_pred, ui
     if (dc_size != 0) {
         if (dc_diff < 0) dc_diff += (1 << dc_size) - 1;
         bs.write_bits(dc_diff, dc_size);
+    }
+
+    int run = 0;
+    int16_t level = next_coeff(nnz, qf, run);
+    while (level) {
+        if (encode_coeff(bs, std::abs(level), run)) {
+            if (level < 0) bs.one_bit();
+            else bs.zero_bit();
+        }
+        else
+            bs.write_bits(((run << 12) | (1L << (6 + 12)) | (level & 0x0FFF)), (6 + 6 + 12));
+
+        level = next_coeff(nnz, qf, run);
     }
 
     bs.write_bits(0b0110, 4); // end of block

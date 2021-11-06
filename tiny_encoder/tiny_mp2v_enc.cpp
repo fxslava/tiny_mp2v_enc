@@ -46,14 +46,18 @@ int main(int argc, char* argv[])
 
     if (input_yuv) {
         mp2v_encoder_c encoder;
+        std::vector<frame_t> frame_buffer;
+
+        FILE* fp = fopen(input_yuv->c_str(), "rb");
+        do {
+            frame_buffer.push_back(read_422_yuv(fp, width, height));
+        } while (!feof(fp));
+        fclose(fp);
 
         const auto start = std::chrono::system_clock::now();
 
-        FILE* fp = fopen(input_yuv->c_str(), "rb");
-        while (!feof(fp))
-            encoder.put_frame(read_422_yuv(fp, width, height));
-        fclose(fp);
-
+        for (auto &frame: frame_buffer)
+            encoder.put_frame(frame);
         encoder.flush();
 
         auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start);
