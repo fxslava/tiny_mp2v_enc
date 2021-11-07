@@ -1,7 +1,14 @@
 #include "common/cpu.hpp"
 #include "mb_encoder.h"
 #include "mp2v_luts.hpp"
+
+#if defined(CPU_PLATFORM_AARCH64)
+#include "fdct_quant_scan_aarch64.hpp"
+#elif defined(CPU_PLATFORM_X64)
+#include "fdct_quant_scan_sse2.hpp"
+#else
 #include "fdct_quant_scan_c.hpp"
+#endif
 
 MP2V_INLINE void write_vlc(bitstream_writer_c &bs, vlc_t vlc) { bs.write_bits(vlc.value, vlc.len); }
 
