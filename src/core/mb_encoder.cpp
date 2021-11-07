@@ -35,11 +35,10 @@ MP2V_INLINE int16_t next_coeff(uint64_t& nnz, int16_t*& QF, int& run)
 
 template<bool luma>
 MP2V_INLINE void encode_intra_block(bitstream_writer_c &bs, int16_t &dc_pred, uint8_t* plane, int stride, int qp, int dc_prec) {
-    auto W = default_intra_quantiser_matrix;
     int16_t QF[65];
     int16_t* qf = QF;
 
-    uint64_t nnz = forward_dct_scan_quant_template<true, true>(QF, plane, W, stride, qp, dc_prec);
+    uint64_t nnz = forward_dct_scan_quant_template<true, true>(QF, plane, stride, qp, dc_prec);
 
     int16_t dc_diff = QF[0] - dc_pred;
     dc_pred = QF[0];

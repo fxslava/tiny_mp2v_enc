@@ -69,7 +69,7 @@ void fdct_1d(dst_t dst[8], src_t* src) {
 }
 
 template<bool alt_scan, bool intra = true>
-MP2V_INLINE uint64_t forward_dct_scan_quant_template(int16_t(&F)[65], uint8_t* src, uint8_t W[64], int stride, int quantizer_scale, int dc_prec) {
+MP2V_INLINE uint64_t forward_dct_scan_quant_template(int16_t(&F)[65], uint8_t* src, int stride, int quantizer_scale, int dc_prec) {
     double  tmp0[64];
     double  tmp1[64];
     int16_t tmp3[64];
@@ -86,5 +86,5 @@ MP2V_INLINE uint64_t forward_dct_scan_quant_template(int16_t(&F)[65], uint8_t* s
         fdct_1d(&tmp0[i * 8], &tmp1[i * 8]);
 
     //transpose & quantization
-    return transpose_quant_scan<alt_scan, intra>(F, tmp0, W, stride, quantizer_scale, dc_prec);
+    return transpose_quant_scan<alt_scan, intra>(F, tmp0, intra ? default_intra_quantiser_matrix : default_non_intra_quantiser_matrix, stride, quantizer_scale, dc_prec);
 }
