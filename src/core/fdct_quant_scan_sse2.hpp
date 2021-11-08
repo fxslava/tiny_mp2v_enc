@@ -138,15 +138,68 @@ MP2V_INLINE void transpose_8x8_sse2(__m128i (&src)[8]) {
     src[7] = _mm_unpackhi_epi64(a67b67c67d67, e67f67g67h67);
 }
 
-MP2V_INLINE void quantize_8x8_sse2(__m128i (&buffer)[8], int quantizer_scale) {
+MP2V_INLINE void quantize_8x8_sse2(__m128i (&buffer)[8], int quantizer_scale, int dc_prec) {
+    int16_t DC = (int16_t)buffer[0].m128i_i16[0];
+    int32_t QDC = (DC + 3 - dc_prec) >> (3 - dc_prec); // <-- precise rounding, less pulsating effect
+
     for (int i = 0; i < 8; i++) {
         __m128i val  = buffer[i];
         __m128i sign = _mm_srai_epi16(val, 15);
         __m128i absv = _mm_xor_si128(_mm_add_epi16(val, sign), sign);
         __m128i WS   = _mm_load_si128((__m128i*) &quant_mult_tbl[quantizer_scale][i * 8]);
-        __m128i qabs = _mm_mulhi_epi16(_mm_slli_epi16(absv, 4), WS);
+        __m128i qabs = _mm_mulhi_epi16(_mm_slli_epi16(absv, 5), WS);
         buffer[i] = _mm_sub_epi16(_mm_xor_si128(qabs, sign), sign);
     }
+
+    buffer[0].m128i_i16[0] = QDC; //tmp0 >> (3 - dc_prec);
+}
+
+MP2V_INLINE uint64_t make_altscan_sse2(int16_t(&F)[65], __m128i (&v)[8]) {
+    __m128i tmp0 = _mm_unpacklo_epi32(v[1], v[2]);                                                 // 10 11 20 21 12 13 22 23
+    __m128i res0 = _mm_unpacklo_epi64(v[0], tmp0);                                                 // 01 02 03 04 10 11 20 21
+    _mm_store_si128((__m128i*) & F[0], res0);
+
+            tmp0 = _mm_shufflehi_epi16(v[1], _MM_SHUFFLE(2, 3, 0, 1));                             // 10 11 12 13 15 14 17 16
+    __m128i tmp1 = _mm_blend_epi16(_mm_srli_si128(v[1], 4), tmp0, 0b11000000);                     // 12 13 14 15 16 17 17 16
+    __m128i res1 = _mm_blend_epi16(_mm_srli_si128(v[0], 4), tmp1, 0b11000011);                     // 12 13 04 05 06 07 17 16
+    _mm_store_si128((__m128i*) & F[8], res1);
+
+    uint64_t nnz = _mm_movemask_epi8(_mm_cmpeq_epi8(_mm_packs_epi16(res0, res1), _mm_setzero_si128()));
+
+            tmp0 = _mm_srli_si128(tmp0, 8);                                                        // 15 14 17 16 00 00 00 00
+            tmp1 = _mm_shufflelo_epi16(v[2], _MM_SHUFFLE(2, 3, 1, 0));                             // 20 21 23 22 24 25 26 27
+    __m128i tmp2 = _mm_unpacklo_epi32(v[3], v[4]);                                                 // 30 31 40 41 32 33 42 43
+    __m128i res2 = _mm_or_si128(_mm_blend_epi16(tmp0, tmp1, 0b00001100), _mm_slli_si128(tmp2, 8)); // 15 14 23 22 30 31 40 41
+    _mm_store_si128((__m128i*) & F[16], res2);
+
+            tmp0 = _mm_shuffle_epi32(v[3], _MM_SHUFFLE(2, 0, 3, 1));                               // 32 33 36 37 30 31 34 35
+            tmp1 = _mm_srli_si128(tmp1, 4);                                                        // 23 22 24 25 26 27 00 00
+    __m128i res3 = _mm_blend_epi16(tmp0, tmp1, 0b00111100);                                        // 32 33 24 25 26 27 34 35
+    _mm_store_si128((__m128i*) & F[24], res3);
+
+    nnz |= (uint64_t)_mm_movemask_epi8(_mm_cmpeq_epi8(_mm_packs_epi16(res2, res3), _mm_setzero_si128())) << 16;
+
+            tmp0 = _mm_blend_epi16(_mm_srli_si128(tmp0, 4), v[4], 0b11111100);                     // 36 37 42 43 44 45 46 47
+            tmp1 = _mm_unpacklo_epi32(v[5], v[6]);                                                 // 50 51 60 61 52 53 62 63
+    __m128i res4 = _mm_unpacklo_epi64(tmp0, tmp1);                                                 // 36 37 42 43 50 51 60 61
+    _mm_store_si128((__m128i*) & F[32], res4);
+
+            tmp0 = _mm_shuffle_epi32(v[5], _MM_SHUFFLE(2, 0, 3, 1));                               // 52 53 56 57 50 51 54 55
+            tmp1 = _mm_srli_si128(v[4], 4);                                                        // 42 43 44 45 46 47 00 00
+    __m128i res5 = _mm_blend_epi16(tmp0, tmp1, 0b00111100);                                        // 52 53 44 45 46 47 54 55
+    _mm_store_si128((__m128i*) & F[40], res5);
+
+    nnz |= (uint64_t)_mm_movemask_epi8(_mm_cmpeq_epi8(_mm_packs_epi16(res4, res5), _mm_setzero_si128())) << 32;
+
+            tmp0 = _mm_srli_si128(_mm_unpacklo_epi32(tmp0, v[6]), 8);                              // 56 57 62 63 00 00 00 00
+    __m128i res6 = _mm_or_si128(tmp0, _mm_slli_si128(v[7], 8));                                    // 56 57 62 63 70 71 72 73
+    _mm_store_si128((__m128i*) & F[48], res6);
+    __m128i res7 = _mm_unpackhi_epi64(v[6], v[7]);                                                 // 64 65 66 67 74 75 76 77
+    _mm_store_si128((__m128i*) & F[56], res7);
+
+    nnz |= (uint64_t)_mm_movemask_epi8(_mm_cmpeq_epi8(_mm_packs_epi16(res6, res7), _mm_setzero_si128())) << 48;
+    F[64] = 0;
+    return nnz;
 }
 
 template<bool alt_scan, bool intra = true>
@@ -159,16 +212,9 @@ uint64_t forward_dct_scan_quant_template(int16_t(&F)[65], uint8_t* src, int stri
     fdct_1d_sse2(buffer);
     transpose_8x8_sse2(buffer);
     fdct_1d_sse2<true>(buffer);
-    transpose_8x8_sse2(buffer);
+    //transpose_8x8_sse2(buffer);
+    quantize_8x8_sse2(buffer, quantizer_scale, dc_prec);
 
-    int16_t tmp0 = (int16_t)buffer[0].m128i_i16[0];
-    quantize_8x8_sse2(buffer, quantizer_scale);
-
-    for (int i = 0; i < 8; i++)
-        _mm_store_si128((__m128i*) & tmp[i * 8], buffer[i]);
-
-    buffer[0].m128i_i16[0] = tmp0 >> (3 - dc_prec);
-
-    //transpose & quantization
-    if (alt_scan) return make_alt_scan(F, tmp); else return make_zigzag_scan(F, tmp);
+    //transpose_8x8_sse2(buffer);
+    return make_altscan_sse2(F, buffer);
 }

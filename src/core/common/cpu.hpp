@@ -40,6 +40,13 @@ MP2V_INLINE uint32_t bit_scan_reverse(uint32_t x)
     return x ? 31 - index : 32;
 }
 
+MP2V_INLINE uint32_t bit_scan_reverse64(uint32_t x)
+{
+    unsigned long index;
+    _BitScanReverse64(&index, x);
+    return x ? 63 - index : 63;
+}
+
 MP2V_INLINE uint32_t bit_scan_forward(uint32_t x)
 {
     unsigned long index;

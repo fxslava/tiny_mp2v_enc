@@ -62,7 +62,7 @@ void mp2v_encoder_c::default_settings() {
         8, // num_threads
         intra_dc_prec_9bit,
         {rc_mode_const_q, 50000000, 50000000, 1088, 7, 15},
-        {false, frame_rate_60}
+        {false, frame_rate_25}
     };
     init_encoder(config);
 }

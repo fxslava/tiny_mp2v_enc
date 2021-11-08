@@ -13,6 +13,9 @@ class bitstream_writer_c {
         }
     }
 public:
+    bitstream_writer_c() {
+        buffer.reserve(128 * 1024 * 1024);
+    }
 
     MP2V_INLINE void write_bits(uint32_t val, int len) {
         bit_idx -= len;
