@@ -10,7 +10,7 @@
 #include "fdct_quant_scan_c.hpp"
 #endif
 
-MP2V_INLINE void write_vlc(bitstream_writer_c &bs, vlc_t vlc) { bs.write_bits(vlc.value, vlc.len); }
+MP2V_INLINE void write_vlc(bitstream_writer_c& bs, vlc_t vlc) { bs.write_bits(vlc.value, vlc.len); }
 
 MP2V_INLINE bool encode_coeff(bitstream_writer_c &bs, int16_t level, int run) {
     if (level < 2)       { if (run < 32) { write_vlc(bs, coeff_one_tab1[run]); return true; } } 
@@ -62,6 +62,11 @@ MP2V_INLINE void encode_intra_block(bitstream_writer_c &bs, int16_t &dc_pred, ui
         }
         else
             bs.write_bits(((run << 12) | (1L << (6 + 12)) | (level & 0x0FFF)), (6 + 6 + 12));
+
+        /*if (level >= -40 && level < 41 && run < 32)
+            write_vlc(bs, coeff_big_one_tab[run][level + 40]);
+        else
+            bs.write_bits(((run << 12) | (1L << (6 + 12)) | (level & 0x0FFF)), (6 + 6 + 12));*/
 
         level = next_coeff(nnz, qf, run);
     }
