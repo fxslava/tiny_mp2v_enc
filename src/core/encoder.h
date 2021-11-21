@@ -5,6 +5,7 @@
 #include <thread>
 #include "mp2v_hdr.h"
 #include "bitstream_writer.h"
+#include "motion_estimator.h"
 
 constexpr int CACHE_LINE = 64;
 
@@ -98,7 +99,7 @@ private:
     sequence_header_t seq_hdr;
     sequence_extension_t seq_ext;
     sequence_display_extension_t seq_display_ext;
-
+    std::vector<pyramide_t> input_queue;
     ThreadSafeQ<frame_t> frame_queue;
     std::thread encode_thread;
 };

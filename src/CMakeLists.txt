@@ -6,6 +6,7 @@ file(
     GLOB SOURCES
         ./core/encoder.cpp
         ./core/mb_encoder.cpp
+        ./core/motion_estimator.cpp
         ./core/mp2v_hdr.cpp
 )
 
